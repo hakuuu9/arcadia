@@ -1,13 +1,13 @@
 import discord
 from discord.ext import commands
-from config import ROLE_ID, INVITE_LINK, LOG_CHANNEL_ID
+from config import BOT_TOKEN, ROLE_ID, INVITE_LINK, LOG_CHANNEL_ID
 from keep_alive import keep_alive
 import os
 
-# AFK dictionary
+# AFK users storage
 afk_users = {}
 
-# Intents setup
+# Intents
 intents = discord.Intents.default()
 intents.presences = True
 intents.members = True
@@ -18,33 +18,44 @@ bot = commands.Bot(command_prefix="+", intents=intents)
 
 @bot.event
 async def on_ready():
-    print(f"{bot.user.name} is online and monitoring statuses, bios, and AFK commands.")
+    print(f"{bot.user.name} is online!")
 
-# +afk prefix command
+# +afk command
 @bot.command()
 async def afk(ctx, *, message: str = "I'm currently AFK."):
     afk_users[ctx.author.id] = message
     await ctx.reply(f"✅ {ctx.author.display_name} is now AFK: `{message}`", mention_author=False)
 
-# Handle mentions and returning from AFK
+# +avatar command
+@bot.command()
+async def avatar(ctx, member: discord.Member = None):
+    member = member or ctx.author
+    avatar_url = member.display_avatar.url
+
+    embed = discord.Embed(
+        title=f"{member.display_name}'s Avatar",
+        color=discord.Color.blue()
+    )
+    embed.set_image(url=avatar_url)
+    await ctx.send(embed=embed)
+
+# Detect if user returns from AFK or tags someone AFK
 @bot.event
 async def on_message(message):
     if message.author.bot:
         return
 
-    # If AFK user sends a message
     if message.author.id in afk_users:
         del afk_users[message.author.id]
         await message.channel.send(f"👋 Welcome back, {message.author.mention}! Your AFK status has been removed.")
 
-    # Notify if mentioned user is AFK
     for user in message.mentions:
         if user.id in afk_users:
             await message.channel.send(f"💤 {user.display_name} is AFK: {afk_users[user.id]}")
 
     await bot.process_commands(message)
 
-# Presence update: Check custom status and bio
+# Presence and bio check
 @bot.event
 async def on_presence_update(before, after):
     member = after
@@ -52,24 +63,25 @@ async def on_presence_update(before, after):
         return
 
     # Check custom status
-    activities = member.activities
-    custom_status = next((a for a in activities if a.type == discord.ActivityType.custom), None)
+    custom_status = next(
+        (activity for activity in member.activities if activity.type == discord.ActivityType.custom),
+        None
+    )
     custom_state = custom_status.state if custom_status else ""
 
-    # Fetch bio
+    # Try to get bio
     try:
         full_user = await bot.fetch_user(member.id)
         bio = getattr(full_user, "bio", "") or ""
     except Exception as e:
-        print(f"Error fetching bio: {e}")
+        print(f"Error fetching bio in presence_update: {e}")
         bio = ""
+
+    link_in_status = INVITE_LINK in (custom_state or "")
+    link_in_bio = INVITE_LINK in bio
 
     has_role = discord.utils.get(member.roles, id=ROLE_ID)
     log_channel = bot.get_channel(LOG_CHANNEL_ID)
-
-    # Match vanity link
-    link_in_status = INVITE_LINK in (custom_state or "")
-    link_in_bio = INVITE_LINK in bio
 
     if link_in_status or link_in_bio:
         if not has_role:
@@ -90,6 +102,8 @@ async def on_presence_update(before, after):
             except Exception as e:
                 print(f"Error removing role: {e}")
 
-# Keep alive + run bot
+# Keep alive for uptime services
 keep_alive()
-bot.run(os.getenv("BOT_TOKEN"))
+
+# Run bot
+bot.run(BOT_TOKEN)
