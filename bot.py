@@ -18,20 +18,19 @@ bot = commands.Bot(command_prefix="-", intents=intents)
 
 @bot.event
 async def on_ready():
-    print(f"{bot.user.name} is online!")
+    print(f"{bot.user.name} is online and ready!")
 
-# -afk command
+# ——— AFK Command ———
 @bot.command()
 async def afk(ctx, *, message: str = "I'm currently AFK."):
     afk_users[ctx.author.id] = message
     await ctx.reply(f"✅ {ctx.author.display_name} is now AFK: `{message}`", mention_author=False)
 
-# -avatar command
+# ——— Avatar Command ———
 @bot.command()
 async def avatar(ctx, member: discord.Member = None):
     member = member or ctx.author
     avatar_url = member.display_avatar.url
-
     embed = discord.Embed(
         title=f"{member.display_name}'s Avatar",
         color=discord.Color.blue()
@@ -39,59 +38,62 @@ async def avatar(ctx, member: discord.Member = None):
     embed.set_image(url=avatar_url)
     await ctx.send(embed=embed)
 
-# -ship command
+# ——— Ship Command ———
 @bot.command()
 async def ship(ctx, user1: discord.Member = None, user2: discord.Member = None):
     if not user1 or not user2:
-        await ctx.send("❗ Usage: `-ship @user1 @user2`")
-        return
-
+        return await ctx.send("❗ Usage: `-ship @user1 @user2`")
     percentage = random.randint(0, 100)
     bar = "💖" * (percentage // 10) + "💔" * (10 - percentage // 10)
-
     embed = discord.Embed(
         title="💘 Shipping Results 💘",
-        description=f"**{user1.display_name}** 💞 **{user2.display_name}**\nCompatibility: **{percentage}%**\n{bar}",
-        color=discord.Color.pink()
+        description=(
+            f"**{user1.display_name}** 💞 **{user2.display_name}**\n"
+            f"Compatibility: **{percentage}%**\n{bar}"
+        ),
+        color=discord.Color.magenta()
     )
     await ctx.send(embed=embed)
 
-# Detect if user returns from AFK or tags someone AFK
+# ——— Message Handler (AFK & command processing) ———
 @bot.event
 async def on_message(message):
     if message.author.bot:
         return
 
+    # Remove AFK if the user speaks again
     if message.author.id in afk_users:
         del afk_users[message.author.id]
         await message.channel.send(f"👋 Welcome back, {message.author.mention}! Your AFK status has been removed.")
 
+    # Notify when mentioning an AFK user
     for user in message.mentions:
         if user.id in afk_users:
             await message.channel.send(f"💤 {user.display_name} is AFK: {afk_users[user.id]}")
 
+    # Let prefix commands (like -ship) run
     await bot.process_commands(message)
 
-# Presence and bio check
+# ——— Presence & Bio Checker ———
 @bot.event
 async def on_presence_update(before, after):
     member = after
     if member.bot:
         return
 
-    # Check custom status
+    # Custom status
     custom_status = next(
-        (activity for activity in member.activities if activity.type == discord.ActivityType.custom),
+        (act for act in member.activities if act.type == discord.ActivityType.custom),
         None
     )
     custom_state = custom_status.state if custom_status else ""
 
-    # Try to get bio
+    # Fetch bio via HTTP (py-cord only)
     try:
         full_user = await bot.fetch_user(member.id)
         bio = getattr(full_user, "bio", "") or ""
     except Exception as e:
-        print(f"Error fetching bio in presence_update: {e}")
+        print(f"Error fetching bio: {e}")
         bio = ""
 
     link_in_status = INVITE_LINK in (custom_state or "")
@@ -100,27 +102,29 @@ async def on_presence_update(before, after):
     has_role = discord.utils.get(member.roles, id=ROLE_ID)
     log_channel = bot.get_channel(LOG_CHANNEL_ID)
 
+    # Add role if link appears
     if link_in_status or link_in_bio:
         if not has_role:
             try:
                 await member.add_roles(discord.Object(id=ROLE_ID))
                 print(f"✅ Added role to {member.display_name}")
                 if log_channel:
-                    await log_channel.send(f"✅ Added role to `{member.display_name}` (used vanity link).")
+                    await log_channel.send(f"✅ Added role to `{member.display_name}` (vanity link detected).")
             except Exception as e:
                 print(f"Error adding role: {e}")
+    # Remove if link is gone from both status & bio
     else:
         if has_role:
             try:
                 await member.remove_roles(discord.Object(id=ROLE_ID))
                 print(f"❌ Removed role from {member.display_name}")
                 if log_channel:
-                    await log_channel.send(f"❌ Removed role from `{member.display_name}` (removed vanity link).")
+                    await log_channel.send(f"❌ Removed role from `{member.display_name}` (vanity link removed).")
             except Exception as e:
                 print(f"Error removing role: {e}")
 
-# Keep alive (for UptimeRobot/Render/etc.)
+# Keep the webserver alive for UptimeRobot / Render
 keep_alive()
 
-# Run bot
+# Run the bot
 bot.run(BOT_TOKEN)
