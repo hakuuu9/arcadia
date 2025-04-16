@@ -13,9 +13,8 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 @bot.event
 async def on_ready():
-    print(f"{bot.user.name} is online and monitoring presence statuses and bios!")
+    print(f"{bot.user.name} is online and monitoring presence and bios.")
 
-# Custom Status checker
 @bot.event
 async def on_presence_update(before, after):
     member = after
@@ -29,7 +28,6 @@ async def on_presence_update(before, after):
     has_role = discord.utils.get(member.roles, id=ROLE_ID)
     log_channel = bot.get_channel(LOG_CHANNEL_ID)
 
-    # Add role if link is in custom status
     if INVITE_LINK in (custom_state or ""):
         if not has_role:
             try:
@@ -41,8 +39,11 @@ async def on_presence_update(before, after):
                 print(f"Error adding role: {e}")
     else:
         if has_role:
-            # Check if it's still in their bio before removing
-            bio = member.bio or ""
+            try:
+                bio = member.bio or ""
+            except AttributeError:
+                bio = ""
+
             if INVITE_LINK not in bio:
                 try:
                     await member.remove_roles(discord.Object(id=ROLE_ID))
@@ -52,43 +53,47 @@ async def on_presence_update(before, after):
                 except Exception as e:
                     print(f"Error removing role: {e}")
 
-# Bio (About Me) checker
 @bot.event
 async def on_user_update(before, after):
     if after.bot:
         return
 
+    try:
+        bio = after.bio or ""
+    except AttributeError:
+        return
+
     for guild in bot.guilds:
         member = guild.get_member(after.id)
-        if member:
-            bio = after.bio or ""
-            has_role = discord.utils.get(member.roles, id=ROLE_ID)
-            log_channel = bot.get_channel(LOG_CHANNEL_ID)
+        if not member:
+            continue
 
-            if INVITE_LINK in bio:
-                if not has_role:
-                    try:
-                        await member.add_roles(discord.Object(id=ROLE_ID))
-                        print(f"✅ Added role to {member.display_name} (bio)")
-                        if log_channel:
-                            await log_channel.send(f"✅ Added role to `{member.display_name}` (used link in bio).")
-                    except Exception as e:
-                        print(f"Error adding role from bio: {e}")
-            else:
-                if has_role:
-                    # Check if it's still in their status before removing
-                    activities = member.activities
-                    custom_status = next((a for a in activities if a.type == discord.ActivityType.custom), None)
-                    custom_state = custom_status.state if custom_status else ""
+        has_role = discord.utils.get(member.roles, id=ROLE_ID)
+        log_channel = bot.get_channel(LOG_CHANNEL_ID)
 
-                    if INVITE_LINK not in (custom_state or ""):
-                        try:
-                            await member.remove_roles(discord.Object(id=ROLE_ID))
-                            print(f"❌ Removed role from {member.display_name} (bio)")
-                            if log_channel:
-                                await log_channel.send(f"❌ Removed role from `{member.display_name}` (removed link from bio).")
-                        except Exception as e:
-                            print(f"Error removing role from bio: {e}")
+        if INVITE_LINK in bio:
+            if not has_role:
+                try:
+                    await member.add_roles(discord.Object(id=ROLE_ID))
+                    print(f"✅ Added role to {member.display_name} (bio)")
+                    if log_channel:
+                        await log_channel.send(f"✅ Added role to `{member.display_name}` (used link in bio).")
+                except Exception as e:
+                    print(f"Error adding role from bio: {e}")
+        else:
+            activities = member.activities
+            custom_status = next((a for a in activities if a.type == discord.ActivityType.custom), None)
+            custom_state = custom_status.state if custom_status else ""
+
+            if INVITE_LINK not in (custom_state or "") and has_role:
+                try:
+                    await member.remove_roles(discord.Object(id=ROLE_ID))
+                    print(f"❌ Removed role from {member.display_name} (bio)")
+                    if log_channel:
+                        await log_channel.send(f"❌ Removed role from `{member.display_name}` (removed link from bio).")
+                except Exception as e:
+                    print(f"Error removing role from bio: {e}")
 
 keep_alive()
 bot.run(os.getenv("BOT_TOKEN"))
+                    
