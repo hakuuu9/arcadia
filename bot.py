@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 from config import BOT_TOKEN, ROLE_ID, INVITE_LINK, LOG_CHANNEL_ID
 from keep_alive import keep_alive
-import os
+import random
 
 # AFK users storage
 afk_users = {}
@@ -20,13 +20,13 @@ bot = commands.Bot(command_prefix="-", intents=intents)
 async def on_ready():
     print(f"{bot.user.name} is online!")
 
-# +afk command
+# -afk command
 @bot.command()
 async def afk(ctx, *, message: str = "I'm currently AFK."):
     afk_users[ctx.author.id] = message
     await ctx.reply(f"✅ {ctx.author.display_name} is now AFK: `{message}`", mention_author=False)
 
-# +avatar command
+# -avatar command
 @bot.command()
 async def avatar(ctx, member: discord.Member = None):
     member = member or ctx.author
@@ -37,6 +37,23 @@ async def avatar(ctx, member: discord.Member = None):
         color=discord.Color.blue()
     )
     embed.set_image(url=avatar_url)
+    await ctx.send(embed=embed)
+
+# -ship command
+@bot.command()
+async def ship(ctx, user1: discord.Member = None, user2: discord.Member = None):
+    if not user1 or not user2:
+        await ctx.send("❗ Usage: `-ship @user1 @user2`")
+        return
+
+    percentage = random.randint(0, 100)
+    bar = "💖" * (percentage // 10) + "💔" * (10 - percentage // 10)
+
+    embed = discord.Embed(
+        title="💘 Shipping Results 💘",
+        description=f"**{user1.display_name}** 💞 **{user2.display_name}**\nCompatibility: **{percentage}%**\n{bar}",
+        color=discord.Color.pink()
+    )
     await ctx.send(embed=embed)
 
 # Detect if user returns from AFK or tags someone AFK
@@ -102,7 +119,7 @@ async def on_presence_update(before, after):
             except Exception as e:
                 print(f"Error removing role: {e}")
 
-# Keep alive for uptime services
+# Keep alive (for UptimeRobot/Render/etc.)
 keep_alive()
 
 # Run bot
