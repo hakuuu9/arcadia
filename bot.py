@@ -7,6 +7,13 @@ import random
 # AFK users storage
 afk_users = {}
 
+# Helper to generate a ship nickname
+def generate_nickname(name1: str, name2: str) -> str:
+    # Take first half of name1 + second half of name2
+    part1 = name1[: len(name1) // 2]
+    part2 = name2[len(name2) // 2 :]
+    return (part1 + part2).capitalize()
+
 # Intents
 intents = discord.Intents.default()
 intents.presences = True
@@ -43,14 +50,25 @@ async def avatar(ctx, member: discord.Member = None):
 async def ship(ctx, user1: discord.Member = None, user2: discord.Member = None):
     if not user1 or not user2:
         return await ctx.send("❗ Usage: `-ship @user1 @user2`")
+
+    # Calculate compatibility
     percentage = random.randint(0, 100)
     bar = "💖" * (percentage // 10) + "💔" * (10 - percentage // 10)
+
+    # Build the embed description
+    description = (
+        f"**{user1.display_name}** 💞 **{user2.display_name}**\n"
+        f"Compatibility: **{percentage}%**\n{bar}"
+    )
+
+    # If 50% or above, add a ship nickname
+    if percentage >= 50:
+        nickname = generate_nickname(user1.display_name, user2.display_name)
+        description += f"\n\n💍 **Ship Name:** `{nickname}`"
+
     embed = discord.Embed(
         title="💘 Shipping Results 💘",
-        description=(
-            f"**{user1.display_name}** 💞 **{user2.display_name}**\n"
-            f"Compatibility: **{percentage}%**\n{bar}"
-        ),
+        description=description,
         color=discord.Color.magenta()
     )
     await ctx.send(embed=embed)
@@ -81,7 +99,7 @@ async def on_presence_update(before, after):
     if member.bot:
         return
 
-    # Custom status
+    # Check custom status
     custom_status = next(
         (act for act in member.activities if act.type == discord.ActivityType.custom),
         None
@@ -109,7 +127,9 @@ async def on_presence_update(before, after):
                 await member.add_roles(discord.Object(id=ROLE_ID))
                 print(f"✅ Added role to {member.display_name}")
                 if log_channel:
-                    await log_channel.send(f"✅ Added role to `{member.display_name}` (vanity link detected).")
+                    await log_channel.send(
+                        f"✅ Added role to `{member.display_name}` (vanity link detected)."
+                    )
             except Exception as e:
                 print(f"Error adding role: {e}")
     # Remove if link is gone from both status & bio
@@ -119,7 +139,9 @@ async def on_presence_update(before, after):
                 await member.remove_roles(discord.Object(id=ROLE_ID))
                 print(f"❌ Removed role from {member.display_name}")
                 if log_channel:
-                    await log_channel.send(f"❌ Removed role from `{member.display_name}` (vanity link removed).")
+                    await log_channel.send(
+                        f"❌ Removed role from `{member.display_name}` (vanity link removed)."
+                    )
             except Exception as e:
                 print(f"Error removing role: {e}")
 
