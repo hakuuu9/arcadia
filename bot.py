@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands
-from config import ROLE_ID, INVITE_LINK
+from config import ROLE_ID, INVITE_LINK, LOG_CHANNEL_ID
 import os
 from keep_alive import keep_alive
 
@@ -17,24 +17,30 @@ async def on_ready():
 
 @bot.event
 async def on_presence_update(before, after):
-    member = after  # Corrected line
+    member = after  # after is already a Member object
 
     if member.bot:
         return
 
-    # Check the current custom status
+    # Check the custom status
     activities = after.activities
     custom_status = next((a for a in activities if a.type == discord.ActivityType.custom), None)
     custom_state = custom_status.state if custom_status else ""
 
-    # Check if the member has the role
+    # Check if the member has the target role
     has_role = discord.utils.get(member.roles, id=ROLE_ID)
 
+    # Get the log channel
+    log_channel = bot.get_channel(LOG_CHANNEL_ID)
+
+    # If the user has the vanity link in their custom status
     if INVITE_LINK in (custom_state or ""):
         if not has_role:
             try:
                 await member.add_roles(discord.Object(id=ROLE_ID))
                 print(f"✅ Added role to {member.display_name}")
+                if log_channel:
+                    await log_channel.send(f"✅ Added role to `{member.display_name}` for using the vanity link.")
             except Exception as e:
                 print(f"Error adding role: {e}")
     else:
@@ -42,11 +48,13 @@ async def on_presence_update(before, after):
             try:
                 await member.remove_roles(discord.Object(id=ROLE_ID))
                 print(f"❌ Removed role from {member.display_name}")
+                if log_channel:
+                    await log_channel.send(f"❌ Removed role from `{member.display_name}` for removing the vanity link.")
             except Exception as e:
                 print(f"Error removing role: {e}")
 
-# Keep the bot alive
+# Start the keep-alive server (for UptimeRobot if hosted)
 keep_alive()
 
-# Run the bot using your token from environment variables
+# Run the bot using token from environment variables
 bot.run(os.getenv("BOT_TOKEN"))
