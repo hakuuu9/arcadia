@@ -8,7 +8,6 @@ intents = discord.Intents.default()
 intents.presences = True
 intents.members = True
 intents.guilds = True
-intents.users = True  # Required to use on_user_update
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -42,7 +41,7 @@ async def on_presence_update(before, after):
                 print(f"Error adding role: {e}")
     else:
         if has_role:
-            # Check if it's also in their bio before removing
+            # Check if it's still in their bio before removing
             bio = member.bio or ""
             if INVITE_LINK not in bio:
                 try:
@@ -59,8 +58,7 @@ async def on_user_update(before, after):
     if after.bot:
         return
 
-    guilds = bot.guilds
-    for guild in guilds:
+    for guild in bot.guilds:
         member = guild.get_member(after.id)
         if member:
             bio = after.bio or ""
@@ -94,4 +92,3 @@ async def on_user_update(before, after):
 
 keep_alive()
 bot.run(os.getenv("BOT_TOKEN"))
-                        
