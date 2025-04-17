@@ -1,2 +1,2 @@
-discord.py==2.3.2
-Flask==2.2.5
+discord.py==2.0.1  # This is the main library for the Discord bot
+flask==2.1.2      # Flask for the keep-alive server
