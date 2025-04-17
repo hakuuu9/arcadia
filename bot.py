@@ -1,6 +1,3 @@
-from flask import Flask
-from threading import Thread
-
 import discord
 from discord.ext import commands, tasks
 from discord.ext.commands import Context
@@ -9,26 +6,25 @@ import random
 import asyncio
 import datetime
 import re
+from flask import Flask
+from threading import Thread
 
-# ─── Flask App to Prevent Render Timeout ────────────────────────────────
-app = Flask('')
-
-@app.route('/')
-def home():
-    return "Bot is alive!"
-
-def run():
-    app.run(host='0.0.0.0', port=8080)
-
-def keep_alive():
-    t = Thread(target=run)
-    t.start()
-
-# ─── Discord Bot Setup ──────────────────────────────────────────────────
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="$", intents=intents)
 
 afk_users = {}
+
+# Flask keep-alive server for Render
+app = Flask("")
+
+@app.route("/")
+def home():
+    return "Bot is running!"
+
+def run_flask():
+    app.run(host="0.0.0.0", port=8080)
+
+Thread(target=run_flask).start()
 
 @bot.event
 async def on_ready():
@@ -59,7 +55,7 @@ async def eight_ball(ctx: Context, *, question: str):
         "You already know the answer."
     ]
     response = random.choice(responses)
-    await ctx.send(f"🌫 **Question:** {question}\n**Answer:** {response}")
+    await ctx.send(f"🎱 **Question:** {question}\n**Answer:** {response}")
 
 @bot.command()
 async def remind(ctx: Context, time: str, *, message: str):
@@ -103,10 +99,10 @@ async def on_message(message):
 async def choose(ctx: Context, *, options: str):
     choices = [opt.strip() for opt in options.split(",") if opt.strip()]
     if len(choices) < 2:
-        await ctx.send("Please provide at least two choices separated by commas.")
+        await ctx.send("Please provide at least two choices, separated by commas.")
         return
     selected = random.choice(choices)
-    await ctx.send(f"🔮 I choose: **{selected}**")
+    await ctx.send(f"🎲 I choose: **{selected}**")
 
 @bot.event
 async def on_member_update(before: discord.Member, after: discord.Member):
@@ -120,16 +116,16 @@ async def on_member_update(before: discord.Member, after: discord.Member):
         if isinstance(after.activity, discord.CustomActivity):
             before_status = before.activity.name if before.activity else "None"
             after_status = after.activity.name if after.activity else "None"
-            changes.append(f"🗑 **Custom Status changed**\nBefore: `{before_status}`\nAfter: `{after_status}`")
+            changes.append(f"📝 **Custom Status changed**\nBefore: `{before_status}`\nAfter: `{after_status}`")
 
     if hasattr(before, "bio") and hasattr(after, "bio") and before.bio != after.bio:
         before_bio = before.bio if before.bio else "None"
         after_bio = after.bio if after.bio else "None"
-        changes.append(f"🗾 **Bio changed**\nBefore: `{before_bio}`\nAfter: `{after_bio}`")
+        changes.append(f"🧾 **Bio changed**\nBefore: `{before_bio}`\nAfter: `{after_bio}`")
 
-        if VANITY_LINK in (after.bio or "") and VANITY_LINK not in (before.bio or ""):
+        if VANITY_LINK in after_bio and VANITY_LINK not in before_bio:
             changes.append(f"🔗 **Vanity link added to bio!** ({VANITY_LINK})")
-        elif VANITY_LINK in (before.bio or "") and VANITY_LINK not in (after.bio or ""):
+        elif VANITY_LINK in before_bio and VANITY_LINK not in after_bio:
             changes.append(f"❌ **Vanity link removed from bio!** ({VANITY_LINK})")
 
     if changes:
@@ -143,6 +139,4 @@ async def on_member_update(before: discord.Member, after: discord.Member):
             embed.add_field(name="Update", value=change, inline=False)
         await log_channel.send(embed=embed)
 
-# ─── Run Bot and Web Server ─────────────────────────────────────────────
-keep_alive()
 bot.run(TOKEN)
