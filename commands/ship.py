@@ -21,3 +21,4 @@ class Ship(commands.Cog):
 # Setup the cog
 def setup(bot):
     bot.add_cog(Ship(bot))
+    
