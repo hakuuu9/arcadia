@@ -108,17 +108,25 @@ async def on_member_update(before: discord.Member, after: discord.Member):
 
     changes = []
 
+    # Check for vanity link in bio and status changes
     if before.activity != after.activity:
         if isinstance(after.activity, discord.CustomActivity):
             before_status = before.activity.name if before.activity else "None"
             after_status = after.activity.name if after.activity else "None"
-            changes.append(f"📝 **Custom Status changed**\nBefore: `{before_status}`\nAfter: `{after_status}`")
+            if VANITY_LINK in after_status and VANITY_LINK not in before_status:
+                changes.append(f"🔗 **Vanity link added to status!** ({VANITY_LINK})")
+            elif VANITY_LINK in before_status and VANITY_LINK not in after_status:
+                changes.append(f"❌ **Vanity link removed from status!** ({VANITY_LINK})")
 
-        # Detect Vanity link added/removed in custom status
-        if VANITY_LINK in after_status and VANITY_LINK not in before_status:
-            changes.append(f"🔗 **Vanity link added to status!** ({VANITY_LINK})")
-        elif VANITY_LINK in before_status and VANITY_LINK not in after_status:
-            changes.append(f"❌ **Vanity link removed from status!** ({VANITY_LINK})")
+    # Check bio change for vanity link
+    if hasattr(before, "bio") and hasattr(after, "bio") and before.bio != after.bio:
+        before_bio = before.bio if before.bio else "None"
+        after_bio = after.bio if after.bio else "None"
+        changes.append(f"🧾 **Bio changed**\nBefore: `{before_bio}`\nAfter: `{after_bio}`")
+        if VANITY_LINK in after_bio and VANITY_LINK not in before_bio:
+            changes.append(f"🔗 **Vanity link added to bio!** ({VANITY_LINK})")
+        elif VANITY_LINK in before_bio and VANITY_LINK not in after_bio:
+            changes.append(f"❌ **Vanity link removed from bio!** ({VANITY_LINK})")
 
     if changes:
         embed = discord.Embed(
