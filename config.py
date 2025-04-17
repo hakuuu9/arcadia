@@ -1,4 +1,4 @@
-TOKEN = "MTM2MTY5NDg4MDkyNDk1ODk2OA.GALfGf.DRA9m24yIOi9qDzhqCfWm6xsfRcaN1DY50sZ5s"
+TOKEN = "MTM2MTY5NDg4MDkyNDk1ODk2OA.G7wLuK.onlixf-jWQlYATFX8b-ZPr4can56yyZVH-rVKY"
 GUILD_ID = 1259666579214569552
 ROLE_ID = 1361732154584858724  # Replace with your role ID
 VANITY_LINK = "discord.gg/arcadiasolana"  # Replace with your vanity link
