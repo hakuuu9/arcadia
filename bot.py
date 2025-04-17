@@ -118,4 +118,13 @@ async def on_member_update(before: discord.Member, after: discord.Member):
             embed.add_field(name="Update", value=change, inline=False)
         await log_channel.send(embed=embed)
 
+# Choose command (updated with suggestion)
+@bot.command()
+async def choose(ctx: Context, *choices: str):
+    if not choices:
+        await ctx.send("You need to give me some options to choose from! Example: `$choose 🍕 🍔 🍟`")
+        return
+    choice = random.choice(choices)
+    await ctx.send(f"I choose... {choice}!")
+
 bot.run(TOKEN)
