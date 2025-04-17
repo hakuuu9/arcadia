@@ -17,7 +17,7 @@ intents.members = True
 intents.message_content = True
 intents.guilds = True
 
-bot = commands.Bot(command_prefix="-", intents=intents)
+bot = commands.Bot(command_prefix="$", intents=intents)
 
 @bot.event
 async def on_ready():
@@ -65,10 +65,10 @@ async def ship(ctx, user1: discord.Member = None, user2: discord.Member = None):
     await ctx.send(embed=embed)
 
 # 8ball command
-@bot.command(name="8ball")
+@bot.command(name="8b")
 async def eight_ball(ctx, *, question: str = None):
     if not question:
-        await ctx.send("🎱 Please ask a yes/no question. Usage: `-8ball Will I be lucky today?`")
+        await ctx.send("🎱 Please ask a yes/no question. Usage: `-8b Will I be lucky today?`")
         return
 
     responses = [
