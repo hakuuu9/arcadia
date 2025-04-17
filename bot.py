@@ -7,24 +7,23 @@ import asyncio
 import datetime
 import re
 from flask import Flask
-from threading import Thread
 
+# Flask setup
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Your bot is live!"
+
+# Run Flask in the background
+def run_flask():
+    app.run(host="0.0.0.0", port=8080)
+
+# Discord setup
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="$", intents=intents)
 
 afk_users = {}
-
-# Flask keep-alive server for Render
-app = Flask("")
-
-@app.route("/")
-def home():
-    return "Bot is running!"
-
-def run_flask():
-    app.run(host="0.0.0.0", port=8080)
-
-Thread(target=run_flask).start()
 
 @bot.event
 async def on_ready():
@@ -83,10 +82,12 @@ async def on_message(message):
     if message.author.bot:
         return
 
+    # AFK return check
     if message.author.id in afk_users:
         del afk_users[message.author.id]
         await message.channel.send(f"👋 Welcome back, {message.author.mention}! I removed your AFK.")
 
+    # Ping AFK user check
     for user_id in afk_users:
         if f"<@{user_id}>" in message.content:
             reason = afk_users[user_id]
@@ -94,15 +95,6 @@ async def on_message(message):
             break
 
     await bot.process_commands(message)
-
-@bot.command()
-async def choose(ctx: Context, *, options: str):
-    choices = [opt.strip() for opt in options.split(",") if opt.strip()]
-    if len(choices) < 2:
-        await ctx.send("Please provide at least two choices, separated by commas.")
-        return
-    selected = random.choice(choices)
-    await ctx.send(f"🎲 I choose: **{selected}**")
 
 @bot.event
 async def on_member_update(before: discord.Member, after: discord.Member):
@@ -118,15 +110,11 @@ async def on_member_update(before: discord.Member, after: discord.Member):
             after_status = after.activity.name if after.activity else "None"
             changes.append(f"📝 **Custom Status changed**\nBefore: `{before_status}`\nAfter: `{after_status}`")
 
-    if hasattr(before, "bio") and hasattr(after, "bio") and before.bio != after.bio:
-        before_bio = before.bio if before.bio else "None"
-        after_bio = after.bio if after.bio else "None"
-        changes.append(f"🧾 **Bio changed**\nBefore: `{before_bio}`\nAfter: `{after_bio}`")
-
-        if VANITY_LINK in after_bio and VANITY_LINK not in before_bio:
-            changes.append(f"🔗 **Vanity link added to bio!** ({VANITY_LINK})")
-        elif VANITY_LINK in before_bio and VANITY_LINK not in after_bio:
-            changes.append(f"❌ **Vanity link removed from bio!** ({VANITY_LINK})")
+        # Detect Vanity link added/removed in custom status
+        if VANITY_LINK in after_status and VANITY_LINK not in before_status:
+            changes.append(f"🔗 **Vanity link added to status!** ({VANITY_LINK})")
+        elif VANITY_LINK in before_status and VANITY_LINK not in after_status:
+            changes.append(f"❌ **Vanity link removed from status!** ({VANITY_LINK})")
 
     if changes:
         embed = discord.Embed(
@@ -138,5 +126,16 @@ async def on_member_update(before: discord.Member, after: discord.Member):
         for change in changes:
             embed.add_field(name="Update", value=change, inline=False)
         await log_channel.send(embed=embed)
+
+@bot.command()
+async def choose(ctx: Context, *, choices: str):
+    options = choices.split(",")
+    if len(options) < 2:
+        await ctx.send("Please provide at least two options separated by commas.")
+        return
+    chosen = random.choice(options).strip()
+    await ctx.send(f"🎉 I choose: **{chosen}**")
+
+bot.loop.create_task(run_flask())
 
 bot.run(TOKEN)
