@@ -14,7 +14,7 @@ bot = commands.Bot(command_prefix="$", intents=intents)
 
 afk_users = {}
 
-# Flask keep-alive for Render web service
+# Flask keep-alive server for Render
 app = Flask("")
 
 @app.route("/")
@@ -58,11 +58,20 @@ async def eight_ball(ctx: Context, *, question: str):
     await ctx.send(f"🎱 **Question:** {question}\n**Answer:** {response}")
 
 @bot.command()
+async def choose(ctx: Context, *, options: str):
+    choices = [opt.strip() for opt in options.split(",") if opt.strip()]
+    if len(choices) < 2:
+        await ctx.send("Please provide at least two choices, separated by commas.")
+        return
+    selected = random.choice(choices)
+    await ctx.send(f"🎲 I choose: **{selected}**")
+
+@bot.command()
 async def remind(ctx: Context, time: str, *, message: str):
     time_pattern = r"(\d+)(s|m|h|d)"
     match = re.fullmatch(time_pattern, time.lower())
     if not match:
-        await ctx.send("Invalid time format. Use `10s`, `5m`, `1h`, or `2d`.")
+        await ctx.send("Invalid time format. Use formats like `10s`, `5m`, `1h`, or `2d`.")
         return
 
     amount, unit = int(match.group(1)), match.group(2)
@@ -95,45 +104,31 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-@bot.command()
-async def choose(ctx: Context, *, options: str):
-    choices = [opt.strip() for opt in options.split(",") if opt.strip()]
-    if len(choices) < 2:
-        await ctx.send("Please provide at least two choices, separated by commas.")
-        return
-    selected = random.choice(choices)
-    await ctx.send(f"🎲 I choose: **{selected}**")
-
 @bot.event
 async def on_member_update(before: discord.Member, after: discord.Member):
     log_channel = bot.get_channel(LOG_CHANNEL_ID)
     guild = after.guild
-    role = guild.get_role(ROLE_ID)
-    if not log_channel or not role:
-        return
-
+    member = after
     changes = []
 
-    if before.activity != after.activity:
-        if isinstance(after.activity, discord.CustomActivity):
-            before_status = before.activity.name if before.activity else "None"
-            after_status = after.activity.name if after.activity else "None"
-            changes.append(f"📝 **Custom Status changed**\nBefore: `{before_status}`\nAfter: `{after_status}`")
-
     if hasattr(before, "bio") and hasattr(after, "bio") and before.bio != after.bio:
-        before_bio = before.bio or ""
-        after_bio = after.bio or ""
+        before_bio = before.bio or "None"
+        after_bio = after.bio or "None"
+        changes.append(f"🧾 **Bio changed**\nBefore: `{before_bio}`\nAfter: `{after_bio}`")
 
         if VANITY_LINK in after_bio and VANITY_LINK not in before_bio:
-            changes.append(f"🔗 **Vanity link added to bio!** ({VANITY_LINK})")
-            if role not in after.roles:
-                await after.add_roles(role)
-                changes.append(f"✅ Role **{role.name}** added.")
+            role = guild.get_role(ROLE_ID)
+            if role:
+                await member.add_roles(role)
+                changes.append(f"🔗 **Vanity link added to bio!**")
+                await log_channel.send(f"✅ {member.mention} added the vanity link and received the role <@&{ROLE_ID}>!")
+
         elif VANITY_LINK in before_bio and VANITY_LINK not in after_bio:
-            changes.append(f"❌ **Vanity link removed from bio!** ({VANITY_LINK})")
-            if role in after.roles:
-                await after.remove_roles(role)
-                changes.append(f"🚫 Role **{role.name}** removed.")
+            role = guild.get_role(ROLE_ID)
+            if role:
+                await member.remove_roles(role)
+                changes.append(f"❌ **Vanity link removed from bio!**")
+                await log_channel.send(f"⚠️ {member.mention} removed the vanity link and lost the role <@&{ROLE_ID}>!")
 
     if changes:
         embed = discord.Embed(
