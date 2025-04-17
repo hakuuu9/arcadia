@@ -140,8 +140,11 @@ async def choose(ctx: Context, *, choices: str):
     chosen = random.choice(options).strip()
     await ctx.send(f"🎉 I choose: **{chosen}**")
 
-async def main():
-    await bot.start(TOKEN)
+# Using setup_hook for async initialization of Flask
+async def setup():
+    await bot.wait_until_ready()
+    await run_flask()
 
-bot.loop.create_task(run_flask())
-bot.loop.run_until_complete(main())
+# Run bot with Flask
+bot.add_listener(setup, "on_ready")
+bot.run(TOKEN)
