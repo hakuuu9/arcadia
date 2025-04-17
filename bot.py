@@ -59,7 +59,7 @@ async def eight_ball(ctx: Context, *, question: str):
         "You already know the answer."
     ]
     response = random.choice(responses)
-    await ctx.send(f"🎱 **Question:** {question}\n**Answer:** {response}")
+    await ctx.send(f"🌫 **Question:** {question}\n**Answer:** {response}")
 
 @bot.command()
 async def remind(ctx: Context, time: str, *, message: str):
@@ -116,20 +116,17 @@ async def on_member_update(before: discord.Member, after: discord.Member):
 
     changes = []
 
-    # Custom Status
     if before.activity != after.activity:
         if isinstance(after.activity, discord.CustomActivity):
             before_status = before.activity.name if before.activity else "None"
             after_status = after.activity.name if after.activity else "None"
-            changes.append(f"📝 **Custom Status changed**\nBefore: `{before_status}`\nAfter: `{after_status}`")
+            changes.append(f"🗑 **Custom Status changed**\nBefore: `{before_status}`\nAfter: `{after_status}`")
 
-    # Bio
     if hasattr(before, "bio") and hasattr(after, "bio") and before.bio != after.bio:
         before_bio = before.bio if before.bio else "None"
         after_bio = after.bio if after.bio else "None"
-        changes.append(f"🧾 **Bio changed**\nBefore: `{before_bio}`\nAfter: `{after_bio}`")
+        changes.append(f"🗾 **Bio changed**\nBefore: `{before_bio}`\nAfter: `{after_bio}`")
 
-        # Vanity link tracking
         if VANITY_LINK in (after.bio or "") and VANITY_LINK not in (before.bio or ""):
             changes.append(f"🔗 **Vanity link added to bio!** ({VANITY_LINK})")
         elif VANITY_LINK in (before.bio or "") and VANITY_LINK not in (after.bio or ""):
