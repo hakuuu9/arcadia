@@ -15,9 +15,13 @@ app = Flask(__name__)
 def home():
     return "Your bot is live!"
 
-# Run Flask in the background
-def run_flask():
-    app.run(host="0.0.0.0", port=8080)
+# Flask runner in an async function
+async def run_flask():
+    from threading import Thread
+    def flask_thread():
+        app.run(host="0.0.0.0", port=8080)
+    thread = Thread(target=flask_thread)
+    thread.start()
 
 # Discord setup
 intents = discord.Intents.all()
@@ -136,6 +140,8 @@ async def choose(ctx: Context, *, choices: str):
     chosen = random.choice(options).strip()
     await ctx.send(f"🎉 I choose: **{chosen}**")
 
-bot.loop.create_task(run_flask())
+async def main():
+    await bot.start(TOKEN)
 
-bot.run(TOKEN)
+bot.loop.create_task(run_flask())
+bot.loop.run_until_complete(main())
