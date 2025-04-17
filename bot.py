@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 from discord import utils
 import config
+from keep_alive import keep_alive  # Import the keep_alive function
 
 intents = discord.Intents.default()
 intents.members = True  # To track member updates (like status changes)
@@ -36,6 +37,7 @@ async def on_member_update(before, after):
     if before.activity != after.activity:
         await check_vanity_link_in_status(after)
 
-# Run the bot
+# Run the keep_alive function to ensure the bot stays alive
 if __name__ == "__main__":
-    bot.run(config.TOKEN)
+    keep_alive()  # Start the keep-alive server
+    bot.run(config.TOKEN)  # Start the bot
