@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 from config import ROLE_ID, INVITE_LINK, BOT_TOKEN
+from keep_alive import keep_alive  # Import the keep-alive function
 
 # 🔍 Intents required to detect statuses and manage roles
 intents = discord.Intents.default()
@@ -9,6 +10,9 @@ intents.members = True
 
 # 🧠 Create the bot with the specified command prefix and intents
 bot = commands.Bot(command_prefix='!', intents=intents)
+
+# 🔁 Start the keep-alive server
+keep_alive()
 
 @bot.event
 async def on_ready():
