@@ -7,14 +7,15 @@ import asyncio
 import datetime
 import re
 from flask import Flask
-from threading import Thread
+import threading
+import os
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="$", intents=intents)
 
 afk_users = {}
 
-# Flask keep-alive server for Render
+# --- Flask keep-alive setup ---
 app = Flask("")
 
 @app.route("/")
@@ -22,9 +23,13 @@ def home():
     return "Bot is running!"
 
 def run_flask():
-    app.run(host="0.0.0.0", port=8080)
+    port = int(os.environ.get("PORT", 8080))  # Render looks for this port
+    app.run(host="0.0.0.0", port=port)
 
-Thread(target=run_flask).start()
+flask_thread = threading.Thread(target=run_flask)
+flask_thread.start()
+
+# --- Bot Events and Commands ---
 
 @bot.event
 async def on_ready():
@@ -58,6 +63,18 @@ async def eight_ball(ctx: Context, *, question: str):
     await ctx.send(f"🎱 **Question:** {question}\n**Answer:** {response}")
 
 @bot.command()
+async def remind(ctx: Context, time: str, *, message: str):
+    match = re.fullmatch(r"(\d+)(s|m|h|d)", time.lower())
+    if not match:
+        await ctx.send("Invalid time format. Use `10s`, `5m`, `1h`, or `2d`.")
+        return
+    amount, unit = int(match.group(1)), match.group(2)
+    seconds = {"s": 1, "m": 60, "h": 3600, "d": 86400}[unit]
+    await ctx.send(f"⏰ Reminder set for **{time}**: {message}")
+    await asyncio.sleep(amount * seconds)
+    await ctx.send(f"🔔 <@{ctx.author.id}> Reminder: {message}")
+
+@bot.command()
 async def choose(ctx: Context, *, options: str):
     choices = [opt.strip() for opt in options.split(",") if opt.strip()]
     if len(choices) < 2:
@@ -65,22 +82,6 @@ async def choose(ctx: Context, *, options: str):
         return
     selected = random.choice(choices)
     await ctx.send(f"🎲 I choose: **{selected}**")
-
-@bot.command()
-async def remind(ctx: Context, time: str, *, message: str):
-    time_pattern = r"(\d+)(s|m|h|d)"
-    match = re.fullmatch(time_pattern, time.lower())
-    if not match:
-        await ctx.send("Invalid time format. Use formats like `10s`, `5m`, `1h`, or `2d`.")
-        return
-
-    amount, unit = int(match.group(1)), match.group(2)
-    seconds = {"s": 1, "m": 60, "h": 3600, "d": 86400}[unit]
-    wait_time = amount * seconds
-
-    await ctx.send(f"⏰ I’ll remind you in **{time}** about: {message}")
-    await asyncio.sleep(wait_time)
-    await ctx.send(f"🔔 <@{ctx.author.id}> Reminder: {message}")
 
 @bot.command()
 async def afk(ctx: Context, *, reason="AFK"):
@@ -91,45 +92,32 @@ async def afk(ctx: Context, *, reason="AFK"):
 async def on_message(message):
     if message.author.bot:
         return
-
     if message.author.id in afk_users:
         del afk_users[message.author.id]
         await message.channel.send(f"👋 Welcome back, {message.author.mention}! I removed your AFK.")
-
     for user_id in afk_users:
         if f"<@{user_id}>" in message.content:
             reason = afk_users[user_id]
             await message.channel.send(f"💤 That user is AFK: {reason}")
             break
-
     await bot.process_commands(message)
 
 @bot.event
 async def on_member_update(before: discord.Member, after: discord.Member):
     log_channel = bot.get_channel(LOG_CHANNEL_ID)
-    guild = after.guild
-    member = after
+    if not log_channel:
+        return
     changes = []
-
+    if before.activity != after.activity and isinstance(after.activity, discord.CustomActivity):
+        before_status = before.activity.name if before.activity else "None"
+        after_status = after.activity.name if after.activity else "None"
+        changes.append(f"📝 **Custom Status changed**\nBefore: `{before_status}`\nAfter: `{after_status}`")
     if hasattr(before, "bio") and hasattr(after, "bio") and before.bio != after.bio:
-        before_bio = before.bio or "None"
-        after_bio = after.bio or "None"
-        changes.append(f"🧾 **Bio changed**\nBefore: `{before_bio}`\nAfter: `{after_bio}`")
-
-        if VANITY_LINK in after_bio and VANITY_LINK not in before_bio:
-            role = guild.get_role(ROLE_ID)
-            if role:
-                await member.add_roles(role)
-                changes.append(f"🔗 **Vanity link added to bio!**")
-                await log_channel.send(f"✅ {member.mention} added the vanity link and received the role <@&{ROLE_ID}>!")
-
-        elif VANITY_LINK in before_bio and VANITY_LINK not in after_bio:
-            role = guild.get_role(ROLE_ID)
-            if role:
-                await member.remove_roles(role)
-                changes.append(f"❌ **Vanity link removed from bio!**")
-                await log_channel.send(f"⚠️ {member.mention} removed the vanity link and lost the role <@&{ROLE_ID}>!")
-
+        changes.append(f"🧾 **Bio changed**\nBefore: `{before.bio or 'None'}`\nAfter: `{after.bio or 'None'}`")
+        if VANITY_LINK in after.bio and VANITY_LINK not in before.bio:
+            changes.append(f"🔗 **Vanity link added to bio!** ({VANITY_LINK})")
+        elif VANITY_LINK in before.bio and VANITY_LINK not in after.bio:
+            changes.append(f"❌ **Vanity link removed from bio!** ({VANITY_LINK})")
     if changes:
         embed = discord.Embed(
             title="🔔 Member Update",
