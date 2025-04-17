@@ -18,14 +18,14 @@ async def on_ready():
     print(f"Logged in as {bot.user} (ID: {bot.user.id})")
     print("------")
 
-# Load all cogs from 'commands' folder
+# Load all command cogs from the 'commands' folder
 @bot.event
 async def setup_hook():
     for filename in os.listdir("./commands"):
-        if filename.endswith(".py"):
+        if filename.endswith(".py") and filename != "__init__.py":
             await bot.load_extension(f"commands.{filename[:-3]}")
 
-# Example command to confirm it's still working
+# Example command
 @bot.command()
 async def ping(ctx):
     await ctx.send("Pong!")
