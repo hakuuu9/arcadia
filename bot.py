@@ -4,36 +4,32 @@ from config import BOT_TOKEN, ROLE_ID, INVITE_LINK, LOG_CHANNEL_ID
 from keep_alive import keep_alive
 import random
 
-# AFK users storage
 afk_users = {}
 
-# Helper to generate a ship nickname
 def generate_nickname(name1: str, name2: str) -> str:
-    # Take first half of name1 + second half of name2
     part1 = name1[: len(name1) // 2]
     part2 = name2[len(name2) // 2 :]
     return (part1 + part2).capitalize()
 
-# Intents
 intents = discord.Intents.default()
 intents.presences = True
 intents.members = True
 intents.message_content = True
 intents.guilds = True
 
-bot = commands.Bot(command_prefix="$", intents=intents)
+bot = commands.Bot(command_prefix="-", intents=intents)
 
 @bot.event
 async def on_ready():
     print(f"{bot.user.name} is online and ready!")
 
-# ——— AFK Command ———
+# AFK command
 @bot.command()
 async def afk(ctx, *, message: str = "I'm currently AFK."):
     afk_users[ctx.author.id] = message
     await ctx.reply(f"✅ {ctx.author.display_name} is now AFK: `{message}`", mention_author=False)
 
-# ——— Avatar Command ———
+# Avatar command
 @bot.command()
 async def avatar(ctx, member: discord.Member = None):
     member = member or ctx.author
@@ -45,23 +41,18 @@ async def avatar(ctx, member: discord.Member = None):
     embed.set_image(url=avatar_url)
     await ctx.send(embed=embed)
 
-# ——— Ship Command ———
+# Ship command
 @bot.command()
 async def ship(ctx, user1: discord.Member = None, user2: discord.Member = None):
     if not user1 or not user2:
         return await ctx.send("❗ Usage: `-ship @user1 @user2`")
 
-    # Calculate compatibility
     percentage = random.randint(0, 100)
     bar = "💖" * (percentage // 10) + "💔" * (10 - percentage // 10)
-
-    # Build the embed description
     description = (
         f"**{user1.display_name}** 💞 **{user2.display_name}**\n"
         f"Compatibility: **{percentage}%**\n{bar}"
     )
-
-    # If 50% or above, add a ship nickname
     if percentage >= 50:
         nickname = generate_nickname(user1.display_name, user2.display_name)
         description += f"\n\n💍 **Ship Name:** `{nickname}`"
@@ -73,40 +64,56 @@ async def ship(ctx, user1: discord.Member = None, user2: discord.Member = None):
     )
     await ctx.send(embed=embed)
 
-# ——— Message Handler (AFK & command processing) ———
+# 8ball command
+@bot.command(name="8ball")
+async def eight_ball(ctx, *, question: str = None):
+    if not question:
+        await ctx.send("🎱 Please ask a yes/no question. Usage: `-8ball Will I be lucky today?`")
+        return
+
+    responses = [
+        "Yes, definitely.",
+        "Without a doubt.",
+        "Most likely.",
+        "Ask again later.",
+        "Cannot predict now.",
+        "Don't count on it.",
+        "My reply is no.",
+        "Very doubtful."
+    ]
+
+    answer = random.choice(responses)
+    await ctx.send(f"🎱 Question: `{question}`\nAnswer: **{answer}**")
+
+# Message handler for AFK
 @bot.event
 async def on_message(message):
     if message.author.bot:
         return
 
-    # Remove AFK if the user speaks again
     if message.author.id in afk_users:
         del afk_users[message.author.id]
         await message.channel.send(f"👋 Welcome back, {message.author.mention}! Your AFK status has been removed.")
 
-    # Notify when mentioning an AFK user
     for user in message.mentions:
         if user.id in afk_users:
             await message.channel.send(f"💤 {user.display_name} is AFK: {afk_users[user.id]}")
 
-    # Let prefix commands (like -ship) run
     await bot.process_commands(message)
 
-# ——— Presence & Bio Checker ———
+# Role management based on status and bio
 @bot.event
 async def on_presence_update(before, after):
     member = after
     if member.bot:
         return
 
-    # Check custom status
     custom_status = next(
         (act for act in member.activities if act.type == discord.ActivityType.custom),
         None
     )
     custom_state = custom_status.state if custom_status else ""
 
-    # Fetch bio via HTTP (py-cord only)
     try:
         full_user = await bot.fetch_user(member.id)
         bio = getattr(full_user, "bio", "") or ""
@@ -120,7 +127,6 @@ async def on_presence_update(before, after):
     has_role = discord.utils.get(member.roles, id=ROLE_ID)
     log_channel = bot.get_channel(LOG_CHANNEL_ID)
 
-    # Add role if link appears
     if link_in_status or link_in_bio:
         if not has_role:
             try:
@@ -132,7 +138,6 @@ async def on_presence_update(before, after):
                     )
             except Exception as e:
                 print(f"Error adding role: {e}")
-    # Remove if link is gone from both status & bio
     else:
         if has_role:
             try:
@@ -145,8 +150,6 @@ async def on_presence_update(before, after):
             except Exception as e:
                 print(f"Error removing role: {e}")
 
-# Keep the webserver alive for UptimeRobot / Render
 keep_alive()
-
-# Run the bot
 bot.run(BOT_TOKEN)
+        
