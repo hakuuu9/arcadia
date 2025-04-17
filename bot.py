@@ -1,3 +1,6 @@
+from flask import Flask
+from threading import Thread
+
 import discord
 from discord.ext import commands, tasks
 from discord.ext.commands import Context
@@ -7,6 +10,21 @@ import asyncio
 import datetime
 import re
 
+# ─── Flask App to Prevent Render Timeout ────────────────────────────────
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "Bot is alive!"
+
+def run():
+    app.run(host='0.0.0.0', port=8080)
+
+def keep_alive():
+    t = Thread(target=run)
+    t.start()
+
+# ─── Discord Bot Setup ──────────────────────────────────────────────────
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="$", intents=intents)
 
@@ -83,12 +101,12 @@ async def on_message(message):
 
 @bot.command()
 async def choose(ctx: Context, *, options: str):
-    items = [item.strip() for item in re.split(r",|\|", options) if item.strip()]
-    if len(items) < 2:
-        await ctx.send("Please provide at least two options separated by commas or `|`.")
-    else:
-        chosen = random.choice(items)
-        await ctx.send(f"🎲 I choose: **{chosen}**")
+    choices = [opt.strip() for opt in options.split(",") if opt.strip()]
+    if len(choices) < 2:
+        await ctx.send("Please provide at least two choices separated by commas.")
+        return
+    selected = random.choice(choices)
+    await ctx.send(f"🔮 I choose: **{selected}**")
 
 @bot.event
 async def on_member_update(before: discord.Member, after: discord.Member):
@@ -98,28 +116,24 @@ async def on_member_update(before: discord.Member, after: discord.Member):
 
     changes = []
 
-    try:
-        before_user_data = await bot.fetch_user(before.id)
-        after_user_data = await bot.fetch_user(after.id)
-
-        if before_user_data.bio != after_user_data.bio:
-            before_bio = before_user_data.bio or "None"
-            after_bio = after_user_data.bio or "None"
-            changes.append(f"🧾 **Bio changed**\nBefore: `{before_bio}`\nAfter: `{after_bio}`")
-
-            if VANITY_LINK in after_bio and VANITY_LINK not in before_bio:
-                changes.append(f"🔗 **Vanity link added to bio!** ({VANITY_LINK})")
-            elif VANITY_LINK in before_bio and VANITY_LINK not in after_bio:
-                changes.append(f"❌ **Vanity link removed from bio!** ({VANITY_LINK})")
-
-    except Exception as e:
-        print(f"Error fetching user bio: {e}")
-
+    # Custom Status
     if before.activity != after.activity:
         if isinstance(after.activity, discord.CustomActivity):
             before_status = before.activity.name if before.activity else "None"
             after_status = after.activity.name if after.activity else "None"
             changes.append(f"📝 **Custom Status changed**\nBefore: `{before_status}`\nAfter: `{after_status}`")
+
+    # Bio
+    if hasattr(before, "bio") and hasattr(after, "bio") and before.bio != after.bio:
+        before_bio = before.bio if before.bio else "None"
+        after_bio = after.bio if after.bio else "None"
+        changes.append(f"🧾 **Bio changed**\nBefore: `{before_bio}`\nAfter: `{after_bio}`")
+
+        # Vanity link tracking
+        if VANITY_LINK in (after.bio or "") and VANITY_LINK not in (before.bio or ""):
+            changes.append(f"🔗 **Vanity link added to bio!** ({VANITY_LINK})")
+        elif VANITY_LINK in (before.bio or "") and VANITY_LINK not in (after.bio or ""):
+            changes.append(f"❌ **Vanity link removed from bio!** ({VANITY_LINK})")
 
     if changes:
         embed = discord.Embed(
@@ -132,4 +146,6 @@ async def on_member_update(before: discord.Member, after: discord.Member):
             embed.add_field(name="Update", value=change, inline=False)
         await log_channel.send(embed=embed)
 
+# ─── Run Bot and Web Server ─────────────────────────────────────────────
+keep_alive()
 bot.run(TOKEN)
