@@ -69,12 +69,10 @@ async def on_message(message):
     if message.author.bot:
         return
 
-    # AFK return check
     if message.author.id in afk_users:
         del afk_users[message.author.id]
         await message.channel.send(f"👋 Welcome back, {message.author.mention}! I removed your AFK.")
 
-    # Ping AFK user check
     for user_id in afk_users:
         if f"<@{user_id}>" in message.content:
             reason = afk_users[user_id]
@@ -82,6 +80,15 @@ async def on_message(message):
             break
 
     await bot.process_commands(message)
+
+@bot.command()
+async def choose(ctx: Context, *, options: str):
+    items = [item.strip() for item in re.split(r",|\|", options) if item.strip()]
+    if len(items) < 2:
+        await ctx.send("Please provide at least two options separated by commas or `|`.")
+    else:
+        chosen = random.choice(items)
+        await ctx.send(f"🎲 I choose: **{chosen}**")
 
 @bot.event
 async def on_member_update(before: discord.Member, after: discord.Member):
@@ -91,21 +98,28 @@ async def on_member_update(before: discord.Member, after: discord.Member):
 
     changes = []
 
+    try:
+        before_user_data = await bot.fetch_user(before.id)
+        after_user_data = await bot.fetch_user(after.id)
+
+        if before_user_data.bio != after_user_data.bio:
+            before_bio = before_user_data.bio or "None"
+            after_bio = after_user_data.bio or "None"
+            changes.append(f"🧾 **Bio changed**\nBefore: `{before_bio}`\nAfter: `{after_bio}`")
+
+            if VANITY_LINK in after_bio and VANITY_LINK not in before_bio:
+                changes.append(f"🔗 **Vanity link added to bio!** ({VANITY_LINK})")
+            elif VANITY_LINK in before_bio and VANITY_LINK not in after_bio:
+                changes.append(f"❌ **Vanity link removed from bio!** ({VANITY_LINK})")
+
+    except Exception as e:
+        print(f"Error fetching user bio: {e}")
+
     if before.activity != after.activity:
         if isinstance(after.activity, discord.CustomActivity):
             before_status = before.activity.name if before.activity else "None"
             after_status = after.activity.name if after.activity else "None"
             changes.append(f"📝 **Custom Status changed**\nBefore: `{before_status}`\nAfter: `{after_status}`")
-
-    if hasattr(before, "bio") and hasattr(after, "bio") and before.bio != after.bio:
-        before_bio = before.bio if before.bio else "None"
-        after_bio = after.bio if after.bio else "None"
-        changes.append(f"🧾 **Bio changed**\nBefore: `{before_bio}`\nAfter: `{after_bio}`")
-
-        if VANITY_LINK in after_bio and VANITY_LINK not in before_bio:
-            changes.append(f"🔗 **Vanity link added to bio!** ({VANITY_LINK})")
-        elif VANITY_LINK in before_bio and VANITY_LINK not in after_bio:
-            changes.append(f"❌ **Vanity link removed from bio!** ({VANITY_LINK})")
 
     if changes:
         embed = discord.Embed(
@@ -117,14 +131,5 @@ async def on_member_update(before: discord.Member, after: discord.Member):
         for change in changes:
             embed.add_field(name="Update", value=change, inline=False)
         await log_channel.send(embed=embed)
-
-# Choose command (updated with suggestion)
-@bot.command()
-async def choose(ctx: Context, *choices: str):
-    if not choices:
-        await ctx.send("You need to give me some options to choose from! Example: `$choose 🍕 🍔 🍟`")
-        return
-    choice = random.choice(choices)
-    await ctx.send(f"I choose... {choice}!")
 
 bot.run(TOKEN)
