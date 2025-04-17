@@ -108,6 +108,10 @@ async def on_member_update(before: discord.Member, after: discord.Member):
 
     changes = []
 
+    # Debug logs
+    print(f"Before status: {before.activity}, After status: {after.activity}")
+    print(f"Before bio: {before.bio}, After bio: {after.bio}")
+
     # Check for vanity link in bio and status changes
     if before.activity != after.activity:
         if isinstance(after.activity, discord.CustomActivity):
