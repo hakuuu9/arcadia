@@ -1,2 +1,3 @@
 discord.py==2.0.1  # This is the main library for the Discord bot
-flask==2.1.2      # Flask for the keep-alive server
+flask==2.2.3      # Update Flask to a more recent version
+werkzeug==2.2.3    # Ensure compatibility with Flask
