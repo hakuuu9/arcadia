@@ -1,102 +1,122 @@
 
 import discord
 from discord.ext import commands, tasks
-from discord.utils import get
-import asyncio
-import random
-import re
-import datetime
+from discord.ext.commands import Context
 from config import TOKEN, GUILD_ID, ROLE_ID, VANITY_LINK, LOG_CHANNEL_ID
+import random
+import asyncio
+import datetime
+import re
 
-intents = discord.Intents.default()
-intents.message_content = True
-intents.members = True
-intents.presences = True
-
+intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="$", intents=intents)
 
 afk_users = {}
-reminders = []
 
 @bot.event
 async def on_ready():
-    print(f"Bot is ready as {bot.user}")
-    check_reminders.start()
+    print(f"Logged in as {bot.user}")
 
-# AFK command
 @bot.command()
-async def afk(ctx, *, reason="AFK"):
+async def ship(ctx: Context, user1: discord.Member, user2: discord.Member):
+    percent = random.randint(0, 100)
+    hearts = "❤️" * (percent // 20) or "💔"
+    nicknames = ["Lovebirds", "Twin Flames", "Sweethearts", "Power Couple", "Perfect Pair"]
+    description = f"**{user1.display_name}** 💞 **{user2.display_name}**\nCompatibility: **{percent}%** {hearts}"
+    if percent >= 50:
+        description += f"\nCouple Nickname: **{random.choice(nicknames)}**"
+    await ctx.send(description)
+
+@bot.command(name="8b")
+async def eight_ball(ctx: Context, *, question: str):
+    responses = [
+        "Absolutely yes!",
+        "No doubt about it.",
+        "Maybe… time will tell.",
+        "I wouldn’t count on it.",
+        "Ask again later.",
+        "It’s a mystery even to me.",
+        "Definitely not.",
+        "Seems likely!",
+        "Highly questionable.",
+        "You already know the answer."
+    ]
+    response = random.choice(responses)
+    await ctx.send(f"🎱 **Question:** {question}\n**Answer:** {response}")
+
+@bot.command()
+async def remind(ctx: Context, time: str, *, message: str):
+    time_pattern = r"(\d+)(s|m|h|d)"
+    match = re.fullmatch(time_pattern, time.lower())
+    if not match:
+        await ctx.send("Invalid time format. Use formats like `10s`, `5m`, `1h`, or `2d`.")
+        return
+
+    amount, unit = int(match.group(1)), match.group(2)
+    seconds = {"s": 1, "m": 60, "h": 3600, "d": 86400}[unit]
+    wait_time = amount * seconds
+
+    await ctx.send(f"⏰ I’ll remind you in **{time}** about: {message}")
+    await asyncio.sleep(wait_time)
+    await ctx.send(f"🔔 <@{ctx.author.id}> Reminder: {message}")
+
+@bot.command()
+async def afk(ctx: Context, *, reason="AFK"):
     afk_users[ctx.author.id] = reason
-    await ctx.send(f"🟡 {ctx.author.mention} is now AFK: {reason}")
+    await ctx.send(f"🛑 {ctx.author.display_name} is now AFK: {reason}")
 
 @bot.event
 async def on_message(message):
     if message.author.bot:
         return
 
+    # AFK return check
     if message.author.id in afk_users:
-        reason = afk_users.pop(message.author.id)
-        await message.channel.send(f"🟢 Welcome back {message.author.mention}! I removed your AFK status. Reason was: {reason}")
+        del afk_users[message.author.id]
+        await message.channel.send(f"👋 Welcome back, {message.author.mention}! I removed your AFK.")
 
+    # Ping AFK user check
     for user_id in afk_users:
         if f"<@{user_id}>" in message.content:
-            user = await bot.fetch_user(user_id)
-            await message.channel.send(f"💤 {user.name} is AFK: {afk_users[user_id]}")
+            reason = afk_users[user_id]
+            await message.channel.send(f"💤 That user is AFK: {reason}")
+            break
+
     await bot.process_commands(message)
 
-# 8Ball command
-@bot.command(name="8b")
-async def eight_ball(ctx, *, question):
-    responses = [
-        "Absolutely yes 🌟", "Certainly not ❌", "Maybe... 🤔", "Ask again later ⏳",
-        "Of course! 😄", "No way! 😬", "Looks promising 👀", "Unlikely 🙃", "Yes 💯", "Definitely not 💀"
-    ]
-    answer = random.choice(responses)
-    await ctx.send(f"🎱 **Question:** {question}\n**Answer:** {answer}")
-
-# Ship command
-@bot.command()
-async def ship(ctx, user1: discord.Member, user2: discord.Member):
-    percentage = random.randint(0, 100)
-    heart = "💔" if percentage < 50 else "❤️"
-    couple_names = [
-        "TandemTropa", "HeartBeats", "LoveBuds", "PusoDuo", "ShipSquad", "CharmPair",
-        "CutieCouple", "MoonStars", "SunsetSoulmates", "FluffMates"
-    ]
-    nickname = f"💞 Couple Nickname: **{random.choice(couple_names)}**" if percentage >= 50 else ""
-    await ctx.send(f"💘 {user1.mention} × {user2.mention}\n💟 Compatibility: **{percentage}%** {heart}\n{nickname}")
-
-# Avatar command
-@bot.command()
-async def avatar(ctx, user: discord.Member = None):
-    user = user or ctx.author
-    await ctx.send(f"{user.name}'s avatar: {user.display_avatar.url}")
-
-# Reminder command
-@bot.command()
-async def remind(ctx, time: str, *, reminder: str):
-    match = re.match(r"(\d+)([smhd])", time.lower())
-    if not match:
-        await ctx.send("⚠️ Invalid time format. Use formats like `10s`, `5m`, `1h`, or `1d`.")
+@bot.event
+async def on_member_update(before: discord.Member, after: discord.Member):
+    log_channel = bot.get_channel(LOG_CHANNEL_ID)
+    if not log_channel:
         return
 
-    amount, unit = match.groups()
-    seconds = int(amount) * {"s": 1, "m": 60, "h": 3600, "d": 86400}[unit]
-    remind_time = datetime.datetime.utcnow() + datetime.timedelta(seconds=seconds)
+    changes = []
 
-    reminders.append((ctx.author.id, ctx.channel.id, reminder, remind_time))
-    await ctx.send(f"⏰ Okay {ctx.author.mention}, I’ll remind you in {amount}{unit} to: **{reminder}**")
+    if before.activity != after.activity:
+        if isinstance(after.activity, discord.CustomActivity):
+            before_status = before.activity.name if before.activity else "None"
+            after_status = after.activity.name if after.activity else "None"
+            changes.append(f"📝 **Custom Status changed**\nBefore: `{before_status}`\nAfter: `{after_status}`")
 
-@tasks.loop(seconds=10)
-async def check_reminders():
-    now = datetime.datetime.utcnow()
-    for reminder in reminders[:]:
-        user_id, channel_id, text, remind_time = reminder
-        if now >= remind_time:
-            user = await bot.fetch_user(user_id)
-            channel = bot.get_channel(channel_id)
-            if channel:
-                await channel.send(f"🔔 {user.mention}, reminder: **{text}**")
-            reminders.remove(reminder)
+    if hasattr(before, "bio") and hasattr(after, "bio") and before.bio != after.bio:
+        before_bio = before.bio if before.bio else "None"
+        after_bio = after.bio if after.bio else "None"
+        changes.append(f"🧾 **Bio changed**\nBefore: `{before_bio}`\nAfter: `{after_bio}`")
+
+        if VANITY_LINK in after_bio and VANITY_LINK not in before_bio:
+            changes.append(f"🔗 **Vanity link added to bio!** ({VANITY_LINK})")
+        elif VANITY_LINK in before_bio and VANITY_LINK not in after_bio:
+            changes.append(f"❌ **Vanity link removed from bio!** ({VANITY_LINK})")
+
+    if changes:
+        embed = discord.Embed(
+            title="🔔 Member Update",
+            description=f"**User:** {after.mention} (`{after}`)\n**ID:** `{after.id}`",
+            color=discord.Color.orange(),
+            timestamp=datetime.datetime.utcnow()
+        )
+        for change in changes:
+            embed.add_field(name="Update", value=change, inline=False)
+        await log_channel.send(embed=embed)
 
 bot.run(TOKEN)
