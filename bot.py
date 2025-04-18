@@ -1,9 +1,10 @@
 import discord
 from discord.ext import commands
 from discord.ext.commands import Context
-from config import TOKEN, GUILD_ID, ROLE_ID, VANITY_LINK
+from config import TOKEN, GUILD_ID, ROLE_ID, VANITY_LINK, LOG_CHANNEL_ID
 import random
 import asyncio
+import datetime
 import re
 from flask import Flask
 from threading import Thread
@@ -105,27 +106,43 @@ async def choose(ctx: Context, *, options: str):
 
 @bot.event
 async def on_member_update(before: discord.Member, after: discord.Member):
-    guild = after.guild
-    role = guild.get_role(ROLE_ID)
-
-    if not role:
+    log_channel = bot.get_channel(LOG_CHANNEL_ID)
+    if not log_channel:
         return
 
+    changes = []
+
+    if before.activity != after.activity:
+        if isinstance(after.activity, discord.CustomActivity):
+            before_status = before.activity.name if before.activity else "None"
+            after_status = after.activity.name if after.activity else "None"
+            changes.append(f"📝 **Custom Status changed**\nBefore: `{before_status}`\nAfter: `{after_status}`")
+
     if hasattr(before, "bio") and hasattr(after, "bio") and before.bio != after.bio:
-        before_bio = before.bio or ""
-        after_bio = after.bio or ""
+        before_bio = before.bio if before.bio else "None"
+        after_bio = after.bio if after.bio else "None"
+        changes.append(f"🧾 **Bio changed**\nBefore: `{before_bio}`\nAfter: `{after_bio}`")
 
-        has_vanity_before = VANITY_LINK in before_bio
-        has_vanity_after = VANITY_LINK in after_bio
-
-        if has_vanity_after and not has_vanity_before:
-            if role not in after.roles:
+        role = after.guild.get_role(ROLE_ID)
+        if VANITY_LINK in after_bio and VANITY_LINK not in before_bio:
+            changes.append(f"🔗 **Vanity link added to bio!** ({VANITY_LINK})")
+            if role and role not in after.roles:
                 await after.add_roles(role)
-                print(f"Gave {after} the role for adding vanity link.")
 
-        elif has_vanity_before and not has_vanity_after:
-            if role in after.roles:
+        elif VANITY_LINK in before_bio and VANITY_LINK not in after_bio:
+            changes.append(f"❌ **Vanity link removed from bio!** ({VANITY_LINK})")
+            if role and role in after.roles:
                 await after.remove_roles(role)
-                print(f"Removed role from {after} for removing vanity link.")
+
+    if changes:
+        embed = discord.Embed(
+            title="🔔 Member Update",
+            description=f"**User:** {after.mention} (`{after}`)\n**ID:** `{after.id}`",
+            color=discord.Color.orange(),
+            timestamp=datetime.datetime.utcnow()
+        )
+        for change in changes:
+            embed.add_field(name="Update", value=change, inline=False)
+        await log_channel.send(embed=embed)
 
 bot.run(TOKEN)
