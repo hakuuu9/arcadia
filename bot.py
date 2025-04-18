@@ -1,94 +1,102 @@
 
 import discord
 from discord.ext import commands, tasks
-import random
+from discord.utils import get
 import asyncio
+import random
 import re
+import datetime
 from config import TOKEN, GUILD_ID, ROLE_ID, VANITY_LINK, LOG_CHANNEL_ID
 
 intents = discord.Intents.default()
+intents.message_content = True
 intents.members = True
 intents.presences = True
-intents.message_content = True
 
 bot = commands.Bot(command_prefix="$", intents=intents)
 
+afk_users = {}
+reminders = []
+
 @bot.event
 async def on_ready():
-    print(f"{bot.user} is now online!")
+    print(f"Bot is ready as {bot.user}")
+    check_reminders.start()
 
-@bot.event
-async def on_presence_update(before, after):
-    member = after if isinstance(after, discord.Member) else None
-    if not member:
-        return
-
-    status_text = str(after.activity.name).lower() if after.activity else ""
-    if VANITY_LINK in status_text:
-        if ROLE_ID not in [role.id for role in member.roles]:
-            role = member.guild.get_role(ROLE_ID)
-            await member.add_roles(role)
-            channel = bot.get_channel(LOG_CHANNEL_ID)
-            await channel.send(f"✅ {member.mention} added the vanity link in status. Role given.")
-    else:
-        if ROLE_ID in [role.id for role in member.roles]:
-            role = member.guild.get_role(ROLE_ID)
-            await member.remove_roles(role)
-            channel = bot.get_channel(LOG_CHANNEL_ID)
-            await channel.send(f"❌ {member.mention} removed the vanity link from status. Role removed.")
-
+# AFK command
 @bot.command()
 async def afk(ctx, *, reason="AFK"):
-    await ctx.send(f"{ctx.author.mention} is now AFK: {reason}")
+    afk_users[ctx.author.id] = reason
+    await ctx.send(f"🟡 {ctx.author.mention} is now AFK: {reason}")
 
-@bot.command()
-async def avatar(ctx, user: discord.User = None):
-    user = user or ctx.author
-    await ctx.send(f"{user.name}'s avatar:\n{user.avatar.url}")
+@bot.event
+async def on_message(message):
+    if message.author.bot:
+        return
 
-@bot.command()
-async def ship(ctx, user1: discord.Member, user2: discord.Member):
-    percentage = random.randint(0, 100)
-    message = f"❤️ | {user1.display_name} × {user2.display_name}\nCompatibility: **{percentage}%**"
+    if message.author.id in afk_users:
+        reason = afk_users.pop(message.author.id)
+        await message.channel.send(f"🟢 Welcome back {message.author.mention}! I removed your AFK status. Reason was: {reason}")
 
-    if percentage >= 50:
-        nicknames = ["Lovebirds", "Soulmates", "Turtledoves", "Power Couple", "Ultimate Duo"]
-        nickname = random.choice(nicknames)
-        message += f"\n💖 Couple Nickname: **{nickname}**"
+    for user_id in afk_users:
+        if f"<@{user_id}>" in message.content:
+            user = await bot.fetch_user(user_id)
+            await message.channel.send(f"💤 {user.name} is AFK: {afk_users[user_id]}")
+    await bot.process_commands(message)
 
-    await ctx.send(message)
-
+# 8Ball command
 @bot.command(name="8b")
 async def eight_ball(ctx, *, question):
     responses = [
-        "Yes", "No", "Maybe", "Definitely", "Absolutely not", "Ask again later",
-        "I'm not sure", "You can count on it", "Unlikely", "Certainly"
+        "Absolutely yes 🌟", "Certainly not ❌", "Maybe... 🤔", "Ask again later ⏳",
+        "Of course! 😄", "No way! 😬", "Looks promising 👀", "Unlikely 🙃", "Yes 💯", "Definitely not 💀"
     ]
-    await ctx.send(f"🎱 {random.choice(responses)}")
+    answer = random.choice(responses)
+    await ctx.send(f"🎱 **Question:** {question}\n**Answer:** {answer}")
 
+# Ship command
+@bot.command()
+async def ship(ctx, user1: discord.Member, user2: discord.Member):
+    percentage = random.randint(0, 100)
+    heart = "💔" if percentage < 50 else "❤️"
+    couple_names = [
+        "TandemTropa", "HeartBeats", "LoveBuds", "PusoDuo", "ShipSquad", "CharmPair",
+        "CutieCouple", "MoonStars", "SunsetSoulmates", "FluffMates"
+    ]
+    nickname = f"💞 Couple Nickname: **{random.choice(couple_names)}**" if percentage >= 50 else ""
+    await ctx.send(f"💘 {user1.mention} × {user2.mention}\n💟 Compatibility: **{percentage}%** {heart}\n{nickname}")
+
+# Avatar command
+@bot.command()
+async def avatar(ctx, user: discord.Member = None):
+    user = user or ctx.author
+    await ctx.send(f"{user.name}'s avatar: {user.display_avatar.url}")
+
+# Reminder command
 @bot.command()
 async def remind(ctx, time: str, *, reminder: str):
-    seconds = 0
-    time = time.lower()
-
-    matches = re.match(r"(\d+)([smh])", time)
-    if not matches:
-        await ctx.send("❌ Format should be like `10s`, `5m`, or `1hr`.")
+    match = re.match(r"(\d+)([smhd])", time.lower())
+    if not match:
+        await ctx.send("⚠️ Invalid time format. Use formats like `10s`, `5m`, `1h`, or `1d`.")
         return
 
-    amount, unit = matches.groups()
-    amount = int(amount)
+    amount, unit = match.groups()
+    seconds = int(amount) * {"s": 1, "m": 60, "h": 3600, "d": 86400}[unit]
+    remind_time = datetime.datetime.utcnow() + datetime.timedelta(seconds=seconds)
 
-    if unit == "s":
-        seconds = amount
-    elif unit == "m":
-        seconds = amount * 60
-    elif unit == "h":
-        seconds = amount * 3600
+    reminders.append((ctx.author.id, ctx.channel.id, reminder, remind_time))
+    await ctx.send(f"⏰ Okay {ctx.author.mention}, I’ll remind you in {amount}{unit} to: **{reminder}**")
 
-    await ctx.send(f"⏰ Okay {ctx.author.mention}, I’ll remind you in {time}.")
-
-    await asyncio.sleep(seconds)
-    await ctx.send(f"🔔 Reminder for {ctx.author.mention}: {reminder}")
+@tasks.loop(seconds=10)
+async def check_reminders():
+    now = datetime.datetime.utcnow()
+    for reminder in reminders[:]:
+        user_id, channel_id, text, remind_time = reminder
+        if now >= remind_time:
+            user = await bot.fetch_user(user_id)
+            channel = bot.get_channel(channel_id)
+            if channel:
+                await channel.send(f"🔔 {user.mention}, reminder: **{text}**")
+            reminders.remove(reminder)
 
 bot.run(TOKEN)
