@@ -1,3 +1,4 @@
+
 import discord
 from discord.ext import commands, tasks
 import random
@@ -6,88 +7,111 @@ import re
 from config import TOKEN, GUILD_ID, ROLE_ID, VANITY_LINK, LOG_CHANNEL_ID
 
 intents = discord.Intents.default()
+intents.message_content = True
 intents.members = True
 intents.presences = True
-intents.message_content = True
 
 bot = commands.Bot(command_prefix="$", intents=intents)
 
+vanity_pattern = re.compile(r"(https?:\/\/)?(www\.)?(discord\.gg|discord\.com\/invite)\/" + re.escape(VANITY_LINK))
+
 @bot.event
 async def on_ready():
-    print(f"{bot.user} is now online!")
+    print(f"Logged in as {bot.user}")
 
 @bot.event
 async def on_presence_update(before, after):
-    member = after if isinstance(after, discord.Member) else None
-    if not member:
+    if not isinstance(after, discord.Member):
         return
 
-    status_text = str(after.activity.name).lower() if after.activity else ""
-    if VANITY_LINK in status_text:
-        if ROLE_ID not in [role.id for role in member.roles]:
-            role = member.guild.get_role(ROLE_ID)
-            await member.add_roles(role)
-            channel = bot.get_channel(LOG_CHANNEL_ID)
-            await channel.send(f"✅ {member.mention} added the vanity link in status. Role given.")
-    else:
-        if ROLE_ID in [role.id for role in member.roles]:
-            role = member.guild.get_role(ROLE_ID)
-            await member.remove_roles(role)
-            channel = bot.get_channel(LOG_CHANNEL_ID)
-            await channel.send(f"❌ {member.mention} removed the vanity link from status. Role removed.")
+    member = after
+    role = discord.utils.get(member.guild.roles, id=ROLE_ID)
+    log_channel = bot.get_channel(LOG_CHANNEL_ID)
+
+    status_has_link = vanity_pattern.search(str(after.activity)) if after.activity else False
+
+    try:
+        bio = (await bot.fetch_user(member.id)).bio or ""
+        bio_has_link = VANITY_LINK in bio
+    except Exception as e:
+        print(f"Error fetching bio in presence_update: {e}")
+        bio_has_link = False
+
+    has_link = status_has_link or bio_has_link
+
+    if has_link and role not in member.roles:
+        await member.add_roles(role)
+        if log_channel:
+            await log_channel.send(f"✅ Gave role to {member.mention} for using the vanity link.")
+    elif not has_link and role in member.roles:
+        await member.remove_roles(role)
+        if log_channel:
+            await log_channel.send(f"❌ Removed role from {member.mention} for removing the vanity link.")
+
+# AFK Command
+afk_users = {}
 
 @bot.command()
 async def afk(ctx, *, reason="AFK"):
+    afk_users[ctx.author.id] = reason
     await ctx.send(f"{ctx.author.mention} is now AFK: {reason}")
 
-@bot.command()
-async def avatar(ctx, user: discord.User = None):
-    user = user or ctx.author
-    await ctx.send(f"{user.name}'s avatar:\n{user.avatar.url}")
+@bot.event
+async def on_message(message):
+    if message.author.bot:
+        return
 
+    if message.author.id in afk_users:
+        del afk_users[message.author.id]
+        await message.channel.send(f"Welcome back {message.author.mention}, you are no longer AFK.")
+
+    for user in message.mentions:
+        if user.id in afk_users:
+            await message.channel.send(f"{user.name} is AFK: {afk_users[user.id]}")
+
+    await bot.process_commands(message)
+
+# Avatar Command
+@bot.command()
+async def avatar(ctx, user: discord.Member = None):
+    user = user or ctx.author
+    await ctx.send(f"{user.name}'s avatar: {user.avatar.url}")
+
+# Ship Command
 @bot.command()
 async def ship(ctx, user1: discord.Member, user2: discord.Member):
-    percentage = random.randint(0, 100)
-    message = f"❤️ | {user1.display_name} × {user2.display_name}\nCompatibility: **{percentage}%**"
+    percentage = random.randint(1, 100)
+    bar = "█" * (percentage // 10) + "░" * (10 - (percentage // 10))
 
     if percentage >= 50:
-        nicknames = ["Lovebirds", "Soulmates", "Turtledoves", "Power Couple", "Ultimate Duo"]
+        nicknames = ["❤️ Cutie Pair", "💞 Power Couple", "💕 Sweethearts", "💘 Twin Flames", "✨ Lovey Doveys"]
         nickname = random.choice(nicknames)
-        message += f"\n💖 Couple Nickname: **{nickname}**"
+        await ctx.send(
+            f"**{user1.display_name}** x **{user2.display_name}**\n"
+            f"Match: {percentage}% [{bar}]\n"
+            f"Couple Nickname: **{nickname}**"
+        )
+    else:
+        await ctx.send(
+            f"**{user1.display_name}** x **{user2.display_name}**\n"
+            f"Match: {percentage}% [{bar}]\n"
+            f"Better luck next time!"
+        )
 
-    await ctx.send(message)
-
-@bot.command(name="8b")
-async def eight_ball(ctx, *, question):
+# 8Ball Command
+@bot.command()
+async def eightball(ctx, *, question):
     responses = [
-        "Yes", "No", "Maybe", "Definitely", "Absolutely not", "Ask again later",
-        "I'm not sure", "You can count on it", "Unlikely", "Certainly"
+        "Yes", "No", "Maybe", "Definitely", "Absolutely not",
+        "I'm not sure", "Try again later", "Without a doubt", "Probably", "I don't think so"
     ]
     await ctx.send(f"🎱 {random.choice(responses)}")
 
+# Remind Command
 @bot.command()
-async def remind(ctx, time: str, *, reminder: str):
-    seconds = 0
-    time = time.lower()
-
-    matches = re.match(r"(\d+)([smh])", time)
-    if not matches:
-        await ctx.send("❌ Format should be like `10s`, `5m`, or `1hr`.")
-        return
-
-    amount, unit = matches.groups()
-    amount = int(amount)
-
-    if unit == "s":
-        seconds = amount
-    elif unit == "m":
-        seconds = amount * 60
-    elif unit == "h":
-        seconds = amount * 3600
-
-    await ctx.send(f"⏰ Okay {ctx.author.mention}, I’ll remind you in {time}.")
-
-    await asyncio.sleep(seconds)
-    await ctx.send(f"🔔 Reminder for {ctx.author.mention}: {reminder}")
+async def remind(ctx, time: int, *, reminder: str):
+    await ctx.send(f"⏰ I’ll remind you in {time} seconds: **{reminder}**")
+    await asyncio.sleep(time)
+    await ctx.send(f"🔔 {ctx.author.mention}, reminder: **{reminder}**")
 
 bot.run(TOKEN)
