@@ -52,7 +52,9 @@ async def on_presence_update(before, after):
                 await member.remove_roles(discord.Object(id=ROLE_ID))
                 channel = bot.get_channel(LOG_CHANNEL_ID)
                 if channel:
-                    await channel.send(f"❌ Removed role from {member.mention} for removing vanity link from status.")
+                    await channel.send(
+                        f"```❌ Removed role from {member.display_name} for removing vanity link from status.```"
+                    )
     except Exception as e:
         print(f"Error in presence_update: {e}")
 
@@ -103,7 +105,7 @@ async def avatar(ctx, user: discord.User = None):
     user = user or ctx.author
     await ctx.send(user.display_avatar.url)
 
-@bot.command()
+@bot.command(name="8b")
 async def eightball(ctx, *, question):
     responses = [
         "Yes", "No", "Maybe", "Definitely", "Absolutely not", "Ask again later",
