@@ -44,6 +44,7 @@ async def on_presence_update(before, after):
                         f"```✅ Added role to {member.display_name} for having vanity link in status.\n\n"
                         f"Perks:\n"
                         f"• pic perms in ⁠💬・lounge\n"
+                        f"• sticker and emoji perms\n"
                         f"• bypass giveaway with vanity role required```"
                     )
         else:
