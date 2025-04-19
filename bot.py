@@ -170,29 +170,42 @@ async def createembed(ctx, *, content: str = None):
     except Exception as e:
         await ctx.send(f"⚠️ Error: {e}")
 
+# ✅ Updated Member Commands Info
 @bot.command(name="info")
 async def info_command(ctx):
-    embed = discord.Embed(title="📖 Bot Command Info", color=discord.Color.purple())
+    embed = discord.Embed(title="📖 Member Commands", color=discord.Color.purple())
     
     embed.add_field(
         name="👥 Member Commands",
-        value="`$ship @user1 @user2` - Ship two users\n"
-              "`$choose option1, option2` - Randomly choose one\n"
-              "`$avatar [@user]` - Get user's avatar\n"
-              "`$8b question` - Magic 8-Ball answers\n"
-              "`$remind [seconds] [task]` - Set a reminder\n"
-              "`$afk [reason]` - Set your AFK\n",
+        value=(
+            "`$ship @user1 @user2` - Ship two users\n"
+            "`$choose option1, option2` - Randomly choose one\n"
+            "`$avatar [@user]` - Get user's avatar\n"
+            "`$8b question` - Magic 8-Ball answers\n"
+            "`$remind [seconds] [task]` - Set a reminder\n"
+            "`$afk [reason]` - Set your AFK"
+        ),
+        inline=False
+    )
+    
+    embed.set_footer(text="Use the commands with $ prefix.")
+    await ctx.send(embed=embed)
+
+# ✅ New Support Command for Staff
+@bot.command(name="support")
+@commands.has_permissions(manage_messages=True)
+async def support_command(ctx):
+    embed = discord.Embed(title="🛠️ Staff Commands", color=discord.Color.gold())
+
+    embed.add_field(
+        name="🔧 Support Tools",
+        value=(
+            "`$createembed #channel | [title] | [description] | [#hexcolor (optional)]` - Post a custom embed"
+        ),
         inline=False
     )
 
-    if ctx.author.guild_permissions.manage_messages:
-        embed.add_field(
-            name="🛠️ Staff Commands",
-            value="`$createembed #channel | [title] | [description] | [#hexcolor (optional)]` - Post a custom embed",
-            inline=False
-        )
-    
-    embed.set_footer(text="Use the commands with $ prefix.")
+    embed.set_footer(text="You must have Manage Messages permission to use these.")
     await ctx.send(embed=embed)
 
 keep_alive()
