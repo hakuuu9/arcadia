@@ -13,9 +13,6 @@ intents.members = True
 bot = commands.Bot(command_prefix="$", intents=intents)
 afk_users = {}
 
-win_messages = ["🎉 Victory is yours!", "😎 You outplayed me!", "🔥 You crushed it!"]
-loss_messages = ["😂 I win this time!", "🧠 Outsmarted you!", "😈 Better luck next time!"]
-
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user}')
@@ -27,8 +24,36 @@ async def on_ready():
 
 @bot.event
 async def on_presence_update(before, after):
-    # (unchanged logic)
-    pass
+    member = after
+    try:
+        status = None
+        if after.activities:
+            for activity in after.activities:
+                if activity.type == discord.ActivityType.custom:
+                    status = activity.state
+                    break
+
+        if status and VANITY_LINK in status:
+            if ROLE_ID not in [role.id for role in member.roles]:
+                await member.add_roles(discord.Object(id=ROLE_ID))
+                channel = bot.get_channel(LOG_CHANNEL_ID)
+                if channel:
+                    await channel.send(
+                        f"```✅ Added role to {member.display_name} for having vanity link in status.\n\n"
+                        f"Perks:\n"
+                        f"• pic perms in ⁠💬・lounge\n"
+                        f"• bypass giveaway with vanity role required```"
+                    )
+        else:
+            if ROLE_ID in [role.id for role in member.roles]:
+                await member.remove_roles(discord.Object(id=ROLE_ID))
+                channel = bot.get_channel(LOG_CHANNEL_ID)
+                if channel:
+                    await channel.send(
+                        f"```❌ Removed role from {member.display_name} for removing vanity link from status.```"
+                    )
+    except Exception as e:
+        print(f"Error in presence_update: {e}")
 
 @bot.command()
 async def afk(ctx, *, reason="AFK"):
@@ -52,81 +77,211 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-# ✅ UPDATED RPS command: Member vs Member
+@bot.command()
+async def ship(ctx, user1: discord.Member = None, user2: discord.Member = None):
+    if not user1 or not user2:
+        await ctx.send("Usage: `$ship @user1 @user2`")
+        return
+    percent = random.randint(0, 100)
+    hearts = "❤️" * (percent // 20) or "💔"
+    nicknames = ["Sweethearts", "Power Couple", "Tortolitos", "Lovebirds"]
+    message = f"**{user1.display_name}** + **{user2.display_name}** = **{percent}%** {hearts}"
+    if percent >= 50:
+        nickname = random.choice(nicknames)
+        message += f"\nThey are definitely **{nickname}**!"
+    await ctx.send(message)
+
+@bot.command()
+async def choose(ctx, *, options: str = None):
+    if not options:
+        await ctx.send("Usage: `$choose option1, option2, option3`")
+        return
+    choices = [opt.strip() for opt in options.split(",") if opt.strip()]
+    if len(choices) < 2:
+        await ctx.send("Please provide at least two choices, separated by commas.")
+        return
+    selected = random.choice(choices)
+    await ctx.send(f"🎲 I choose: **{selected}**")
+
+@bot.command()
+async def avatar(ctx, user: discord.User = None):
+    user = user or ctx.author
+    await ctx.send(user.display_avatar.url)
+
+@bot.command(name="8b")
+async def eightball(ctx, *, question: str = None):
+    if not question:
+        await ctx.send("Usage: `$8b [your question]`")
+        return
+    responses = [
+        "Yes", "No", "Maybe", "Definitely", "Absolutely not", "Ask again later",
+        "Without a doubt", "Don't count on it", "Signs point to yes", "Very doubtful"
+    ]
+    await ctx.send(f"🎱 Question: {question}\nAnswer: {random.choice(responses)}")
+
+@bot.command()
+async def remind(ctx, time: int = None, *, task: str = None):
+    if not time or not task:
+        await ctx.send("Usage: `$remind [seconds] [task]`")
+        return
+    await ctx.send(f"⏰ Reminder set for {time} seconds from now: **{task}**")
+    await asyncio.sleep(time)
+    await ctx.send(f"🔔 {ctx.author.mention}, reminder: **{task}**")
+
+@bot.command()
+@commands.has_permissions(manage_messages=True)
+async def createembed(ctx, *, content: str = None):
+    if not content:
+        await ctx.send("Usage: `$createembed #channel | [title] | [description] | [hex color (optional)]`")
+        return
+    try:
+        parts = [part.strip() for part in content.split("|")]
+        if len(parts) < 2:
+            await ctx.send("❌ Format: `$createembed #channel | [title] | [description] | [hex color (optional)]`")
+            return
+
+        channel_mention = parts[0]
+        title = parts[1] if parts[1] else None
+        description = parts[2] if len(parts) > 2 else None
+        color_hex = parts[3] if len(parts) > 3 else None
+
+        if not channel_mention.startswith("<#") or not channel_mention.endswith(">"):
+            await ctx.send("❌ Please mention a valid channel.")
+            return
+
+        channel_id = int(channel_mention[2:-1])
+        channel = bot.get_channel(channel_id)
+
+        if not channel:
+            await ctx.send("❌ Could not find that channel.")
+            return
+
+        color = discord.Color.blue()
+        if color_hex:
+            try:
+                color = discord.Color(int(color_hex.strip("#"), 16))
+            except:
+                pass
+
+        embed = discord.Embed(title=title if title else None, description=description, color=color)
+        embed.set_footer(text=f"Posted by {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
+        await channel.send(embed=embed)
+        await ctx.send(f"✅ Embed sent to {channel.mention}")
+    except Exception as e:
+        await ctx.send(f"⚠️ Error: {e}")
+
+@bot.command()
+@commands.has_permissions(manage_roles=True)
+async def role(ctx, member: discord.Member = None, *, role: discord.Role = None):
+    if not member or not role:
+        await ctx.send("Usage: `$role @member @role`")
+        return
+
+    if role in member.roles:
+        await member.remove_roles(role)
+        await ctx.send(f"⚠️ The {role.name} role has been formally rescinded from {member.mention}.")
+    else:
+        await member.add_roles(role)
+        await ctx.send(f"🎖️ {member.mention} has been granted the {role.name} role.")
+
+from discord import ui
+
 @bot.command()
 async def rps(ctx, opponent: discord.Member = None):
     if not opponent or opponent.bot or opponent == ctx.author:
         await ctx.send("❌ Please mention a valid member to challenge.")
         return
 
-    emojis = {"🪨": "rock", "📄": "paper", "✂️": "scissors"}
-    message = await ctx.send(
-        f"🎮 Rock-Paper-Scissors Challenge!\n"
-        f"{ctx.author.mention} vs {opponent.mention}\n"
-        f"React with your choice below 👇"
+    class RPSView(ui.View):
+        def __init__(self, challenger, opponent):
+            super().__init__(timeout=60)
+            self.challenger = challenger
+            self.opponent = opponent
+            self.choices = {}
+            self.message = None
+
+        async def interaction_check(self, interaction: discord.Interaction) -> bool:
+            return interaction.user in [self.challenger, self.opponent]
+
+        async def button_callback(self, interaction: discord.Interaction, choice: str):
+            if interaction.user.id in self.choices:
+                await interaction.response.send_message("❗ You've already made your choice.", ephemeral=True)
+                return
+
+            self.choices[interaction.user.id] = choice
+            await interaction.response.send_message(f"✅ Choice locked in!", ephemeral=True)
+
+            if len(self.choices) == 2:
+                await self.show_result()
+
+        async def show_result(self):
+            p1_choice = self.choices[self.challenger.id]
+            p2_choice = self.choices[self.opponent.id]
+
+            emojis = {"rock": "🪨", "paper": "📄", "scissors": "✂️"}
+            result = ""
+            if p1_choice == p2_choice:
+                result = "🤝 It's a tie!"
+            elif (p1_choice == "rock" and p2_choice == "scissors") or \
+                 (p1_choice == "paper" and p2_choice == "rock") or \
+                 (p1_choice == "scissors" and p2_choice == "paper"):
+                result = f"🎉 {self.challenger.mention} wins!"
+            else:
+                result = f"🎉 {self.opponent.mention} wins!"
+
+            await self.message.edit(content=(
+                f"🪨 **Rock-Paper-Scissors Results!**\n"
+                f"{self.challenger.mention} chose {emojis[p1_choice]} **{p1_choice.capitalize()}**\n"
+                f"{self.opponent.mention} chose {emojis[p2_choice]} **{p2_choice.capitalize()}**\n"
+                f"**{result}**"
+            ), view=None)
+
+        @ui.button(label="🪨 Rock", style=discord.ButtonStyle.primary)
+        async def rock(self, interaction: discord.Interaction, button: ui.Button):
+            await self.button_callback(interaction, "rock")
+
+        @ui.button(label="📄 Paper", style=discord.ButtonStyle.primary)
+        async def paper(self, interaction: discord.Interaction, button: ui.Button):
+            await self.button_callback(interaction, "paper")
+
+        @ui.button(label="✂️ Scissors", style=discord.ButtonStyle.primary)
+        async def scissors(self, interaction: discord.Interaction, button: ui.Button):
+            await self.button_callback(interaction, "scissors")
+
+    view = RPSView(ctx.author, opponent)
+    msg = await ctx.send(
+        f"{ctx.author.mention} challenged {opponent.mention} to Rock-Paper-Scissors!\n"
+        f"Both players, click a button to lock in your move.",
+        view=view
     )
-
-    for emoji in emojis.keys():
-        await message.add_reaction(emoji)
-
-    choices = {}
-
-    def check(reaction, user):
-        return (
-            user in [ctx.author, opponent] and
-            reaction.message.id == message.id and
-            str(reaction.emoji) in emojis
-        )
-
-    while len(choices) < 2:
-        try:
-            reaction, user = await bot.wait_for("reaction_add", timeout=60.0, check=check)
-            if user.id not in choices:
-                choices[user.id] = emojis[str(reaction.emoji)]
-        except asyncio.TimeoutError:
-            await ctx.send("⏰ Game cancelled due to inactivity.")
-            return
-
-    p1_choice = choices[ctx.author.id]
-    p2_choice = choices[opponent.id]
-
-    result = ""
-    if p1_choice == p2_choice:
-        result = "🤝 It's a tie!"
-    elif (p1_choice == "rock" and p2_choice == "scissors") or \
-         (p1_choice == "paper" and p2_choice == "rock") or \
-         (p1_choice == "scissors" and p2_choice == "paper"):
-        result = f"🎉 {ctx.author.mention} wins!"
-    else:
-        result = f"🎉 {opponent.mention} wins!"
-
-    emoji_lookup = {"rock": "🪨", "paper": "📄", "scissors": "✂️"}
-    await ctx.send(
-        f"{ctx.author.mention} chose {emoji_lookup[p1_choice]} **{p1_choice.capitalize()}**\n"
-        f"{opponent.mention} chose {emoji_lookup[p2_choice]} **{p2_choice.capitalize()}**\n\n"
-        f"**{result}**"
-    )
+    view.message = msg
 
 @bot.command(name="info")
 async def info_command(ctx):
-    embed = discord.Embed(title="📖 Member Commands", color=discord.Color.purple())
+    embed = discord.Embed(title="📖 Bot Command Info", color=discord.Color.purple())
 
     embed.add_field(
-        name="👥 Fun & Utility",
+        name="👥 Member Commands",
         value="`$ship @user1 @user2` - Ship two users\n"
               "`$choose option1, option2` - Randomly choose one\n"
               "`$avatar [@user]` - Get user's avatar\n"
               "`$8b question` - Magic 8-Ball answers\n"
               "`$remind [seconds] [task]` - Set a reminder\n"
               "`$afk [reason]` - Set your AFK\n"
-              "`$rps @user` - Challenge someone to Rock-Paper-Scissors\n",
+              "`$rps @user` - Challenge a member to Rock-Paper-Scissors\n",
         inline=False
     )
 
+    if ctx.author.guild_permissions.manage_messages:
+        embed.add_field(
+            name="🛠️ Support Commands",
+            value="`$createembed #channel | [title] | [description] | [#hexcolor (optional)]` - Post a custom embed\n"
+                  "`$role @member @role` - Add or remove a role from a member\n",
+            inline=False
+        )
+
     embed.set_footer(text="Use the commands with $ prefix.")
     await ctx.send(embed=embed)
-
-# (Other commands like createembed, role, support, etc. remain unchanged)
 
 keep_alive()
 bot.run(TOKEN)
