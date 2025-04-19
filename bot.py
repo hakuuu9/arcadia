@@ -184,10 +184,10 @@ async def role_toggle(ctx, member: discord.Member = None, role: discord.Role = N
 
         if role in member.roles:
             await member.remove_roles(role)
-            await ctx.send(f"❌ Removed `{role.name}` from {member.mention}.")
+            await ctx.send(f"⚠️ The `{role.name}` role has been formally rescinded from {member.mention}.")
         else:
             await member.add_roles(role)
-            await ctx.send(f"✅ Added `{role.name}` to {member.mention}.")
+            await ctx.send(f"🎖️ {member.mention} has been granted the `{role.name}` role.")
     except discord.Forbidden:
         await ctx.send("❌ I don't have permission to manage that role.")
     except Exception as e:
@@ -198,13 +198,13 @@ async def info_command(ctx):
     embed = discord.Embed(title="📖 Member Commands", color=discord.Color.purple())
 
     embed.add_field(
-        name="👥 For Everyone",
+        name="👥 Fun & Utility",
         value="`$ship @user1 @user2` - Ship two users\n"
               "`$choose option1, option2` - Randomly choose one\n"
               "`$avatar [@user]` - Get user's avatar\n"
               "`$8b question` - Magic 8-Ball answers\n"
               "`$remind [seconds] [task]` - Set a reminder\n"
-              "`$afk [reason]` - Set your AFK",
+              "`$afk [reason]` - Set your AFK\n",
         inline=False
     )
 
@@ -214,18 +214,16 @@ async def info_command(ctx):
 @bot.command(name="support")
 @commands.has_permissions(manage_messages=True)
 async def support_command(ctx):
-    embed = discord.Embed(title="🛠️ Staff Commands", color=discord.Color.gold())
+    embed = discord.Embed(title="🛠️ Staff Commands", color=discord.Color.red())
 
     embed.add_field(
-        name="🔧 Support Tools",
-        value=(
-            "`$createembed #channel | title | description | #hexcolor (optional)` - Post a custom embed\n"
-            "`$role @user @role` - Toggle a role (add/remove like Carl-bot)"
-        ),
+        name="Moderation Tools",
+        value="`$createembed #channel | title | desc | #hex` - Send an embed\n"
+              "`$role @user @role` - Toggle a role on a user",
         inline=False
     )
 
-    embed.set_footer(text="You must have Manage Roles / Messages permission to use these.")
+    embed.set_footer(text="Staff-only commands")
     await ctx.send(embed=embed)
 
 keep_alive()
