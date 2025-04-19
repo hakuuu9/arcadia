@@ -44,7 +44,6 @@ async def on_presence_update(before, after):
                         f"```✅ Added role to {member.display_name} for having vanity link in status.\n\n"
                         f"Perks:\n"
                         f"• pic perms in ⁠💬・lounge\n"
-                        f"• 1.0 xp boost\n"
                         f"• bypass giveaway with vanity role required```"
                     )
         else:
@@ -118,6 +117,39 @@ async def remind(ctx, time: int, *, task: str):
     await ctx.send(f"⏰ Reminder set for {time} seconds from now: **{task}**")
     await asyncio.sleep(time)
     await ctx.send(f"🔔 {ctx.author.mention}, reminder: **{task}**")
+
+@bot.command()
+@commands.has_permissions(manage_messages=True)
+async def createembed(ctx, *, content: str):
+    try:
+        parts = [part.strip() for part in content.split("|")]
+        if len(parts) < 3:
+            await ctx.send("❌ Format: `$createembed #channel | Title | Description`")
+            return
+
+        channel_mention, title, description = parts[0], parts[1], "|".join(parts[2:])
+        if not channel_mention.startswith("<#") or not channel_mention.endswith(">"):
+            await ctx.send("❌ Please mention a valid channel.")
+            return
+
+        channel_id = int(channel_mention[2:-1])
+        channel = bot.get_channel(channel_id)
+
+        if not channel:
+            await ctx.send("❌ Could not find that channel.")
+            return
+
+        embed = discord.Embed(
+            title=title,
+            description=description,
+            color=discord.Color.blue()
+        )
+        embed.set_footer(text=f"Posted by {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
+        await channel.send(embed=embed)
+        await ctx.send(f"✅ Embed sent to {channel.mention}")
+
+    except Exception as e:
+        await ctx.send(f"⚠️ Error: {e}")
 
 keep_alive()
 bot.run(TOKEN)
