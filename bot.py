@@ -305,6 +305,7 @@ async def info_command(ctx):
             "`$hangman duo @user` - 2-player Hangman (take turns guessing)\n"
             "`$hangman free` - Free-for-all mode (everyone can guess)\n"
             "`$tictactoe @user` - Play Tic Tac Toe against someone\n"
+            "`$wordchain` - Start a game with `/wordchain [word]\n
         ),
         inline=False,
     )
@@ -503,5 +504,62 @@ def check_win(board, symbol):
     ]
     return any(all(board[i] == symbol for i in combo) for combo in wins)
 
+wordchain_sessions = {}
+
+@bot.command()
+async def wordchain(ctx, start_word: str):
+    channel_id = ctx.channel.id
+    if channel_id in wordchain_sessions:
+        return await ctx.send("⚠️ A Word Chain game is already running in this channel!")
+
+    game_data = {
+        "used_words": [start_word.lower()],
+        "last_letter": start_word[-1].lower(),
+        "channel": ctx.channel,
+        "active": True
+    }
+    wordchain_sessions[channel_id] = game_data
+
+    await ctx.send(
+        f"🧠 **Word Chain Game Started!**\n"
+        f"First word: **{start_word}**\n"
+        f"Next word must start with **'{game_data['last_letter']}'**. Type your word in chat!"
+    )
+
+    while game_data["active"]:
+        try:
+            msg = await bot.wait_for(
+                "message",
+                check=lambda m: m.channel == ctx.channel and not m.author.bot,
+                timeout=30.0
+            )
+            word = msg.content.strip().lower()
+
+            if word in game_data["used_words"]:
+                await ctx.send(f"🚫 That word’s already been used, {msg.author.mention}!")
+                continue
+
+            if word[0] != game_data["last_letter"]:
+                await ctx.send(f"❌ Your word must start with **'{game_data['last_letter']}'**, {msg.author.mention}!")
+                continue
+
+            game_data["used_words"].append(word)
+            game_data["last_letter"] = word[-1]
+            await ctx.send(f"✅ **{word}** accepted! Next word must start with **'{game_data['last_letter']}'**.")
+
+        except asyncio.TimeoutError:
+            await ctx.send("⏰ No response in 30 seconds. Game over!")
+            del wordchain_sessions[channel_id]
+            break
+
+@bot.command()
+async def stopwordchain(ctx):
+    channel_id = ctx.channel.id
+    if channel_id in wordchain_sessions:
+        del wordchain_sessions[channel_id]
+        await ctx.send("🛑 Word Chain game ended.")
+    else:
+        await ctx.send("❌ There’s no active Word Chain game in this channel.")
+        
 keep_alive()
 bot.run(TOKEN)
