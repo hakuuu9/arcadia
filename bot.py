@@ -1,8 +1,7 @@
 import discord
-from discord.ext import commands, tasks
+from discord.ext import commands
 import random
 import asyncio
-import datetime
 from config import TOKEN, GUILD_ID, ROLE_ID, VANITY_LINK, LOG_CHANNEL_ID
 from keep_alive import keep_alive
 
@@ -44,6 +43,7 @@ async def on_presence_update(before, after):
                         f"```✅ Added role to {member.display_name} for having vanity link in status.\n\n"
                         f"Perks:\n"
                         f"• pic perms in ⁠💬・lounge\n"
+                        f"• sticker and emoji perms\n"
                         f"• bypass giveaway with vanity role required```"
                     )
         else:
@@ -80,11 +80,7 @@ async def on_message(message):
     await bot.process_commands(message)
 
 @bot.command()
-async def ship(ctx, user1: discord.Member = None, user2: discord.Member = None):
-    if not user1 or not user2:
-        await ctx.send("Usage: `$ship @user1 @user2`")
-        return
-
+async def ship(ctx, user1: discord.Member, user2: discord.Member):
     percent = random.randint(0, 100)
     hearts = "❤️" * (percent // 20) or "💔"
     nicknames = ["Sweethearts", "Power Couple", "Tortolitos", "Lovebirds"]
@@ -95,10 +91,7 @@ async def ship(ctx, user1: discord.Member = None, user2: discord.Member = None):
     await ctx.send(message)
 
 @bot.command()
-async def choose(ctx, *, options: str = None):
-    if not options:
-        await ctx.send("Usage: `$choose option1, option2, option3`")
-        return
+async def choose(ctx, *, options: str):
     choices = [opt.strip() for opt in options.split(",") if opt.strip()]
     if len(choices) < 2:
         await ctx.send("Please provide at least two choices, separated by commas.")
@@ -112,10 +105,7 @@ async def avatar(ctx, user: discord.User = None):
     await ctx.send(user.display_avatar.url)
 
 @bot.command(name="8b")
-async def eightball(ctx, *, question = None):
-    if not question:
-        await ctx.send("Usage: `$8b [your question]`")
-        return
+async def eightball(ctx, *, question):
     responses = [
         "Yes", "No", "Maybe", "Definitely", "Absolutely not", "Ask again later",
         "Without a doubt", "Don't count on it", "Signs point to yes", "Very doubtful"
@@ -123,29 +113,29 @@ async def eightball(ctx, *, question = None):
     await ctx.send(f"🎱 Question: {question}\nAnswer: {random.choice(responses)}")
 
 @bot.command()
-async def remind(ctx, time: int = None, *, task: str = None):
-    if time is None or task is None:
-        await ctx.send("Usage: `$remind [seconds] [task]`")
-        return
+async def remind(ctx, time: int, *, task: str):
     await ctx.send(f"⏰ Reminder set for {time} seconds from now: **{task}**")
     await asyncio.sleep(time)
     await ctx.send(f"🔔 {ctx.author.mention}, reminder: **{task}**")
 
 @bot.command()
-async def info(ctx):
-    embed = discord.Embed(
-        title="📜 Bot Commands",
-        description="Here's a list of available commands and how to use them:",
-        color=discord.Color.blurple()
-    )
-    embed.add_field(name="`$ship @user1 @user2`", value="Check compatibility between two users.", inline=False)
-    embed.add_field(name="`$afk [reason]`", value="Set your AFK status with an optional reason.", inline=False)
-    embed.add_field(name="`$choose option1, option2`", value="Let the bot pick between options.", inline=False)
-    embed.add_field(name="`$avatar [@user]`", value="Get the avatar of a user (or yourself).", inline=False)
-    embed.add_field(name="`$8b [question]`", value="Ask the magic 8-ball anything.", inline=False)
-    embed.add_field(name="`$remind [seconds] [task]`", value="Set a reminder after a delay in seconds.", inline=False)
-    embed.add_field(name="`Vanity Role`", value="Bot auto-adds or removes role based on your custom status.", inline=False)
-    await ctx.send(embed=embed)
+async def createembed(ctx, *, content: str):
+    try:
+        # Split content into title and body
+        title, body = content.split(" | ", 1) if " | " in content else (None, content)
+
+        # Create embed
+        embed = discord.Embed(description=body, color=discord.Color.random())
+        
+        # Add title if exists
+        if title:
+            embed.title = title
+        
+        # Send embed
+        await ctx.send(embed=embed)
+
+    except Exception as e:
+        await ctx.send(f"An error occurred while creating the embed: {e}")
 
 keep_alive()
 bot.run(TOKEN)
