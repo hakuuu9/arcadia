@@ -273,6 +273,7 @@ async def info_command(ctx):
             "`$hangman solo` - Play Hangman by yourself\n"
             "`$hangman duo @user` - 2-player Hangman (take turns guessing)\n"
             "`$hangman free` - Free-for-all mode (everyone can guess)"
+            "`$tictactoe @user` - Play Tic Tac Toe against someone\n"
         ),
         inline=False,
     )
@@ -374,6 +375,90 @@ async def hangman(ctx, mode: str = "solo", opponent: discord.Member = None):
     else:
         await ctx.send(f"💀 Game Over! The word was `{word}`")
 
+# Tic Tac Toe Setup
+active_ttt_games = {}
+
+@bot.command(name="tictactoe")
+async def tictactoe(ctx, opponent: discord.Member):
+    if ctx.author == opponent:
+        return await ctx.send("❌ You can't play against yourself!")
+
+    game_id = f"{ctx.channel.id}"
+    if game_id in active_ttt_games:
+        return await ctx.send("⚠️ A Tic Tac Toe game is already running in this channel.")
+
+    board = [str(i) for i in range(1, 10)]
+    players = [ctx.author, opponent]
+    symbols = ["❌", "⭕"]
+    current_turn = 0
+
+    active_ttt_games[game_id] = {
+        "board": board,
+        "players": players,
+        "symbols": symbols,
+        "turn": current_turn
+    }
+
+    await ctx.send(render_board(board, players, symbols, current_turn))
+
+
+@bot.event
+async def on_message(message):
+    if message.author.bot:
+        return
+
+    game_id = f"{message.channel.id}"
+    if game_id not in active_ttt_games:
+        return await bot.process_commands(message)
+
+    game = active_ttt_games[game_id]
+    player = message.author
+    if player != game["players"][game["turn"]]:
+        return
+
+    content = message.content.strip()
+    if not content.isdigit() or not (1 <= int(content) <= 9):
+        return await message.channel.send("⛔ Enter a number between 1 and 9.")
+
+    pos = int(content) - 1
+    if game["board"][pos] in ["❌", "⭕"]:
+        return await message.channel.send("❗ That spot is already taken.")
+
+    game["board"][pos] = game["symbols"][game["turn"]]
+
+    if check_win(game["board"], game["symbols"][game["turn"]]):
+        await message.channel.send(render_board(game["board"], game["players"], game["symbols"], game["turn"]))
+        await message.channel.send(f"🏆 {player.mention} wins!")
+        del active_ttt_games[game_id]
+        return
+
+    if all(cell in ["❌", "⭕"] for cell in game["board"]):
+        await message.channel.send(render_board(game["board"], game["players"], game["symbols"], game["turn"]))
+        await message.channel.send("🤝 It's a draw!")
+        del active_ttt_games[game_id]
+        return
+
+    game["turn"] = 1 - game["turn"]
+    await message.channel.send(render_board(game["board"], game["players"], game["symbols"], game["turn"]))
+
+    await bot.process_commands(message)
+
+
+def render_board(board, players, symbols, turn):
+    b = board
+    grid = f"```\n| {b[0]} | {b[1]} | {b[2]} |\n| {b[3]} | {b[4]} | {b[5]} |\n| {b[6]} | {b[7]} | {b[8]} |\n```"
+    turn_msg = f"🎮 Tic Tac Toe: {players[0].mention} ({symbols[0]}) vs {players[1].mention} ({symbols[1]})\n\n" + grid
+    turn_msg += f"\n{players[turn].mention}'s turn! Choose a number from 1–9."
+    return turn_msg
+
+
+def check_win(board, symbol):
+    wins = [
+        [0, 1, 2], [3, 4, 5], [6, 7, 8],  # rows
+        [0, 3, 6], [1, 4, 7], [2, 5, 8],  # columns
+        [0, 4, 8], [2, 4, 6]              # diagonals
+    ]
+    return any(all(board[i] == symbol for i in combo) for combo in wins)
 
 keep_alive()
 bot.run(TOKEN)
