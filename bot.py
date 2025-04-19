@@ -263,30 +263,24 @@ async def info_command(ctx):
     embed.add_field(
         name="👥 Member Commands",
         value=(
-            "`$ship @user1 @user2` — Ship two users\n"
-            "`$choose option1, option2` — Randomly choose one\n"
-            "`$avatar [@user]` — Get user's avatar\n"
-            "`$8b question` — Magic 8-Ball answers\n"
-            "`$remind [seconds] [task]` — Set a reminder\n"
-            "`$afk [reason]` — Set your AFK\n"
-            "`$rps @user` — Challenge to Rock-Paper-Scissors\n"
-            "`$hangman solo` — Solo Hangman game\n"
-            "`$hangman duo @user` — 2-player Hangman\n"
-            "`$hangman free` — Free-for-all Hangman\n"
-            "`$tictactoe @user` — Play Tic Tac Toe"
+            "`$ship @user1 @user2` - Ship two users\n"
+            "`$choose option1, option2` - Randomly choose one\n"
+            "`$avatar [@user]` - Get user's avatar\n"
+            "`$8b question` - Magic 8-Ball answers\n"
+            "`$remind [seconds] [task]` - Set a reminder\n"
+            "`$afk [reason]` - Set your AFK\n"
+            "`$rps @user` - Challenge a member to Rock-Paper-Scissors\n"
+            "`$hangman solo` - Play Hangman by yourself\n"
+            "`$hangman duo @user` - 2-player Hangman (take turns guessing)\n"
+            "`$hangman free` - Free-for-all mode (everyone can guess)\n"
+            "`$tictactoe @user` - Play Tic Tac Toe against someone\n"
         ),
-        inline=False
+        inline=False,
     )
 
-    if ctx.author.guild_permissions.manage_messages:
-        embed.add_field(
-            name="🛠️ Staff Commands",
-            value="Use `$supportinfo` to view staff command list.",
-            inline=False
-        )
-
-    embed.set_footer(text="Use commands with the `$` prefix.")
+    embed.set_footer(text="Use the commands with $ prefix.")
     await ctx.send(embed=embed)
+
 
 @bot.command(name="supportinfo")
 @commands.has_permissions(manage_messages=True)
