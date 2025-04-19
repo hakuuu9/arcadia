@@ -119,6 +119,18 @@ async def remind(ctx, time: int, *, task: str):
     await ctx.send(f"🔔 {ctx.author.mention}, reminder: **{task}**")
 
 @bot.command()
+async def info(ctx):
+    embed = discord.Embed(title="Command Help", description="Here is a list of commands you can use:", color=discord.Color.blue())
+    embed.add_field(name="$ship [user1] [user2]", value="Ships two users and gives a compatibility percentage.", inline=False)
+    embed.add_field(name="$choose [option1, option2, ...]", value="Lets you choose randomly between the options.", inline=False)
+    embed.add_field(name="$afk [reason]", value="Set yourself as AFK, mention the reason (default: AFK).", inline=False)
+    embed.add_field(name="$avatar [user]", value="Shows the avatar of the user. If no user is provided, shows your avatar.", inline=False)
+    embed.add_field(name="$8b [question]", value="Ask the magic 8-ball a question and get a random answer.", inline=False)
+    embed.add_field(name="$remind [time in seconds] [task]", value="Sets a reminder for the task after the specified time.", inline=False)
+    embed.add_field(name="$info", value="Shows this help message.", inline=False)
+    await ctx.send(embed=embed)
+
+@bot.command()
 async def createembed(ctx, *, content: str):
     try:
         # Split content into title and body
