@@ -269,6 +269,9 @@ async def info_command(ctx):
               "`$remind [seconds] [task]` - Set a reminder\n"
               "`$afk [reason]` - Set your AFK\n"
               "`$rps @user` - Challenge a member to Rock-Paper-Scissors\n",
+              "`$hangman solo` - Play Hangman by yourself\n"
+              "`$hangman duo @user` - 2-player Hangman (take turns guessing)\n"
+              "`$hangman ffa` - Free-for-all mode (everyone can guess)"
         inline=False
     )
 
@@ -299,7 +302,7 @@ async def hangman(ctx, mode: str = "solo", opponent: discord.Member = None):
     word = await fetch_word()
     display = ["_" for _ in word]
     guessed = set()
-    attempts = 6
+    attempts = 12
     turn = 0
 
     players = [ctx.author]
