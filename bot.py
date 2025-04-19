@@ -283,6 +283,7 @@ async def info_command(ctx):
     embed.set_footer(text="Use the commands with $ prefix.")
     await ctx.send(embed=embed)
 
+import aiohttp
 @bot.command()
 async def hangman(ctx, mode: str = "solo", opponent: discord.Member = None):
     # Fetch a random word from an online API
