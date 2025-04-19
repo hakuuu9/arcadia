@@ -306,6 +306,7 @@ async def info_command(ctx):
             "`$hangman free` - Free-for-all mode (everyone can guess)\n"
             "`$tictactoe @user` - Play Tic Tac Toe against someone\n"
             "`$wordchain [word]` - Start a game with wordchain [word]\n"
+            "`$arcadiaroll` - Use `/arcadiaroll` to test your luck with a number from 1 to 100!\n"
         ),
         inline=False,
     )
@@ -560,6 +561,36 @@ async def stopwordchain(ctx):
         await ctx.send("🛑 Word Chain game ended.")
     else:
         await ctx.send("❌ There’s no active Word Chain game in this channel.")
+
+cooldowns = {}
+
+class ArcadianButton(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="Tap Me!", style=discord.ButtonStyle.primary, custom_id="arcadian_tap")
+    async def tap(self, interaction: discord.Interaction, button: discord.ui.Button):
+        user_id = interaction.user.id
+        now = time.time()
+
+        if user_id in cooldowns and now - cooldowns[user_id] < 3:
+            remaining = round(3 - (now - cooldowns[user_id]), 1)
+            return await interaction.response.send_message(
+                f"🕒 Wait {remaining} more seconds before tapping again!",
+                ephemeral=True
+            )
+
+        cooldowns[user_id] = now
+        number = random.randint(1, 100)
+        await interaction.response.send_message(
+            f"🎲 {interaction.user.mention} rolled an **Arcadian {number}**!",
+            ephemeral=False
+        )
+
+@bot.command(name="arcadiaroll")
+async def arcadian_roll(ctx):
+    view = ArcadianButton()
+    await ctx.send("🔘 **Tap the button to roll your Arcadian number!** (3s cooldown per user)", view=view)
         
 keep_alive()
 bot.run(TOKEN)
