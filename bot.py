@@ -119,14 +119,45 @@ async def eightball(ctx, *, question: str = None):
     ]
     await ctx.send(f"🎱 Question: {question}\nAnswer: {random.choice(responses)}")
 
+import re
+
 @bot.command()
-async def remind(ctx, time: int = None, *, task: str = None):
+async def remind(ctx, time: str = None, *, task: str = None):
     if not time or not task:
-        await ctx.send("Usage: `$remind [seconds] [task]`")
+        await ctx.send(
+            "Usage: `$remind [time][s/m/h] [task]`\n"
+            "Examples: `$remind 10s take out the trash`, `$remind 5min start homework`, `$remind 1h30m read a book`"
+        )
         return
-    await ctx.send(f"⏰ Reminder set for {time} seconds from now: **{task}**")
-    await asyncio.sleep(time)
+
+    # Pattern to match multiple time parts like 1h30m20s
+    time_pattern = re.findall(r"(\d+)(h|hr|hrs|m|min|mins|s|sec|secs)", time.lower())
+    
+    if not time_pattern:
+        await ctx.send("❌ Invalid time format. Use combinations like `1h30m`, `10min30s`, or `2h`.")
+        return
+
+    delay = 0
+    for value, unit in time_pattern:
+        value = int(value)
+        if unit in ["h", "hr", "hrs"]:
+            delay += value * 3600
+        elif unit in ["m", "min", "mins"]:
+            delay += value * 60
+        elif unit in ["s", "sec", "secs"]:
+            delay += value
+        else:
+            await ctx.send("❌ Invalid time unit detected.")
+            return
+
+    if delay <= 0:
+        await ctx.send("❌ Time must be greater than 0 seconds.")
+        return
+
+    await ctx.send(f"⏰ Reminder set for `{time}`: **{task}**")
+    await asyncio.sleep(delay)
     await ctx.send(f"🔔 {ctx.author.mention}, reminder: **{task}**")
+
 
 @bot.command()
 @commands.has_permissions(manage_messages=True)
