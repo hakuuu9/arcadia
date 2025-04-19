@@ -282,7 +282,8 @@ async def info_command(ctx):
 
     embed.set_footer(text="Use the commands with $ prefix.")
     await ctx.send(embed=embed)
-    @bot.command()
+
+@bot.command()
 async def hangman(ctx):
     words = ["banana", "python", "discord", "developer", "gaming", "hangman", "challenge"]
     word = random.choice(words).lower()
@@ -335,8 +336,6 @@ async def hangman(ctx):
         await ctx.send(f"🎉 Congratulations! You guessed the word: `{word}`")
     else:
         await ctx.send(f"💀 Game Over! The word was `{word}`")
-
-# ... keep this at the end of your file
 
 keep_alive()
 bot.run(TOKEN)
