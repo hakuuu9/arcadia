@@ -119,37 +119,45 @@ async def remind(ctx, time: int, *, task: str):
     await ctx.send(f"🔔 {ctx.author.mention}, reminder: **{task}**")
 
 @bot.command()
-@commands.has_permissions(manage_messages=True)
-async def createembed(ctx, *, content: str):
-    try:
-        parts = [part.strip() for part in content.split("|")]
-        if len(parts) < 3:
-            await ctx.send("❌ Format: `$createembed #channel | Title | Description`")
-            return
+async def createembed(ctx, *, content):
+    if "|" not in content:
+        await ctx.send("Usage: `$createembed #channel | Title | Description`")
+        return
 
-        channel_mention, title, description = parts[0], parts[1], "|".join(parts[2:])
-        if not channel_mention.startswith("<#") or not channel_mention.endswith(">"):
-            await ctx.send("❌ Please mention a valid channel.")
-            return
+    parts = content.split("|")
+    if len(parts) < 3:
+        await ctx.send("Usage: `$createembed #channel | Title | Description`")
+        return
 
-        channel_id = int(channel_mention[2:-1])
-        channel = bot.get_channel(channel_id)
+    channel_mention, title, description = parts[0].strip(), parts[1].strip(), parts[2].strip()
+    if not channel_mention.startswith("<#") or not channel_mention.endswith(">"):
+        await ctx.send("Please mention a valid channel.")
+        return
 
-        if not channel:
-            await ctx.send("❌ Could not find that channel.")
-            return
+    channel_id = int(channel_mention[2:-1])
+    channel = bot.get_channel(channel_id)
 
-        embed = discord.Embed(
-            title=title,
-            description=description,
-            color=discord.Color.blue()
-        )
-        embed.set_footer(text=f"Posted by {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
-        await channel.send(embed=embed)
-        await ctx.send(f"✅ Embed sent to {channel.mention}")
+    if not channel:
+        await ctx.send("Channel not found.")
+        return
 
-    except Exception as e:
-        await ctx.send(f"⚠️ Error: {e}")
+    embed = discord.Embed(title=title, description=description, color=discord.Color.blurple())
+    embed.set_footer(text=f"Posted by {ctx.author}", icon_url=ctx.author.display_avatar.url)
+    await channel.send(embed=embed)
+    await ctx.send("✅ Embed sent.")
+
+@bot.command()
+async def help(ctx):
+    embed = discord.Embed(title="📘 Bot Commands", description="Here's a list of commands you can use:", color=discord.Color.blurple())
+    embed.add_field(name="`$afk [reason]`", value="Set your AFK status with an optional reason.", inline=False)
+    embed.add_field(name="`$ship @user1 @user2`", value="Check love compatibility between two users.", inline=False)
+    embed.add_field(name="`$choose option1, option2, ...`", value="Let the bot pick a random option.", inline=False)
+    embed.add_field(name="`$avatar [@user]`", value="Get the profile picture of yourself or another user.", inline=False)
+    embed.add_field(name="`$8b [question]`", value="Ask the 8ball a question.", inline=False)
+    embed.add_field(name="`$remind [seconds] [task]`", value="Set a reminder for yourself.", inline=False)
+    embed.add_field(name="`$createembed #channel | Title | Description`", value="Create an embed message in a chosen channel (Manage Messages permission required).", inline=False)
+    embed.set_footer(text="Made with ❤️ by your bot")
+    await ctx.send(embed=embed)
 
 keep_alive()
 bot.run(TOKEN)
