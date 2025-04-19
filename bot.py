@@ -1,7 +1,8 @@
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 import random
 import asyncio
+import datetime
 from config import TOKEN, GUILD_ID, ROLE_ID, VANITY_LINK, LOG_CHANNEL_ID
 from keep_alive import keep_alive
 
@@ -43,7 +44,6 @@ async def on_presence_update(before, after):
                         f"```✅ Added role to {member.display_name} for having vanity link in status.\n\n"
                         f"Perks:\n"
                         f"• pic perms in ⁠💬・lounge\n"
-                        f"• sticker and emoji perms\n"
                         f"• bypass giveaway with vanity role required```"
                     )
         else:
@@ -119,35 +119,54 @@ async def remind(ctx, time: int, *, task: str):
     await ctx.send(f"🔔 {ctx.author.mention}, reminder: **{task}**")
 
 @bot.command()
-async def info(ctx):
-    embed = discord.Embed(title="Command Help", description="Here is a list of commands you can use:", color=discord.Color.blue())
-    embed.add_field(name="$ship [user1] [user2]", value="Ships two users and gives a compatibility percentage.", inline=False)
-    embed.add_field(name="$choose [option1, option2, ...]", value="Lets you choose randomly between the options.", inline=False)
-    embed.add_field(name="$afk [reason]", value="Set yourself as AFK, mention the reason (default: AFK).", inline=False)
-    embed.add_field(name="$avatar [user]", value="Shows the avatar of the user. If no user is provided, shows your avatar.", inline=False)
-    embed.add_field(name="$8b [question]", value="Ask the magic 8-ball a question and get a random answer.", inline=False)
-    embed.add_field(name="$remind [time in seconds] [task]", value="Sets a reminder for the task after the specified time.", inline=False)
-    embed.add_field(name="$info", value="Shows this help message.", inline=False)
-    await ctx.send(embed=embed)
-
-@bot.command()
+@commands.has_permissions(manage_messages=True)
 async def createembed(ctx, *, content: str):
     try:
-        # Split content into title and body
-        title, body = content.split(" | ", 1) if " | " in content else (None, content)
+        # Format: $createembed #channel | Title | Description | HexColor | Author
+        parts = [part.strip() for part in content.split("|")]
 
-        # Create embed
-        embed = discord.Embed(description=body, color=discord.Color.random())
-        
-        # Add title if exists
+        if len(parts) < 2:
+            await ctx.send("❌ Format: `$createembed #channel | Title (or None) | Description | HexColor (optional) | Author (optional)`")
+            return
+
+        channel_mention = parts[0]
+        title = parts[1] if parts[1].lower() != "none" else None
+        description = parts[2] if len(parts) >= 3 else ""
+        hex_color = parts[3] if len(parts) >= 4 else None
+        author = parts[4] if len(parts) >= 5 else None
+
+        if not channel_mention.startswith("<#") or not channel_mention.endswith(">"):
+            await ctx.send("❌ Please mention a valid channel.")
+            return
+
+        channel_id = int(channel_mention[2:-1])
+        channel = bot.get_channel(channel_id)
+
+        if not channel:
+            await ctx.send("❌ Could not find that channel.")
+            return
+
+        color = discord.Color.default()
+        if hex_color:
+            try:
+                color = discord.Color(int(hex_color.replace("#", ""), 16))
+            except:
+                await ctx.send("⚠️ Invalid hex color code. Example: `#ff5733`")
+                return
+
+        embed = discord.Embed(description=description, color=color)
+
         if title:
             embed.title = title
-        
-        # Send embed
-        await ctx.send(embed=embed)
+        if author:
+            embed.set_author(name=author)
+        embed.set_footer(text=f"Posted by {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
+
+        await channel.send(embed=embed)
+        await ctx.send(f"✅ Embed sent to {channel.mention}")
 
     except Exception as e:
-        await ctx.send(f"An error occurred while creating the embed: {e}")
+        await ctx.send(f"⚠️ Error: {e}")
 
 keep_alive()
 bot.run(TOKEN)
