@@ -305,7 +305,7 @@ async def info_command(ctx):
             "`$hangman duo @user` - 2-player Hangman (take turns guessing)\n"
             "`$hangman free` - Free-for-all mode (everyone can guess)\n"
             "`$tictactoe @user` - Play Tic Tac Toe against someone\n"
-            "`$wordchain` - Start a game with wordchain [word]\n"
+            "`$wordchain [word]` - Start a game with wordchain [word]\n"
         ),
         inline=False,
     )
