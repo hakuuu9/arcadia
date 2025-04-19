@@ -282,6 +282,61 @@ async def info_command(ctx):
 
     embed.set_footer(text="Use the commands with $ prefix.")
     await ctx.send(embed=embed)
+    @bot.command()
+async def hangman(ctx):
+    words = ["banana", "python", "discord", "developer", "gaming", "hangman", "challenge"]
+    word = random.choice(words).lower()
+    guessed = set()
+    attempts = 6
+    display = ["_" for _ in word]
+
+    stages = [
+        "```\n  +---+\n  |   |\n      |\n      |\n      |\n      |\n=========```",
+        "```\n  +---+\n  |   |\n  O   |\n      |\n      |\n      |\n=========```",
+        "```\n  +---+\n  |   |\n  O   |\n  |   |\n      |\n      |\n=========```",
+        "```\n  +---+\n  |   |\n  O   |\n /|   |\n      |\n      |\n=========```",
+        "```\n  +---+\n  |   |\n  O   |\n /|\\  |\n      |\n      |\n=========```",
+        "```\n  +---+\n  |   |\n  O   |\n /|\\  |\n /    |\n      |\n=========```",
+        "```\n  +---+\n  |   |\n  O   |\n /|\\  |\n / \\  |\n      |\n=========```"
+    ]
+
+    def format_display():
+        return " ".join(display)
+
+    await ctx.send(f"🎯 **Hangman Game Started!**\nWord: `{format_display()}`\nYou have {attempts} tries.\n{stages[0]}")
+
+    while attempts > 0 and "_" in display:
+        try:
+            guess_msg = await bot.wait_for(
+                "message",
+                check=lambda m: m.author == ctx.author and m.channel == ctx.channel and len(m.content) == 1 and m.content.isalpha(),
+                timeout=60
+            )
+        except asyncio.TimeoutError:
+            await ctx.send("⏰ Time's up! Game cancelled.")
+            return
+
+        guess = guess_msg.content.lower()
+        if guess in guessed:
+            await ctx.send("⚠️ You've already guessed that letter.")
+            continue
+
+        guessed.add(guess)
+        if guess in word:
+            for i, letter in enumerate(word):
+                if letter == guess:
+                    display[i] = guess
+            await ctx.send(f"✅ Correct! `{format_display()}`")
+        else:
+            attempts -= 1
+            await ctx.send(f"❌ Wrong guess! `{format_display()}`\nTries left: {attempts}\n{stages[6 - attempts]}")
+
+    if "_" not in display:
+        await ctx.send(f"🎉 Congratulations! You guessed the word: `{word}`")
+    else:
+        await ctx.send(f"💀 Game Over! The word was `{word}`")
+
+# ... keep this at the end of your file
 
 keep_alive()
 bot.run(TOKEN)
