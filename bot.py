@@ -170,28 +170,47 @@ async def createembed(ctx, *, content: str = None):
     except Exception as e:
         await ctx.send(f"⚠️ Error: {e}")
 
-# ✅ Updated Member Commands Info
+@bot.command(name="role")
+@commands.has_permissions(manage_roles=True)
+async def role_toggle(ctx, member: discord.Member = None, role: discord.Role = None):
+    if not member or not role:
+        await ctx.send("Usage: `$role @user @role`")
+        return
+
+    try:
+        if role >= ctx.guild.me.top_role:
+            await ctx.send("❌ I can't modify that role. It's higher than my highest role.")
+            return
+
+        if role in member.roles:
+            await member.remove_roles(role)
+            await ctx.send(f"❌ Removed `{role.name}` from {member.mention}.")
+        else:
+            await member.add_roles(role)
+            await ctx.send(f"✅ Added `{role.name}` to {member.mention}.")
+    except discord.Forbidden:
+        await ctx.send("❌ I don't have permission to manage that role.")
+    except Exception as e:
+        await ctx.send(f"⚠️ An error occurred: {e}")
+
 @bot.command(name="info")
 async def info_command(ctx):
     embed = discord.Embed(title="📖 Member Commands", color=discord.Color.purple())
-    
+
     embed.add_field(
-        name="👥 Member Commands",
-        value=(
-            "`$ship @user1 @user2` - Ship two users\n"
-            "`$choose option1, option2` - Randomly choose one\n"
-            "`$avatar [@user]` - Get user's avatar\n"
-            "`$8b question` - Magic 8-Ball answers\n"
-            "`$remind [seconds] [task]` - Set a reminder\n"
-            "`$afk [reason]` - Set your AFK"
-        ),
+        name="👥 For Everyone",
+        value="`$ship @user1 @user2` - Ship two users\n"
+              "`$choose option1, option2` - Randomly choose one\n"
+              "`$avatar [@user]` - Get user's avatar\n"
+              "`$8b question` - Magic 8-Ball answers\n"
+              "`$remind [seconds] [task]` - Set a reminder\n"
+              "`$afk [reason]` - Set your AFK",
         inline=False
     )
-    
+
     embed.set_footer(text="Use the commands with $ prefix.")
     await ctx.send(embed=embed)
 
-# ✅ New Support Command for Staff
 @bot.command(name="support")
 @commands.has_permissions(manage_messages=True)
 async def support_command(ctx):
@@ -200,12 +219,13 @@ async def support_command(ctx):
     embed.add_field(
         name="🔧 Support Tools",
         value=(
-            "`$createembed #channel | [title] | [description] | [#hexcolor (optional)]` - Post a custom embed"
+            "`$createembed #channel | title | description | #hexcolor (optional)` - Post a custom embed\n"
+            "`$role @user @role` - Toggle a role (add/remove like Carl-bot)"
         ),
         inline=False
     )
 
-    embed.set_footer(text="You must have Manage Messages permission to use these.")
+    embed.set_footer(text="You must have Manage Roles / Messages permission to use these.")
     await ctx.send(embed=embed)
 
 keep_alive()
