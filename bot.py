@@ -283,32 +283,29 @@ async def info_command(ctx):
     embed.set_footer(text="Use the commands with $ prefix.")
     await ctx.send(embed=embed)
 
-import aiohttp
-
 @bot.command()
-async def hangman(ctx, opponent: discord.Member = None):
-    """Start a Hangman game (single-player or multiplayer)."""
-
-    async def get_random_word():
+async def hangman(ctx, mode: str = "solo", opponent: discord.Member = None):
+    # Fetch a random word from an online API
+    async def fetch_word():
         async with aiohttp.ClientSession() as session:
-            async with session.get("https://random-word-api.herokuapp.com/word?number=1") as resp:
+            async with session.get("https://random-word-api.herokuapp.com/word") as resp:
                 if resp.status == 200:
                     data = await resp.json()
                     return data[0].lower()
                 else:
                     return random.choice(["python", "discord", "hangman", "developer"])
 
-    word = await get_random_word()
-    guessed = set()
+    word = await fetch_word()
     display = ["_" for _ in word]
+    guessed = set()
     attempts = 6
-    players = [ctx.author]
+    turn = 0
 
-    if opponent and opponent != ctx.author and not opponent.bot:
+    players = [ctx.author]
+    if mode == "duo" and opponent and opponent != ctx.author and not opponent.bot:
         players.append(opponent)
-        await ctx.send(f"👥 Multiplayer Hangman: {ctx.author.mention} vs {opponent.mention}")
-    else:
-        await ctx.send(f"🎮 Single Player Hangman started by {ctx.author.mention}")
+    elif mode == "ffa":
+        players = None  # anyone in the channel
 
     stages = [
         "```\n  +---+\n  |   |\n      |\n      |\n      |\n      |\n=========```",
@@ -323,44 +320,51 @@ async def hangman(ctx, opponent: discord.Member = None):
     def format_display():
         return " ".join(display)
 
-    await ctx.send(f"🕹️ Word: `{format_display()}`\n{stages[0]}")
+    await ctx.send(
+        f"🎯 **Hangman Game Started!** Mode: `{mode.upper()}`\n"
+        f"Word: `{format_display()}`\nYou have {attempts} tries.\n{stages[0]}"
+    )
 
-    turn = 0
     while attempts > 0 and "_" in display:
-        current_player = players[turn % len(players)]
-        await ctx.send(f"🔤 {current_player.mention}, guess a letter:")
+        if players:
+            current_player = players[turn % len(players)]
+            await ctx.send(f"🔁 {current_player.mention}, it's your turn to guess a letter.")
 
         try:
             guess_msg = await bot.wait_for(
                 "message",
-                timeout=60.0,
-                check=lambda m: m.author == current_player and m.channel == ctx.channel and len(m.content) == 1 and m.content.isalpha()
+                timeout=60,
+                check=lambda m: m.channel == ctx.channel and len(m.content) == 1 and m.content.isalpha() and (
+                    players is None or m.author == current_player
+                )
             )
         except asyncio.TimeoutError:
-            await ctx.send(f"⏰ {current_player.mention} took too long. Game over.")
+            await ctx.send("⏰ Time's up! Game cancelled.")
             return
 
         guess = guess_msg.content.lower()
         if guess in guessed:
-            await ctx.send("⚠️ Already guessed that letter.")
+            await ctx.send("⚠️ Letter already guessed.")
             continue
 
         guessed.add(guess)
         if guess in word:
-            for i, letter in enumerate(word):
-                if letter == guess:
+            for i, c in enumerate(word):
+                if c == guess:
                     display[i] = guess
-            await ctx.send(f"✅ Correct!\n`{format_display()}`")
+            await ctx.send(f"✅ Correct! `{format_display()}`")
         else:
             attempts -= 1
-            await ctx.send(f"❌ Wrong!\n`{format_display()}`\nAttempts left: {attempts}\n{stages[6 - attempts]}")
+            await ctx.send(f"❌ Wrong! `{format_display()}`\nTries left: {attempts}\n{stages[6 - attempts]}")
 
-        turn += 1
+        if players:
+            turn += 1
 
     if "_" not in display:
-        await ctx.send(f"🎉 Well done! The word was: `{word}`")
+        await ctx.send(f"🎉 Congrats! The word was: `{word}`")
     else:
-        await ctx.send(f"💀 Game over! The word was: `{word}`")
+        await ctx.send(f"💀 Game Over! The word was `{word}`")
+
 
 keep_alive()
 bot.run(TOKEN)
