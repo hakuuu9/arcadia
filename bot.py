@@ -80,7 +80,11 @@ async def on_message(message):
     await bot.process_commands(message)
 
 @bot.command()
-async def ship(ctx, user1: discord.Member, user2: discord.Member):
+async def ship(ctx, user1: discord.Member = None, user2: discord.Member = None):
+    if not user1 or not user2:
+        await ctx.send("Usage: `$ship @user1 @user2`")
+        return
+
     percent = random.randint(0, 100)
     hearts = "❤️" * (percent // 20) or "💔"
     nicknames = ["Sweethearts", "Power Couple", "Tortolitos", "Lovebirds"]
@@ -91,7 +95,10 @@ async def ship(ctx, user1: discord.Member, user2: discord.Member):
     await ctx.send(message)
 
 @bot.command()
-async def choose(ctx, *, options: str):
+async def choose(ctx, *, options: str = None):
+    if not options:
+        await ctx.send("Usage: `$choose option1, option2, option3`")
+        return
     choices = [opt.strip() for opt in options.split(",") if opt.strip()]
     if len(choices) < 2:
         await ctx.send("Please provide at least two choices, separated by commas.")
@@ -105,7 +112,10 @@ async def avatar(ctx, user: discord.User = None):
     await ctx.send(user.display_avatar.url)
 
 @bot.command(name="8b")
-async def eightball(ctx, *, question):
+async def eightball(ctx, *, question = None):
+    if not question:
+        await ctx.send("Usage: `$8b [your question]`")
+        return
     responses = [
         "Yes", "No", "Maybe", "Definitely", "Absolutely not", "Ask again later",
         "Without a doubt", "Don't count on it", "Signs point to yes", "Very doubtful"
@@ -113,50 +123,28 @@ async def eightball(ctx, *, question):
     await ctx.send(f"🎱 Question: {question}\nAnswer: {random.choice(responses)}")
 
 @bot.command()
-async def remind(ctx, time: int, *, task: str):
+async def remind(ctx, time: int = None, *, task: str = None):
+    if time is None or task is None:
+        await ctx.send("Usage: `$remind [seconds] [task]`")
+        return
     await ctx.send(f"⏰ Reminder set for {time} seconds from now: **{task}**")
     await asyncio.sleep(time)
     await ctx.send(f"🔔 {ctx.author.mention}, reminder: **{task}**")
 
 @bot.command()
-async def createembed(ctx, *, content):
-    if "|" not in content:
-        await ctx.send("Usage: `$createembed #channel | Title | Description`")
-        return
-
-    parts = content.split("|")
-    if len(parts) < 3:
-        await ctx.send("Usage: `$createembed #channel | Title | Description`")
-        return
-
-    channel_mention, title, description = parts[0].strip(), parts[1].strip(), parts[2].strip()
-    if not channel_mention.startswith("<#") or not channel_mention.endswith(">"):
-        await ctx.send("Please mention a valid channel.")
-        return
-
-    channel_id = int(channel_mention[2:-1])
-    channel = bot.get_channel(channel_id)
-
-    if not channel:
-        await ctx.send("Channel not found.")
-        return
-
-    embed = discord.Embed(title=title, description=description, color=discord.Color.blurple())
-    embed.set_footer(text=f"Posted by {ctx.author}", icon_url=ctx.author.display_avatar.url)
-    await channel.send(embed=embed)
-    await ctx.send("✅ Embed sent.")
-
-@bot.command()
-async def help(ctx):
-    embed = discord.Embed(title="📘 Bot Commands", description="Here's a list of commands you can use:", color=discord.Color.blurple())
+async def info(ctx):
+    embed = discord.Embed(
+        title="📜 Bot Commands",
+        description="Here's a list of available commands and how to use them:",
+        color=discord.Color.blurple()
+    )
+    embed.add_field(name="`$ship @user1 @user2`", value="Check compatibility between two users.", inline=False)
     embed.add_field(name="`$afk [reason]`", value="Set your AFK status with an optional reason.", inline=False)
-    embed.add_field(name="`$ship @user1 @user2`", value="Check love compatibility between two users.", inline=False)
-    embed.add_field(name="`$choose option1, option2, ...`", value="Let the bot pick a random option.", inline=False)
-    embed.add_field(name="`$avatar [@user]`", value="Get the profile picture of yourself or another user.", inline=False)
-    embed.add_field(name="`$8b [question]`", value="Ask the 8ball a question.", inline=False)
-    embed.add_field(name="`$remind [seconds] [task]`", value="Set a reminder for yourself.", inline=False)
-    embed.add_field(name="`$createembed #channel | Title | Description`", value="Create an embed message in a chosen channel (Manage Messages permission required).", inline=False)
-    embed.set_footer(text="Made with ❤️ by your bot")
+    embed.add_field(name="`$choose option1, option2`", value="Let the bot pick between options.", inline=False)
+    embed.add_field(name="`$avatar [@user]`", value="Get the avatar of a user (or yourself).", inline=False)
+    embed.add_field(name="`$8b [question]`", value="Ask the magic 8-ball anything.", inline=False)
+    embed.add_field(name="`$remind [seconds] [task]`", value="Set a reminder after a delay in seconds.", inline=False)
+    embed.add_field(name="`Vanity Role`", value="Bot auto-adds or removes role based on your custom status.", inline=False)
     await ctx.send(embed=embed)
 
 keep_alive()
