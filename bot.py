@@ -35,22 +35,25 @@ async def on_presence_update(before, after):
                     status = activity.state
                     break
 
-        if status and VANITY_LINK in status:
-            if ROLE_ID not in [role.id for role in member.roles]:
-                await member.add_roles(discord.Object(id=ROLE_ID))
-                channel = bot.get_channel(LOG_CHANNEL_ID)
-                if channel:
+        # Ensure we are getting the correct log channel
+        channel = bot.get_channel(LOG_CHANNEL_ID)
+
+        if channel:
+            # If the member has the vanity link in their status
+            if status and VANITY_LINK in status:
+                # Check if the role is not already added
+                if ROLE_ID not in [role.id for role in member.roles]:
+                    await member.add_roles(discord.Object(id=ROLE_ID))
                     await channel.send(
                         f"```✅ Added role to {member.display_name} for having vanity link in status.\n\n"
                         f"Perks:\n"
                         f"• pic perms in ⁠💬・lounge\n"
                         f"• bypass giveaway with vanity role required```"
                     )
-        else:
-            if ROLE_ID in [role.id for role in member.roles]:
-                await member.remove_roles(discord.Object(id=ROLE_ID))
-                channel = bot.get_channel(LOG_CHANNEL_ID)
-                if channel:
+            else:
+                # If the role is already added and the vanity link is removed from the status, remove the role
+                if ROLE_ID in [role.id for role in member.roles]:
+                    await member.remove_roles(discord.Object(id=ROLE_ID))
                     await channel.send(
                         f"```❌ Removed role from {member.display_name} for removing vanity link from status.```"
                     )
@@ -124,20 +127,17 @@ async def createembed(ctx, *, content: str):
     try:
         parts = [part.strip() for part in content.split("|")]
         if len(parts) < 3:
-            await ctx.send("❌ Format: `$createembed #channel | [title] | [description] | [#hexcolor (optional)]`")
+            await ctx.send("❌ Format: `$createembed #channel | Title | Description`")
             return
 
-        channel_mention = parts[0]
-        title = parts[1] if parts[1].lower() != "none" else None
-        description = parts[2]
-        hex_color = parts[3] if len(parts) >= 4 else "#3498db"
-
+        channel_mention, title, description = parts[0], parts[1], "|".join(parts[2:])
         if not channel_mention.startswith("<#") or not channel_mention.endswith(">"):
             await ctx.send("❌ Please mention a valid channel.")
             return
 
         channel_id = int(channel_mention[2:-1])
         channel = bot.get_channel(channel_id)
+
         if not channel:
             await ctx.send("❌ Could not find that channel.")
             return
@@ -145,7 +145,7 @@ async def createembed(ctx, *, content: str):
         embed = discord.Embed(
             title=title,
             description=description,
-            color=discord.Color.from_str(hex_color) if hex_color else discord.Color.blue()
+            color=discord.Color.blue()  # Default color, can be changed via argument
         )
         embed.set_footer(text=f"Posted by {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
         await channel.send(embed=embed)
@@ -153,34 +153,6 @@ async def createembed(ctx, *, content: str):
 
     except Exception as e:
         await ctx.send(f"⚠️ Error: {e}")
-
-@bot.command(name="info")
-async def info_command(ctx):
-    embed = discord.Embed(title="📖 Member Command Info", color=discord.Color.purple())
-    embed.add_field(
-        name="👥 Member Commands",
-        value="`$ship @user1 @user2` - Ship two users\n"
-              "`$choose option1, option2` - Randomly choose one\n"
-              "`$avatar [@user]` - Get user's avatar\n"
-              "`$8b question` - Magic 8-Ball answers\n"
-              "`$remind [seconds] [task]` - Set a reminder\n"
-              "`$afk [reason]` - Set your AFK\n",
-        inline=False
-    )
-    embed.set_footer(text="Use the commands with $ prefix.")
-    await ctx.send(embed=embed)
-
-@bot.command(name="support")
-@commands.has_permissions(manage_messages=True)
-async def support_command(ctx):
-    embed = discord.Embed(title="🛠️ Staff Command Info", color=discord.Color.red())
-    embed.add_field(
-        name="📋 Staff Commands",
-        value="`$createembed #channel | [title] | [description] | [#hexcolor (optional)]` - Post a custom embed",
-        inline=False
-    )
-    embed.set_footer(text="These commands are for staff only.")
-    await ctx.send(embed=embed)
 
 keep_alive()
 bot.run(TOKEN)
