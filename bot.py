@@ -323,6 +323,7 @@ async def info_command(ctx):
             "`$unscramblescore` – View unscramble leaderboard\n"
             "`$spotlie` - Spot the lie among 3 statements\n"
             "`$arcadia` - Fun interactive RPG style bot game\n"
+            "`$hotpotato` - Pass the potato before it explodes!\n"
         ),
         inline=False,
     )
@@ -889,5 +890,65 @@ async def arcadia(ctx, opponent: discord.Member):
 # ✅ Register the command
 bot.add_command(arcadia)
 
+class HotPotatoGame(View):
+    def __init__(self, ctx, starter):
+        super().__init__(timeout=60)
+        self.ctx = ctx
+        self.players = [starter]
+        self.current_holder = starter
+        self.exploded = False
+        self.message = None
+
+    @discord.ui.button(label="Pass the Potato 🥔", style=discord.ButtonStyle.red)
+    async def pass_button(self, interaction: discord.Interaction, button: Button):
+        user = interaction.user
+
+        if user not in self.players:
+            self.players.append(user)
+
+        if user != self.current_holder:
+            await interaction.response.send_message("❌ You're not holding the potato!", ephemeral=True)
+            return
+
+        eligible = [p for p in self.players if p != user]
+        if not eligible:
+            await interaction.response.send_message("❌ No one else to pass the potato to!", ephemeral=True)
+            return
+
+        new_holder = random.choice(eligible)
+        self.current_holder = new_holder
+
+        if random.random() < 0.25:
+            self.exploded = True
+            await interaction.response.edit_message(
+                embed=discord.Embed(
+                    title="💥 BOOM!",
+                    description=f"The hot potato exploded in {new_holder.mention}'s hands!",
+                    color=discord.Color.red()
+                ),
+                view=None
+            )
+            self.stop()
+            return
+
+        await interaction.response.edit_message(
+            embed=discord.Embed(
+                title="🔥 Hot Potato!",
+                description=f"{user.mention} passed the potato to {new_holder.mention}!\n\nClick the button before it explodes!",
+                color=discord.Color.orange()
+            ),
+            view=self
+        )
+
+@commands.command(name="hotpotato")
+async def hotpotato(ctx):
+    view = HotPotatoGame(ctx, ctx.author)
+    embed = discord.Embed(
+        title="🔥 Hot Potato!",
+        description=f"{ctx.author.mention} has started a game!\nClick the button to pass the potato before it explodes!",
+        color=discord.Color.orange()
+    )
+    view.message = await ctx.send(embed=embed, view=view)
+    
 keep_alive()
 bot.run(TOKEN)
