@@ -322,6 +322,7 @@ async def info_command(ctx):
             "`$unscramble` – Unscramble the word challenge\n"
             "`$unscramblescore` – View unscramble leaderboard\n"
             "`$spotlie` - Spot the lie among 3 statements\n"
+            "`$arcadia` - Fun interactive RPG style bot game\n"
         ),
         inline=False,
     )
