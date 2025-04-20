@@ -346,6 +346,7 @@ async def support_info(ctx):
         value=(
             "`$createembed #channel | [title] | [description] | [#hexcolor]` — Post a custom embed\n"
             "`$role @member @role` — Add or remove a role from a member"
+            "`$serverinfo` - Shows server details\n"
         ),
         inline=False
     )
@@ -889,6 +890,23 @@ async def arcadia(ctx, opponent: discord.Member):
 # ✅ Register the command
 bot.add_command(arcadia)
 
-        
+@bot.command()
+async def serverinfo(ctx):
+    guild = ctx.guild
+    embed = discord.Embed(
+        title=f"📊 Server Info - {guild.name}",
+        description="Here are some details about this server:",
+        color=discord.Color.green()
+    )
+
+    embed.set_thumbnail(url=guild.icon.url if guild.icon else discord.Embed.Empty)
+    embed.add_field(name="👑 Owner", value=guild.owner.mention, inline=True)
+    embed.add_field(name="👥 Members", value=guild.member_count, inline=True)
+    embed.add_field(name="📅 Created On", value=guild.created_at.strftime("%Y-%m-%d %H:%M"), inline=False)
+    embed.add_field(name="🆔 Server ID", value=guild.id, inline=True)
+    embed.add_field(name="🌍 Region", value=str(guild.preferred_locale).replace('_', '-'), inline=True)
+
+    await ctx.send(embed=embed)
+
 keep_alive()
 bot.run(TOKEN)
