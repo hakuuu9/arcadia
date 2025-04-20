@@ -4,6 +4,7 @@ import random
 import asyncio
 import json
 import os
+import html
 from config import TOKEN, GUILD_ID, ROLE_ID, VANITY_LINK, LOG_CHANNEL_ID
 from keep_alive import keep_alive
 
@@ -309,8 +310,9 @@ async def info_command(ctx):
             "`$tictactoe @user` - Play Tic Tac Toe against someone\n"
             "`$wordchain [word]` - Start a game with wordchain [word]\n"
             "`$arcadiaroll` - Use `/arcadiaroll` to test your luck with a number from 1 to 100!\n"
-            "`/unscramble` – Unscramble the word challenge\n"
-            "`/unscramblescore` – View unscramble leaderboard\n"
+            "`$unscramble` – Unscramble the word challenge\n"
+            "`$unscramblescore` – View unscramble leaderboard\n"
+            "`$spotlie` - "Guess which of the 3 statements is the lie. Powered by real trivia!\n"
         ),
         inline=False,
     )
@@ -648,6 +650,82 @@ async def unscramblescore(ctx):
 
     embed = discord.Embed(title="🏆 Unscramble Leaderboard", description="\n".join(lines), color=0x00ff99)
     await ctx.send(embed=embed)
+
+@bot.command(name="spotlie")
+async def spotlie(ctx):
+    async with aiohttp.ClientSession() as session:
+        async with session.get("https://opentdb.com/api.php?amount=3&type=boolean") as resp:
+            if resp.status != 200:
+                return await ctx.send("❌ Couldn't fetch facts. Try again later.")
+            data = await resp.json()
+
+    questions = data.get("results", [])
+    if len(questions) < 3:
+        return await ctx.send("❌ Not enough data received from the API.")
+
+    # Extract statements and their truth values
+    statements = [html.unescape(q["question"]) for q in questions]
+    truths = [q["correct_answer"] == "True" for q in questions]
+
+    # Ensure at least two truths and one lie
+    if truths.count(True) < 2:
+        # Flip one false to true
+        for i in range(len(truths)):
+            if not truths[i]:
+                truths[i] = True
+                break
+    if truths.count(False) < 1:
+        # Flip one true to false
+        for i in range(len(truths)):
+            if truths[i]:
+                truths[i] = False
+                break
+
+    # Shuffle the statements
+    combined = list(zip(statements, truths))
+    random.shuffle(combined)
+    statements, truths = zip(*combined)
+
+    embed = discord.Embed(
+        title="**Spot the Lie!**",
+        description="\n".join([f"{i+1}. {stmt}" for i, stmt in enumerate(statements)]),
+        color=discord.Color.orange()
+    )
+    embed.set_footer(text="Type 1, 2, or 3 to guess. You have 20 seconds!")
+
+    await ctx.send(embed=embed)
+
+    def check(m):
+        return (
+            m.channel == ctx.channel and
+            m.content in ["1", "2", "3"]
+        )
+
+    guesses = {}
+    try:
+        while True:
+            guess_msg = await bot.wait_for("message", timeout=20.0, check=check)
+            user = guess_msg.author
+            guess = int(guess_msg.content) - 1
+            guesses[user.id] = guess
+    except asyncio.TimeoutError:
+        pass
+
+    # Identify the lie
+    lie_index = truths.index(False)
+    correct_users = [user_id for user_id, guess in guesses.items() if guess == lie_index]
+    user_mentions = [f"<@{uid}>" for uid in correct_users]
+
+    result_embed = discord.Embed(
+        title="Results",
+        description=(
+            f"The lie was: **{lie_index + 1}. {statements[lie_index]}**\n\n"
+            f"{len(correct_users)} got it right!"
+            + ("\n" + ", ".join(user_mentions) if user_mentions else "\nNo one guessed correctly!")
+        ),
+        color=discord.Color.green()
+    )
+    await ctx.send(embed=result_embed)
     
 keep_alive()
 bot.run(TOKEN)
