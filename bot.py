@@ -309,6 +309,8 @@ async def info_command(ctx):
             "`$tictactoe @user` - Play Tic Tac Toe against someone\n"
             "`$wordchain [word]` - Start a game with wordchain [word]\n"
             "`$arcadiaroll` - Use `/arcadiaroll` to test your luck with a number from 1 to 100!\n"
+            "`/unscramble` – Unscramble the word challenge\n"
+            "`/unscramblescore` – View unscramble leaderboard\n"
         ),
         inline=False,
     )
@@ -615,13 +617,13 @@ async def unscramble(ctx):
             word = data[0]
 
     scrambled = ''.join(random.sample(word, len(word)))
-    await ctx.send(f"🧩 Unscramble this word: **{scrambled}** (15s to answer!)")
+    await ctx.send(f"🧩 Unscramble this word: **{scrambled}** (60s to answer!)")
 
     def check(m):
         return m.channel == ctx.channel and m.content.lower() == word.lower()
 
     try:
-        msg = await bot.wait_for("message", check=check, timeout=15.0)
+        msg = await bot.wait_for("message", check=check, timeout=60.0)
         author_id = msg.author.id
         unscramble_scores[author_id] = unscramble_scores.get(author_id, 0) + 1
 
