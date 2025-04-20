@@ -1,6 +1,6 @@
 TOKEN = "MTM2MTY5NDg4MDkyNDk1ODk2OA.G7wLuK.onlixf-jWQlYATFX8b-ZPr4can56yyZVH-rVKY"
 GUILD_ID = 1259666579214569552
-VANITY_IMAGE_URL = "https://media.discordapp.net/attachments/1352902957590380584/1363410482597199932/michael_is_fat.png?ex=6805ee75&is=68049cf5&hm=5626cba74725f4a9581e829dba4f38a6f9f2b38e13f1bfe047c820845549771e&"
+VANITY_IMAGE_URL = "https://media.discordapp.net/attachments/1352902957590380584/1363410482597199932/michael_is_fat.png"
 ROLE_ID = 1361732154584858724  # Replace with your role ID
 VANITY_LINK = "discord.gg/arcadiasolana"  # Replace with your vanity link
 LOG_CHANNEL_ID = 1352902957590380584  # Replace with the ID of your logs channel
