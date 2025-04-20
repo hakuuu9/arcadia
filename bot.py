@@ -292,7 +292,7 @@ async def rps(ctx, opponent: discord.Member = None):
 
 @bot.command(name="info")
 async def info_command(ctx):
-    embed = discord.Embed(title="📖 Bot Command Info", color=discord.Color.purple())
+    embed = discord.Embed(title="📖 Arcadian Bot Command Info", color=discord.Color.purple())
 
     embed.add_field(
         name="👥 Member Commands",
@@ -301,25 +301,33 @@ async def info_command(ctx):
             "`$choose option1, option2` - Randomly choose one\n"
             "`$avatar [@user]` - Get user's avatar\n"
             "`$8b question` - Magic 8-Ball answers\n"
-            "`$remind [seconds] [task]` - Set a reminder\n"
-            "`$afk [reason]` - Set your AFK\n"
-            "`$rps @user` - Challenge a member to Rock-Paper-Scissors\n"
-            "`$hangman solo` - Play Hangman by yourself\n"
-            "`$hangman duo @user` - 2-player Hangman (take turns guessing)\n"
-            "`$hangman free` - Free-for-all mode (everyone can guess)\n"
-            "`$tictactoe @user` - Play Tic Tac Toe against someone\n"
-            "`$wordchain [word]` - Start a game with wordchain [word]\n"
-            "`$arcadiaroll` - Use `/arcadiaroll` to test your luck with a number from 1 to 100!\n"
+            "`$remind [time] [task]` - Set a reminder\n"
+            "`$afk [reason]` - Set your AFK status\n"
+        ),
+        inline=False,
+    )
+
+    embed.add_field(
+        name="🎮 Game Commands",
+        value=(
+            "`$rps @user` - Rock-Paper-Scissors challenge\n"
+            "`$hangman solo` - Solo Hangman\n"
+            "`$hangman duo @user` - 2-player Hangman\n"
+            "`$hangman free` - Free-for-all Hangman\n"
+            "`$tictactoe @user` - Play Tic Tac Toe\n"
+            "`$wordchain [word]` - Start a Word Chain game\n"
+            "`$arcadiaroll` - Roll a number from 1 to 100\n"
             "`$unscramble` – Unscramble the word challenge\n"
             "`$unscramblescore` – View unscramble leaderboard\n"
-            "`$spotlie` - Guess which of the 3 statements is the lie. Powered by real trivia!\n"
+            "`$spotlie` - Spot the lie among 3 statements\n"
             "`$worddrop` - Guess the word before it’s revealed!\n"
         ),
         inline=False,
     )
 
-    embed.set_footer(text="Use the commands with $ prefix.")
+    embed.set_footer(text="Use commands with the `$` prefix. Have fun!")
     await ctx.send(embed=embed)
+
 
 
 @bot.command(name="supportinfo")
@@ -727,46 +735,6 @@ async def spotlie(ctx):
         color=discord.Color.green()
     )
     await ctx.send(embed=result_embed)
-
-@commands.command(name="worddrop")
-async def worddrop(ctx):
-    # Fetch a random word from the API
-    async with aiohttp.ClientSession() as session:
-        async with session.get("https://random-words-api.vercel.app/word") as resp:
-            if resp.status != 200:
-                return await ctx.send("❌ Couldn't fetch a word. Try again later.")
-            data = await resp.json()
-            word = data[0]['word'].lower()
-            definition = data[0].get('definition', 'No definition available.')
-            pronunciation = data[0].get('pronunciation', 'No pronunciation available.')
-
-    display = ["⬛"] * len(word)
-    await ctx.send(f"🧠 **Word Drop Challenge!**\nGuess the word before it's fully revealed.")
-
-    message = await ctx.send("Word: " + " ".join(display))
-    revealed = 0
-
-    def check(m):
-        return m.channel == ctx.channel and m.content.lower() == word
-
-    try:
-        while revealed < len(word):
-            try:
-                guess_msg = await ctx.bot.wait_for("message", timeout=2.0, check=check)
-                await ctx.send(f"✅ {guess_msg.author.mention} guessed the word: **{word}**!")
-                await ctx.send(f"📖 Definition: {definition}")
-                await ctx.send(f"🔊 Pronunciation: {pronunciation}")
-                return
-            except asyncio.TimeoutError:
-                display[revealed] = word[revealed]
-                revealed += 1
-                await message.edit(content="Word: " + " ".join(display))
-
-        await ctx.send(f"❌ Time's up! The word was **{word}**.")
-        await ctx.send(f"📖 Definition: {definition}")
-        await ctx.send(f"🔊 Pronunciation: {pronunciation}")
-    except Exception as e:
-        await ctx.send("An error occurred: " + str(e))
         
 keep_alive()
 bot.run(TOKEN)
