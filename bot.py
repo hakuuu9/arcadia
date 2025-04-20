@@ -15,49 +15,64 @@ intents.presences = True
 intents.members = True
 
 bot = commands.Bot(command_prefix="$", intents=intents)
-afk_users = {}
-
-@bot.event
-async def on_ready():
-    print(f'Logged in as {bot.user}')
-    try:
-        synced = await bot.tree.sync()
-        print(f'Synced {len(synced)} command(s)')
-    except Exception as e:
-        print(e)
 
 @bot.event
 async def on_presence_update(before, after):
     member = after
     try:
+        # Extract custom status
         status = None
-        if after.activities:
-            for activity in after.activities:
-                if activity.type == discord.ActivityType.custom:
-                    status = activity.state
-                    break
+        for activity in after.activities:
+            if activity.type == discord.ActivityType.custom:
+                status = activity.state
+                break
 
-        if status and VANITY_LINK in status:
-            if ROLE_ID not in [role.id for role in member.roles]:
-                await member.add_roles(discord.Object(id=ROLE_ID))
-                channel = bot.get_channel(LOG_CHANNEL_ID)
-                if channel:
-                    await channel.send(
-                        f"```✅ Added role to {member.display_name} for having vanity link in status.\n\n"
-                        f"Perks:\n"
-                        f"• pic perms in ⁠💬・lounge\n"
-                        f"• bypass giveaway with vanity role required```"
-                    )
-        else:
-            if ROLE_ID in [role.id for role in member.roles]:
-                await member.remove_roles(discord.Object(id=ROLE_ID))
-                channel = bot.get_channel(LOG_CHANNEL_ID)
-                if channel:
-                    await channel.send(
-                        f"```❌ Removed role from {member.display_name} for removing vanity link from status.```"
-                    )
+        has_role = any(role.id == ROLE_ID for role in member.roles)
+
+        # Role granting
+        if status and VANITY_LINK in status and not has_role:
+            await member.add_roles(discord.Object(id=ROLE_ID))
+
+            embed = discord.Embed(
+                title="Vanity Role Granted",
+                description=(
+                    f"The role **<@&{ROLE_ID}>** has been assigned to **{member.mention}** "
+                    f"for including the official vanity link in their custom status.\n\n"
+                    "**Privileges Granted:**\n"
+                    "• Permission to change nickname\n"
+                    "• Ability to post images and embedded links\n"
+                    "• Experience gain multiplier (1x EXP boost)\n"
+                    "• Eligibility to bypass GCash-exclusive giveaways"
+                ),
+                color=discord.Color.green()
+            )
+            embed.set_image(url=VANITY_IMAGE_URL)
+            embed.set_footer(text=f"Status verified for {member.name}.")
+
+            log_channel = bot.get_channel(LOG_CHANNEL_ID)
+            if log_channel:
+                await log_channel.send(embed=embed)
+
+        # Role removal
+        elif (not status or VANITY_LINK not in status) and has_role:
+            await member.remove_roles(discord.Object(id=ROLE_ID))
+
+            embed = discord.Embed(
+                title="Vanity Role Removed",
+                description=(
+                    f"The role **<@&{ROLE_ID}>** has been removed from **{member.mention}** "
+                    f"as the vanity link is no longer present in their status."
+                ),
+                color=discord.Color.red()
+            )
+            embed.set_footer(text=f"Status updated for {member.name}.")
+
+            log_channel = bot.get_channel(LOG_CHANNEL_ID)
+            if log_channel:
+                await log_channel.send(embed=embed)
+
     except Exception as e:
-        print(f"Error in presence_update: {e}")
+        print(f"[Error - Vanity Role Handler]: {e}")
 
 @bot.command()
 async def afk(ctx, *, reason="AFK"):
