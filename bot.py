@@ -908,5 +908,70 @@ async def serverinfo(ctx):
 
     await ctx.send(embed=embed)
 
+REMINDERS_FILE = "reminders.json"
+TIMER_SECONDS = {
+    "daily": 86400,
+    "hunt": 60,
+    "quest": 3600,
+    "weekly": 604800
+}
+
+# Load or create reminders file
+if os.path.exists(REMINDERS_FILE):
+    with open(REMINDERS_FILE, "r") as f:
+        reminders = json.load(f)
+else:
+    reminders = []
+
+@bot.command()
+async def oworeminder(ctx, timer: str):
+    timer = timer.lower()
+    if timer not in TIMER_SECONDS:
+        return await ctx.send("❌ Valid options: `daily`, `hunt`, `quest`, `weekly`.")
+
+    now = datetime.utcnow()
+    reminder_time = now + timedelta(seconds=TIMER_SECONDS[timer])
+
+    # Save reminder
+    reminders.append({
+        "user_id": ctx.author.id,
+        "type": timer,
+        "remind_at": reminder_time.isoformat()
+    })
+    with open(REMINDERS_FILE, "w") as f:
+        json.dump(reminders, f, indent=2)
+
+    await ctx.send(f"⏰ Reminder set for **{timer}**! I'll DM you when it's ready.")
+
+@tasks.loop(seconds=30)
+async def check_reminders():
+    global reminders
+    now = datetime.utcnow()
+    new_reminders = []
+
+    for reminder in reminders:
+        remind_time = datetime.fromisoformat(reminder["remind_at"])
+        if now >= remind_time:
+            user = bot.get_user(reminder["user_id"])
+            if user:
+                try:
+                    await user.send(f"🔔 Your OwO **{reminder['type']}** timer should be ready!")
+                except discord.Forbidden:
+                    pass  # User has DMs off
+        else:
+            new_reminders.append(reminder)
+
+    # Save only remaining reminders
+    if new_reminders != reminders:
+        with open(REMINDERS_FILE, "w") as f:
+            json.dump(new_reminders, f, indent=2)
+
+    reminders[:] = new_reminders
+
+@bot.event
+async def on_ready():
+    check_reminders.start()
+    print(f"Reminder checker started for {bot.user}.")
+    
 keep_alive()
 bot.run(TOKEN)
