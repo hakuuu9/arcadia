@@ -74,6 +74,8 @@ async def on_presence_update(before, after):
     except Exception as e:
         print(f"[Error - Vanity Role Handler]: {e}")
 
+afk_users = {}  # ✅ Store AFK users here
+
 @bot.command()
 async def afk(ctx, *, reason="AFK"):
     afk_users[ctx.author.id] = reason
@@ -89,7 +91,7 @@ async def on_message(message):
         await message.channel.send(f"👋 Welcome back, {message.author.mention}! I removed your AFK.")
 
     for user_id in afk_users:
-        if f"<@{user_id}>" in message.content:
+        if f"<@{user_id}>" in message.content or f"<@!{user_id}>" in message.content:
             reason = afk_users[user_id]
             await message.channel.send(f"💤 That user is AFK: {reason}")
             break
