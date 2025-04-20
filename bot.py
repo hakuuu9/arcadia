@@ -38,11 +38,11 @@ async def on_presence_update(before, after):
                 description=(
                     f"The role **<@&{ROLE_ID}>** has been assigned to **{member.mention}** "
                     f"for including the official vanity link in their custom status.\n\n"
-                    "**Privileges Granted:**\n"
-                    "• Permission to change nickname\n"
-                    "• Ability to post images and embedded links\n"
-                    "• Experience gain multiplier (1x EXP boost)\n"
-                    "• Eligibility to bypass GCash-exclusive giveaways"
+                    "**Privileges:**\n"
+                    "• Nickname perms\n"
+                    "• Image and embed link perms\n"
+                    "• 1.0 XP boost\n"
+                    "• Bypass gcash giveaways"
                 ),
                 color=discord.Color.green()
             )
