@@ -2,6 +2,8 @@ import discord
 from discord.ext import commands, tasks
 import random
 import asyncio
+import json
+import os
 from config import TOKEN, GUILD_ID, ROLE_ID, VANITY_LINK, LOG_CHANNEL_ID
 from keep_alive import keep_alive
 
@@ -591,6 +593,59 @@ class ArcadianButton(discord.ui.View):
 async def arcadian_roll(ctx):
     view = ArcadianButton()
     await ctx.send("🔘 **Tap the button to roll your Arcadian number!** (3s cooldown per user)", view=view)
-        
+
+# File to store scores
+SCORE_FILE = "unscramble_scores.json"
+
+# Load scores on startup
+if os.path.exists(SCORE_FILE):
+    with open(SCORE_FILE, "r") as f:
+        unscramble_scores = json.load(f)
+        unscramble_scores = {int(k): v for k, v in unscramble_scores.items()}
+else:
+    unscramble_scores = {}
+
+@bot.command()
+async def unscramble(ctx):
+    async with aiohttp.ClientSession() as session:
+        async with session.get("https://random-word-api.herokuapp.com/word?number=1") as resp:
+            if resp.status != 200:
+                return await ctx.send("❌ Failed to fetch a word. Try again later.")
+            data = await resp.json()
+            word = data[0]
+
+    scrambled = ''.join(random.sample(word, len(word)))
+    await ctx.send(f"🧩 Unscramble this word: **{scrambled}** (15s to answer!)")
+
+    def check(m):
+        return m.channel == ctx.channel and m.content.lower() == word.lower()
+
+    try:
+        msg = await bot.wait_for("message", check=check, timeout=15.0)
+        author_id = msg.author.id
+        unscramble_scores[author_id] = unscramble_scores.get(author_id, 0) + 1
+
+        # Save scores to file
+        with open(SCORE_FILE, "w") as f:
+            json.dump(unscramble_scores, f, indent=2)
+
+        await ctx.send(f"✅ Correct! {msg.author.mention} got it: **{word}** (+1 point!)")
+    except asyncio.TimeoutError:
+        await ctx.send(f"⏱️ Time's up! The word was **{word}**.")
+
+@bot.command()
+async def unscramblescore(ctx):
+    if not unscramble_scores:
+        return await ctx.send("📉 No scores yet. Be the first to play!")
+
+    sorted_scores = sorted(unscramble_scores.items(), key=lambda x: x[1], reverse=True)
+    lines = []
+    for user_id, score in sorted_scores[:10]:
+        user = await bot.fetch_user(user_id)
+        lines.append(f"**{user.name}** — {score} points")
+
+    embed = discord.Embed(title="🏆 Unscramble Leaderboard", description="\n".join(lines), color=0x00ff99)
+    await ctx.send(embed=embed)
+    
 keep_alive()
 bot.run(TOKEN)
