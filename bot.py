@@ -346,19 +346,6 @@ async def info_command(ctx):
         inline=False,
     )
 
-    embed.add_field(name="\u200b", value="\u200b", inline=False)  # spacer
-
-    embed.add_field(
-        name="🐾 OwO Utility",
-        value=(
-        "`$oworemind [time] [task]` - Set a reminder (e.g. `$oworemind 1hr30mins pray for @user`)\n"
-        "`$oworemind [time] [task] repeat [x]` - Set a repeating reminder up to x times\n"
-        "`$listreminders` - View your active reminders\n"
-        "`$cancelremind` - Cancel all your active reminders\n"
-    ),
-    inline=False,
-    )
-
     embed.set_footer(text="Use commands with the `$` prefix. Have fun!")
     await ctx.send(embed=embed)
 
