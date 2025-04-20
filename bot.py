@@ -313,6 +313,7 @@ async def info_command(ctx):
             "`$unscramble` – Unscramble the word challenge\n"
             "`$unscramblescore` – View unscramble leaderboard\n"
             "`$spotlie` - Guess which of the 3 statements is the lie. Powered by real trivia!\n"
+            "`$worddrop` - Guess the word before it’s revealed!\n"
         ),
         inline=False,
     )
@@ -726,6 +727,46 @@ async def spotlie(ctx):
         color=discord.Color.green()
     )
     await ctx.send(embed=result_embed)
-    
+
+@commands.command(name="worddrop")
+async def worddrop(ctx):
+    # Fetch a random word from the API
+    async with aiohttp.ClientSession() as session:
+        async with session.get("https://random-words-api.vercel.app/word") as resp:
+            if resp.status != 200:
+                return await ctx.send("❌ Couldn't fetch a word. Try again later.")
+            data = await resp.json()
+            word = data[0]['word'].lower()
+            definition = data[0].get('definition', 'No definition available.')
+            pronunciation = data[0].get('pronunciation', 'No pronunciation available.')
+
+    display = ["⬛"] * len(word)
+    await ctx.send(f"🧠 **Word Drop Challenge!**\nGuess the word before it's fully revealed.")
+
+    message = await ctx.send("Word: " + " ".join(display))
+    revealed = 0
+
+    def check(m):
+        return m.channel == ctx.channel and m.content.lower() == word
+
+    try:
+        while revealed < len(word):
+            try:
+                guess_msg = await ctx.bot.wait_for("message", timeout=2.0, check=check)
+                await ctx.send(f"✅ {guess_msg.author.mention} guessed the word: **{word}**!")
+                await ctx.send(f"📖 Definition: {definition}")
+                await ctx.send(f"🔊 Pronunciation: {pronunciation}")
+                return
+            except asyncio.TimeoutError:
+                display[revealed] = word[revealed]
+                revealed += 1
+                await message.edit(content="Word: " + " ".join(display))
+
+        await ctx.send(f"❌ Time's up! The word was **{word}**.")
+        await ctx.send(f"📖 Definition: {definition}")
+        await ctx.send(f"🔊 Pronunciation: {pronunciation}")
+    except Exception as e:
+        await ctx.send("An error occurred: " + str(e))
+        
 keep_alive()
 bot.run(TOKEN)
