@@ -179,48 +179,61 @@ async def remind(ctx, time: str = None, *, task: str = None):
     await asyncio.sleep(delay)
     await ctx.send(f"🔔 {ctx.author.mention}, reminder: **{task}**")
 
-
 @bot.command()
 @commands.has_permissions(manage_messages=True)
 async def createembed(ctx, *, content: str = None):
     if not content:
-        await ctx.send("Usage: `$createembed #channel | [title] | [description] | [hex color (optional)]`")
-        return
+        return await ctx.send(
+            "❌ Usage: `$createembed #channel | [title] | [description] | [hex color (optional)]`\n"
+            "**Example:** `$createembed #general | Hello World! | This is a test embed 😎 | #5865F2`"
+        )
+
     try:
         parts = [part.strip() for part in content.split("|")]
         if len(parts) < 2:
-            await ctx.send("❌ Format: `$createembed #channel | [title] | [description] | [hex color (optional)]`")
-            return
+            return await ctx.send(
+                "❌ Format: `$createembed #channel | [title] | [description] | [hex color (optional)]`"
+            )
 
         channel_mention = parts[0]
-        title = parts[1] if parts[1] else None
-        description = parts[2] if len(parts) > 2 else None
+        title = parts[1] if len(parts) > 1 else ""
+        description = parts[2] if len(parts) > 2 else ""
         color_hex = parts[3] if len(parts) > 3 else None
 
+        # Validate channel
         if not channel_mention.startswith("<#") or not channel_mention.endswith(">"):
-            await ctx.send("❌ Please mention a valid channel.")
-            return
+            return await ctx.send("❌ Please mention a valid channel.")
 
         channel_id = int(channel_mention[2:-1])
         channel = bot.get_channel(channel_id)
-
         if not channel:
-            await ctx.send("❌ Could not find that channel.")
-            return
+            return await ctx.send("❌ Could not find the mentioned channel.")
 
+        # Handle color
         color = discord.Color.blue()
         if color_hex:
             try:
-                color = discord.Color(int(color_hex.strip("#"), 16))
+                if color_hex.startswith("#"):
+                    color_hex = color_hex[1:]
+                color = discord.Color(int(color_hex, 16))
             except:
-                pass
+                return await ctx.send("⚠️ Invalid color. Please provide a valid hex color like `#FF5733`.")
 
-        embed = discord.Embed(title=title if title else None, description=description, color=color)
+        # Create embed
+        embed = discord.Embed(
+            title=title or discord.Embed.Empty,
+            description=description or discord.Embed.Empty,
+            color=color
+        )
         embed.set_footer(text=f"Posted by {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
+
         await channel.send(embed=embed)
         await ctx.send(f"✅ Embed sent to {channel.mention}")
+
     except Exception as e:
-        await ctx.send(f"⚠️ Error: {e}")
+        await ctx.send(f"⚠️ An error occurred: `{e}`")
+
+
 
 @bot.command()
 @commands.has_permissions(manage_roles=True)
