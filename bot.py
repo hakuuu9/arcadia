@@ -309,6 +309,8 @@ async def info_command(ctx):
         inline=False,
     )
 
+    embed.add_field(name="\u200b", value="\u200b", inline=False)  # spacer
+
     embed.add_field(
         name="🎮 Game Commands",
         value=(
@@ -327,9 +329,16 @@ async def info_command(ctx):
         inline=False,
     )
 
+    embed.add_field(name="\u200b", value="\u200b", inline=False)  # spacer
+
+    embed.add_field(
+        name="🐾 OwO Utility",
+        value="`$oworeminder [daily/hunt/quest/weekly]` - Get a DM reminder when your OwO cooldown is ready!",
+        inline=False,
+    )
+
     embed.set_footer(text="Use commands with the `$` prefix. Have fun!")
     await ctx.send(embed=embed)
-
 
 
 @bot.command(name="supportinfo")
