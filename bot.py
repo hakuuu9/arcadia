@@ -7,6 +7,7 @@ import asyncio
 import json
 import os
 import html
+import re
 from config import TOKEN, GUILD_ID, ROLE_ID, VANITY_LINK, LOG_CHANNEL_ID
 from keep_alive import keep_alive
 
@@ -334,8 +335,13 @@ async def info_command(ctx):
 
     embed.add_field(
         name="🐾 OwO Utility",
-        value="`$oworeminder [daily/hunt/quest/weekly]` - Get a DM reminder when your OwO cooldown is ready!",
-        inline=False,
+        value=(
+        "`$oworemind [time] [task]` - Set a reminder (e.g. `$oworemind 1hr30mins pray for @user`)\n"
+        "`$oworemind [time] [task] repeat [x]` - Set a repeating reminder up to x times\n"
+        "`$listreminders` - View your active reminders\n"
+        "`$cancelremind` - Cancel all your active reminders\n"
+    ),
+    inline=False,
     )
 
     embed.set_footer(text="Use commands with the `$` prefix. Have fun!")
@@ -919,69 +925,115 @@ async def serverinfo(ctx):
     await ctx.send(embed=embed)
 
 REMINDERS_FILE = "reminders.json"
-TIMER_SECONDS = {
-    "daily": 86400,
-    "hunt": 60,
-    "quest": 3600,
-    "weekly": 604800
-}
 
-# Load or create reminders file
+def parse_time(time_str):
+    total_seconds = 0
+    matches = re.findall(r'(\d+)(h(?:ours?)?|hr|m(?:in(?:utes)?)?|s(?:ec(?:onds)?)?)', time_str.lower())
+    for value, unit in matches:
+        value = int(value)
+        if unit.startswith('h'):
+            total_seconds += value * 3600
+        elif unit.startswith('m'):
+            total_seconds += value * 60
+        elif unit.startswith('s'):
+            total_seconds += value
+    return total_seconds if total_seconds > 0 else None
+
 if os.path.exists(REMINDERS_FILE):
     with open(REMINDERS_FILE, "r") as f:
         reminders = json.load(f)
 else:
     reminders = []
 
-@bot.command()
-async def oworeminder(ctx, timer: str):
-    timer = timer.lower()
-    if timer not in TIMER_SECONDS:
-        return await ctx.send("❌ Valid options: `daily`, `hunt`, `quest`, `weekly`.")
+@commands.command(name="oworemind")
+async def oworemind(ctx, *, args):
+    parts = args.split(" repeat ")
+    time_task = parts[0].strip().split(" ", 1)
+    
+    if len(time_task) != 2:
+        return await ctx.send("❌ Usage: `$oworemind 1hr30mins [task] repeat 5` or `$oworemind 1hr [task]`")
+
+    time_str, task = time_task
+    repeat_count = int(parts[1]) if len(parts) > 1 else 1
+
+    seconds = parse_time(time_str)
+    if seconds is None:
+        return await ctx.send("❌ Invalid time format. Use formats like `1hr30mins`, `2h1m`, etc.")
 
     now = datetime.utcnow()
-    reminder_time = now + timedelta(seconds=TIMER_SECONDS[timer])
+    reminder_time = now + timedelta(seconds=seconds)
 
-    # Save reminder
     reminders.append({
         "user_id": ctx.author.id,
-        "type": timer,
-        "remind_at": reminder_time.isoformat()
+        "channel_id": ctx.channel.id,
+        "task": task,
+        "interval": seconds,
+        "remind_at": reminder_time.isoformat(),
+        "repeat": repeat_count
     })
     with open(REMINDERS_FILE, "w") as f:
         json.dump(reminders, f, indent=2)
 
-    await ctx.send(f"⏰ Reminder set for **{timer}**! I'll DM you when it's ready.")
+    await ctx.send(f"⏰ Reminder set for **{task}** in `{time_str}`{' and will repeat ' + str(repeat_count) + ' times' if repeat_count > 1 else ''}!")
 
-@tasks.loop(seconds=30)
+@commands.command(name="cancelremind")
+async def cancel_reminder(ctx):
+    global reminders
+    before = len(reminders)
+    reminders = [r for r in reminders if r["user_id"] != ctx.author.id]
+    after = len(reminders)
+    with open(REMINDERS_FILE, "w") as f:
+        json.dump(reminders, f, indent=2)
+    await ctx.send(f"🗑️ Removed {before - after} reminders.")
+
+@commands.command(name="listreminders")
+async def list_reminders(ctx):
+    user_reminders = [r for r in reminders if r["user_id"] == ctx.author.id]
+    if not user_reminders:
+        return await ctx.send("📭 You have no active reminders.")
+    
+    msg = ""
+    for i, r in enumerate(user_reminders, 1):
+        time_left = datetime.fromisoformat(r["remind_at"]) - datetime.utcnow()
+        mins, secs = divmod(int(time_left.total_seconds()), 60)
+        msg += f"**{i}.** `{r['task']}` in {mins}m {secs}s ({r['repeat']}x remaining)\n"
+
+    await ctx.send(f"📝 **Your Reminders:**\n{msg}")
+
+@tasks.loop(seconds=10)
 async def check_reminders():
     global reminders
     now = datetime.utcnow()
     new_reminders = []
 
-    for reminder in reminders:
-        remind_time = datetime.fromisoformat(reminder["remind_at"])
+    for r in reminders:
+        remind_time = datetime.fromisoformat(r["remind_at"])
         if now >= remind_time:
-            user = bot.get_user(reminder["user_id"])
-            if user:
+            channel = bot.get_channel(r["channel_id"])
+            if channel:
                 try:
-                    await user.send(f"🔔 Your OwO **{reminder['type']}** timer should be ready!")
-                except discord.Forbidden:
-                    pass  # User has DMs off
+                    user_mention = f"<@{r['user_id']}>"
+                    await channel.send(f"🔔 {user_mention} Reminder: **{r['task']}**")
+                except Exception:
+                    pass
+            
+            r["repeat"] -= 1
+            if r["repeat"] > 0:
+                r["remind_at"] = (now + timedelta(seconds=r["interval"])).isoformat()
+                new_reminders.append(r)
         else:
-            new_reminders.append(reminder)
+            new_reminders.append(r)
 
-    # Save only remaining reminders
     if new_reminders != reminders:
         with open(REMINDERS_FILE, "w") as f:
             json.dump(new_reminders, f, indent=2)
 
-    reminders[:] = new_reminders
+    reminders = new_reminders
 
 @bot.event
 async def on_ready():
     check_reminders.start()
-    print(f"Reminder checker started for {bot.user}.")
+    print(f"✅ Reminder system ready as {bot.user}")
     
 keep_alive()
 bot.run(TOKEN)
