@@ -312,7 +312,7 @@ async def info_command(ctx):
             "`$arcadiaroll` - Use `/arcadiaroll` to test your luck with a number from 1 to 100!\n"
             "`$unscramble` – Unscramble the word challenge\n"
             "`$unscramblescore` – View unscramble leaderboard\n"
-            "`$spotlie` - "Guess which of the 3 statements is the lie. Powered by real trivia!\n"
+            "`$spotlie` - Guess which of the 3 statements is the lie. Powered by real trivia!\n"
         ),
         inline=False,
     )
