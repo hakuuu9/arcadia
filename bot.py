@@ -323,6 +323,8 @@ async def info_command(ctx):
             "`$unscramblescore` – View unscramble leaderboard\n"
             "`$spotlie` - Spot the lie among 3 statements\n"
             "`$arcadia` - Fun interactive RPG style bot game\n"
+             "`$bombparty [max_players]` - Start a word-based survival game! Players must type real words containing a random letter segment.\n"
+            "`$cancelbombparty` - Cancel the current BombParty game (if you're the starter or staff)\n"
         ),
         inline=False,
     )
@@ -889,6 +891,115 @@ async def arcadia(ctx, opponent: discord.Member):
 # ✅ Register the command
 bot.add_command(arcadia)
 
-    
+  # Track active games per channel
+bombparty_games = {}
+
+class BombPartyGame:
+    def __init__(self, ctx, max_players):
+        self.ctx = ctx
+        self.max_players = max_players
+        self.players = []
+        self.scores = {}
+        self.current_player_index = 0
+        self.segment = ""
+        self.active = False
+
+    async def start_game(self):
+        self.active = True
+        await self.ctx.send(f"🎮 **BombParty** game started with `{self.max_players}` players! Type `join` to participate.")
+
+        def check_join(m):
+            return m.channel == self.ctx.channel and m.content.lower() == "join" and m.author not in self.players
+
+        while len(self.players) < self.max_players and self.active:
+            try:
+                join_msg = await self.ctx.bot.wait_for('message', check=check_join, timeout=30.0)
+                self.players.append(join_msg.author)
+                self.scores[join_msg.author] = 0
+                await self.ctx.send(f"✅ {join_msg.author.mention} has joined the game!")
+            except asyncio.TimeoutError:
+                break
+
+        if not self.active:
+            return
+
+        if len(self.players) < 2:
+            await self.ctx.send("❌ Not enough players joined. Game cancelled.")
+            self.active = False
+            return
+
+        await self.ctx.send("🟢 All players joined! Let’s begin!")
+        await self.play_rounds()
+
+    async def play_rounds(self):
+        while len(self.players) > 1 and self.active:
+            self.segment = self.generate_segment()
+            current_player = self.players[self.current_player_index]
+            await self.ctx.send(f"📝 {current_player.mention}, it's your turn! Provide a word containing **'{self.segment}'**. You have **10 seconds**.")
+
+            def check_response(m):
+                return m.author == current_player and self.segment in m.content.lower()
+
+            try:
+                response = await self.ctx.bot.wait_for('message', check=check_response, timeout=10.0)
+                word = response.content.lower()
+                if await self.validate_word(word):
+                    self.scores[current_player] += 1
+                    await self.ctx.send(f"✅ Correct! {current_player.mention} gains a point. Total: **{self.scores[current_player]}**")
+                    self.current_player_index = (self.current_player_index + 1) % len(self.players)
+                else:
+                    await self.ctx.send(f"❌ `{word}` is not a valid word. {current_player.mention} is eliminated.")
+                    self.players.remove(current_player)
+                    del self.scores[current_player]
+                    if self.current_player_index >= len(self.players):
+                        self.current_player_index = 0
+            except asyncio.TimeoutError:
+                await self.ctx.send(f"⏰ Time's up! {current_player.mention} is eliminated.")
+                self.players.remove(current_player)
+                del self.scores[current_player]
+                if self.current_player_index >= len(self.players):
+                    self.current_player_index = 0
+
+        if self.active and self.players:
+            winner = self.players[0]
+            await self.ctx.send(f"🏆 {winner.mention} wins the game with **{self.scores[winner]}** points!")
+        elif self.active:
+            await self.ctx.send("❌ No players left. Game ended.")
+
+        self.active = False
+        bombparty_games.pop(self.ctx.channel.id, None)
+
+    def generate_segment(self):
+        segments = ['ing', 'tion', 'est', 'ful', 'ness', 'ment', 'able', 'less', 'ous', 'ive']
+        return random.choice(segments)
+
+    async def validate_word(self, word):
+        url = f"https://api.dictionaryapi.dev/api/v2/entries/en/{word}"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                return resp.status == 200
+
+@commands.command(name="bombparty")
+async def bombparty(ctx, max_players: int = 4):
+    if ctx.channel.id in bombparty_games and bombparty_games[ctx.channel.id].active:
+        return await ctx.send("⚠️ A BombParty game is already running in this channel!")
+
+    game = BombPartyGame(ctx, max_players)
+    bombparty_games[ctx.channel.id] = game
+    await game.start_game()
+
+@commands.command(name="cancelbombparty")
+async def cancel_bombparty(ctx):
+    game = bombparty_games.get(ctx.channel.id)
+    if game and game.active:
+        if ctx.author == game.ctx.author or ctx.author.guild_permissions.manage_messages:
+            game.active = False
+            await ctx.send("🛑 The BombParty game has been cancelled.")
+            bombparty_games.pop(ctx.channel.id, None)
+        else:
+            await ctx.send("❌ Only the game starter or a staff member can cancel the game.")
+    else:
+        await ctx.send("❌ There's no active BombParty game in this channel.")  
+        
 keep_alive()
 bot.run(TOKEN)
