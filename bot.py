@@ -988,6 +988,39 @@ async def purge(ctx, amount: int):
     deleted = await ctx.channel.purge(limit=amount + 1)  # +1 to include the purge command itself
     await ctx.send(f"🧹 Deleted {len(deleted)-1} messages!", delete_after=3)
 
+MODLOG_CHANNEL_ID = 1352902957590380584  # Replace with your mod log channel ID
+
+@bot.command()
+@commands.has_permissions(manage_messages=True)
+async def warn(ctx, member: discord.Member, *, reason: str = "No reason provided."):
+    try:
+        # DM the user
+        dm_message = (
+            f"⚠️ You have been warned in **{ctx.guild.name}**.\n"
+            f"**Reason:** {reason}\n"
+            f"Moderator: {ctx.author}"
+        )
+        await member.send(dm_message)
+    except discord.Forbidden:
+        await ctx.send(f"❌ Couldn't DM {member.mention}, they may have DMs disabled.")
+
+    # Confirm in the server
+    await ctx.send(f"✅ {member.mention} has been warned.")
+
+    # Log to mod channel
+    log_channel = bot.get_channel(MODLOG_CHANNEL_ID)
+    if log_channel:
+        embed = discord.Embed(
+            title="🚨 Member Warned",
+            color=discord.Color.orange(),
+            timestamp=ctx.message.created_at
+        )
+        embed.add_field(name="User", value=f"{member} ({member.id})", inline=False)
+        embed.add_field(name="Moderator", value=f"{ctx.author} ({ctx.author.id})", inline=False)
+        embed.add_field(name="Reason", value=reason, inline=False)
+        embed.set_footer(text=f"Server: {ctx.guild.name}")
+        await log_channel.send(embed=embed)
+
     
 keep_alive()
 bot.run(TOKEN)
