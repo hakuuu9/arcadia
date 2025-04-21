@@ -652,46 +652,82 @@ async def stopwordchain(ctx):
     else:
         await ctx.send("❌ There’s no active Word Chain game in this channel.")
 
-cooldowns = {}
+class GuessButton(Button):
+    def __init__(self, number, correct_number):
+        super().__init__(label=str(number), style=discord.ButtonStyle.primary)
+        self.number = number
+        self.correct_number = correct_number
+        self.clicked_users = set()
 
-class ArcadianButton(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
-
-    @discord.ui.button(label="Tap Me!", style=discord.ButtonStyle.primary, custom_id="arcadian_tap")
-    async def tap(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def callback(self, interaction: discord.Interaction):
         user_id = interaction.user.id
-        now = time.time()
 
-        if user_id in cooldowns and now - cooldowns[user_id] < 3:
-            remaining = round(3 - (now - cooldowns[user_id]), 1)
-            return await interaction.response.send_message(
-                f"🕒 Wait {remaining} more seconds before tapping again!",
-                ephemeral=True
-            )
+        if user_id in self.clicked_users:
+            await interaction.response.send_message("🕒 You're on cooldown! Try again in 2 seconds.", ephemeral=True)
+            return
 
-        cooldowns[user_id] = now
-        number = random.randint(1, 100)
-        await interaction.response.send_message(
-            f"🎲 {interaction.user.mention} rolled an **Arcadian {number}**!",
-            ephemeral=False
+        self.clicked_users.add(user_id)
+        await asyncio.sleep(2)
+        self.clicked_users.remove(user_id)
+
+        if self.number == self.correct_number:
+            for child in self.view.children:
+                child.disabled = True
+                if isinstance(child, GuessButton) and child.number == self.correct_number:
+                    child.style = discord.ButtonStyle.success
+            await interaction.response.edit_message(content=f"🎉 {interaction.user.mention} guessed the correct number **{self.correct_number}**!", view=self.view)
+        else:
+            await interaction.response.send_message("❌ Nope, try again!", ephemeral=True)
+
+
+@commands.command(name="arcadiaroll")
+async def arcadiaroll(ctx, *, args):
+    try:
+        parts = [p.strip() for p in args.split("|")]
+        if len(parts) != 3:
+            return await ctx.send("❌ Format: `$arcadiaroll | number | range (e.g. 1-100) | #channel`")
+
+        secret_number = int(parts[0])
+        range_str = parts[1]
+        channel_mention = parts[2]
+
+        if not channel_mention.startswith("<#") or not channel_mention.endswith(">"):
+            return await ctx.send("❌ Please mention a valid channel (e.g. #general).")
+
+        channel_id = int(channel_mention[2:-1])
+        target_channel = ctx.guild.get_channel(channel_id)
+
+        if not target_channel:
+            return await ctx.send("❌ Could not find the channel.")
+
+        min_val, max_val = map(int, range_str.replace(" ", "").split("-"))
+        if secret_number < min_val or secret_number > max_val:
+            return await ctx.send(f"❌ Your secret number must be between {min_val} and {max_val}.")
+
+        buttons = []
+        for n in range(min_val, max_val + 1):
+            button = GuessButton(n, secret_number)
+            buttons.append(button)
+
+        view = View(timeout=None)
+        for button in buttons:
+            view.add_item(button)
+
+        embed = discord.Embed(
+            title="🎲 Arcadia Roll",
+            description=(
+                f"A number between **{min_val}** and **{max_val}** has been chosen!\n"
+                "Click the buttons to guess the number. First one to guess correctly wins!"
+            ),
+            color=discord.Color.random()
         )
+        embed.set_footer(text=f"Hosted by {ctx.author}", icon_url=ctx.author.display_avatar.url)
 
-@bot.command(name="arcadiaroll")
-async def arcadian_roll(ctx):
-    view = ArcadianButton()
-    await ctx.send("🔘 **Tap the button to roll your Arcadian number!** (3s cooldown per user)", view=view)
+        await target_channel.send(embed=embed, view=view)
+        await ctx.send(f"✅ Game posted in {target_channel.mention}.")
 
-# File to store scores
-SCORE_FILE = "unscramble_scores.json"
-
-# Load scores on startup
-if os.path.exists(SCORE_FILE):
-    with open(SCORE_FILE, "r") as f:
-        unscramble_scores = json.load(f)
-        unscramble_scores = {int(k): v for k, v in unscramble_scores.items()}
-else:
-    unscramble_scores = {}
+    except Exception as e:
+        await ctx.send(f"⚠️ Error: {e}")
 
 @bot.command()
 async def unscramble(ctx):
