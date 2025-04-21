@@ -1097,45 +1097,54 @@ async def userinfo(ctx, member: discord.Member = None):
 @commands.has_permissions(manage_roles=True)
 async def createrole(ctx, *, args=None):
     if not args:
-        await ctx.send("❌ Format: `$createrole | Role Name | #HEXCOLOR | 😎` (emoji is optional)")
+        await ctx.send("❌ Format: `$createrole | Role Name | red | 😎` (emoji is optional)")
         return
 
     parts = [part.strip() for part in args.split("|")]
 
     if len(parts) < 2:
-        await ctx.send("❌ You must include at least role name and hex color.")
+        await ctx.send("❌ You must include at least role name and color.")
         return
 
     role_name = parts[0]
-    color_hex = parts[1] if len(parts) > 1 else "#000000"
+    color_name = parts[1].lower()
     emoji_icon = parts[2] if len(parts) > 2 else None
 
-    try:
-        color_hex = color_hex.strip().replace(" ", "")
-        if not color_hex.startswith("#") or len(color_hex) != 7:
-            raise ValueError
-        color = discord.Color(int(color_hex[1:], 16))
-    except:
-        await ctx.send("❌ Invalid hex color code. Example: `#FF5733`")
+    # Supported color names
+    color_map = {
+        "red": discord.Color.red(),
+        "blue": discord.Color.blue(),
+        "green": discord.Color.green(),
+        "yellow": discord.Color.from_rgb(255, 255, 0),
+        "orange": discord.Color.orange(),
+        "purple": discord.Color.purple(),
+        "teal": discord.Color.teal(),
+        "gold": discord.Color.gold(),
+        "magenta": discord.Color.magenta(),
+        "darkgrey": discord.Color.dark_grey()
+    }
+
+    if color_name not in color_map:
+        await ctx.send("❌ Invalid color. Try: `red`, `yellow`, `green`, `blue`, `orange`, etc.")
         return
 
     try:
-        new_role = await ctx.guild.create_role(name=role_name, color=color, reason=f"Created by {ctx.author}")
+        new_role = await ctx.guild.create_role(name=role_name, color=color_map[color_name], reason=f"Created by {ctx.author}")
 
         if emoji_icon:
             try:
-                # Find emoji from the server
                 matching_emoji = discord.utils.get(ctx.guild.emojis, name=emoji_icon.strip(":"))
                 if matching_emoji:
                     await new_role.edit(icon=matching_emoji)
             except Exception as e:
                 print(f"[Role Icon Error] {e}")
 
-        await ctx.send(f"✅ Created role **{new_role.name}** with color `{color_hex}`!")
+        await ctx.send(f"✅ Created role **{new_role.name}** with color `{color_name}`!")
     except discord.Forbidden:
         await ctx.send("❌ I don’t have permission to manage roles.")
     except Exception as e:
         await ctx.send(f"⚠️ Error: {e}")
+
 
 
 keep_alive()
