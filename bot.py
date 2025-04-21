@@ -134,6 +134,7 @@ async def on_message(message):
     await bot.process_commands(message)
 
 
+
 @bot.command()
 async def ship(ctx, user1: discord.Member = None, user2: discord.Member = None):
     if not user1 or not user2:
