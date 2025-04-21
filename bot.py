@@ -418,6 +418,7 @@ async def support_info(ctx):
             "`$role @member @role` — Add or remove a role from a member"
             "`$serverinfo` - Shows server details\n"
             "`$purge [amount]` – Delete a number of messages in the channel\n"
+            "`$warn @user reason` – Warn a user and log the warning\n"
         ),
         inline=False
     )
