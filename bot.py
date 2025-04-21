@@ -374,6 +374,7 @@ async def info_command(ctx):
             "`$remind [time] [task]` - Set a reminder\n"
             "`$afk [reason]` - Set your AFK status\n"
             "`$simpfor @user` – See how hard you're simping for someone\n"
+            "`$userinfo [@user]` – Display user info\n"
         ),
         inline=False,
     )
@@ -1057,6 +1058,27 @@ async def warn(ctx, member: discord.Member, *, reason: str = "No reason provided
         embed.add_field(name="Reason", value=reason, inline=False)
         embed.set_footer(text=f"Server: {ctx.guild.name}")
         await log_channel.send(embed=embed)
+
+@bot.command(name="userinfo")
+async def userinfo(ctx, member: discord.Member = None):
+    member = member or ctx.author  # Use the command invoker if no member is mentioned
+    roles = [role.mention for role in member.roles if role != ctx.guild.default_role]
+    joined_at = member.joined_at.strftime("%Y-%m-%d %H:%M")
+    created_at = member.created_at.strftime("%Y-%m-%d %H:%M")
+
+    embed = discord.Embed(
+        title=f"ℹ️ User Info - {member.display_name}",
+        color=discord.Color.blurple()
+    )
+    embed.set_thumbnail(url=member.display_avatar.url)
+    embed.add_field(name="🆔 ID", value=member.id, inline=True)
+    embed.add_field(name="👤 Username", value=str(member), inline=True)
+    embed.add_field(name="📅 Joined Server", value=joined_at, inline=False)
+    embed.add_field(name="🗓️ Account Created", value=created_at, inline=False)
+    embed.add_field(name="🎭 Roles", value=", ".join(roles) if roles else "None", inline=False)
+    embed.set_footer(text=f"Requested by {ctx.author}", icon_url=ctx.author.display_avatar.url)
+
+    await ctx.send(embed=embed)
 
     
 keep_alive()
