@@ -420,6 +420,7 @@ async def support_info(ctx):
             "`$serverinfo` - Shows server details\n"
             "`$purge [amount]` – Delete a number of messages in the channel\n"
             "`$warn @user reason` – Warn a user and log the warning\n"
+            "`$createrole | role name | hex color | :emoji:` – Create a custom role with color and server emoji\n"
         ),
         inline=False
     )
@@ -1080,6 +1081,51 @@ async def userinfo(ctx, member: discord.Member = None):
 
     await ctx.send(embed=embed)
 
-    
+@bot.command()
+@commands.has_permissions(manage_roles=True)
+async def createrole(ctx, *, input: str = None):
+    if not input:
+        return await ctx.send("❌ Format: `$createrole | role name | hex color | :emoji:`")
+
+    try:
+        parts = [part.strip() for part in input.split("|")]
+
+        if len(parts) < 2:
+            return await ctx.send("❌ Format: `$createrole | role name | hex color | :emoji:`")
+
+        role_name = parts[0]
+        color_hex = parts[1] if len(parts) > 1 else "#2f3136"
+        emoji = parts[2] if len(parts) > 2 else None
+
+        # Convert hex color
+        try:
+            color = discord.Color(int(color_hex.strip("#"), 16))
+        except ValueError:
+            return await ctx.send("❌ Invalid hex color code. Example: `#FF5733`")
+
+        # Create the role
+        new_role = await ctx.guild.create_role(name=role_name, color=color, reason=f"Created by {ctx.author}")
+
+        # If emoji is specified, find the custom emoji and assign it as the role icon
+        if emoji:
+            for e in ctx.guild.emojis:
+                if str(e) == emoji:
+                    emoji_url = e.url
+                    async with ctx.bot.session.get(emoji_url) as resp:
+                        if resp.status == 200:
+                            icon_bytes = await resp.read()
+                            await new_role.edit(display_icon=icon_bytes)
+                        else:
+                            return await ctx.send("⚠️ Couldn't fetch emoji image.")
+                    break
+            else:
+                return await ctx.send("❌ Emoji not found in this server.")
+
+        await ctx.send(f"✅ Role **{new_role.name}** created successfully!")
+
+    except Exception as e:
+        await ctx.send(f"⚠️ Error: {e}")
+
+
 keep_alive()
 bot.run(TOKEN)
