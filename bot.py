@@ -1039,7 +1039,7 @@ async def purge_error(ctx, error):
         await ctx.send(f"⚠️ An error occurred: {error}")
 
 
-MODLOG_CHANNEL_ID = 1352902957590380584  # Replace with your mod log channel ID
+MODLOG_CHANNEL_ID = 1350497918574006282  # Replace with your mod log channel ID
 
 @bot.command()
 @commands.has_permissions(manage_messages=True)
@@ -1048,8 +1048,7 @@ async def warn(ctx, member: discord.Member, *, reason: str = "No reason provided
         # DM the user
         dm_message = (
             f"⚠️ You have been warned in **{ctx.guild.name}**.\n"
-            f"**Reason:** {reason}\n"
-            f"Moderator: {ctx.author}"
+            f"**Reason:** {reason}"
         )
         await member.send(dm_message)
     except discord.Forbidden:
@@ -1067,10 +1066,10 @@ async def warn(ctx, member: discord.Member, *, reason: str = "No reason provided
             timestamp=ctx.message.created_at
         )
         embed.add_field(name="User", value=f"{member} ({member.id})", inline=False)
-        embed.add_field(name="Moderator", value=f"{ctx.author} ({ctx.author.id})", inline=False)
         embed.add_field(name="Reason", value=reason, inline=False)
         embed.set_footer(text=f"Server: {ctx.guild.name}")
         await log_channel.send(embed=embed)
+
 
 @bot.command(name="userinfo")
 async def userinfo(ctx, member: discord.Member = None):
@@ -1098,12 +1097,13 @@ async def userinfo(ctx, member: discord.Member = None):
 async def createrole(ctx, *, args):
     try:
         parts = [part.strip() for part in args.split("|")]
+
         if len(parts) < 2:
             return await ctx.send("❌ Format: `$createrole | role name | color | (optional emoji)`")
 
         role_name = parts[0]
         color_input = parts[1]
-        emoji_input = parts[2] if len(parts) > 2 else None
+        emoji_input = parts[2] if len(parts) >= 3 else None
 
         # Basic color mapping
         basic_colors = {
@@ -1120,7 +1120,7 @@ async def createrole(ctx, *, args):
             "white": discord.Color.default()
         }
 
-        # Determine color
+        # Determine role color
         color_input_lower = color_input.lower()
         if color_input_lower in basic_colors:
             role_color = basic_colors[color_input_lower]
@@ -1131,17 +1131,18 @@ async def createrole(ctx, *, args):
             except:
                 return await ctx.send("❌ Invalid color. Use a name like `green` or hex like `#FF5733`")
 
-        # Create the role first
+        # Create the role
         new_role = await ctx.guild.create_role(name=role_name, color=role_color)
 
-        # Set emoji icon (only for custom server emoji)
+        # Optional: Set role icon if valid custom emoji
         if emoji_input:
-            found_emoji = discord.utils.get(ctx.guild.emojis, name=emoji_input.strip(":"))
+            emoji_name = emoji_input.strip(":").split(":")[-1]
+            found_emoji = discord.utils.get(ctx.guild.emojis, name=emoji_name)
             if found_emoji:
                 image_bytes = await found_emoji.read()
                 await new_role.edit(display_icon=image_bytes)
             else:
-                await ctx.send("⚠️ Emoji not found or is not a server emoji. Role created without icon.")
+                await ctx.send("⚠️ Emoji provided is not a custom server emoji. Role created without icon.")
 
         await ctx.send(f"✅ Created role **{new_role.name}** successfully!")
 
@@ -1149,7 +1150,6 @@ async def createrole(ctx, *, args):
         await ctx.send("❌ I don't have permission to manage roles.")
     except Exception as e:
         await ctx.send(f"⚠️ Something went wrong: `{e}`")
-
 
 
 keep_alive()
