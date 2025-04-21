@@ -1095,55 +1095,61 @@ async def userinfo(ctx, member: discord.Member = None):
 
 @bot.command()
 @commands.has_permissions(manage_roles=True)
-async def createrole(ctx, *, args=None):
-    if not args:
-        await ctx.send("❌ Format: `$createrole | Role Name | red | 😎` (emoji is optional)")
-        return
-
-    parts = [part.strip() for part in args.split("|")]
-
-    if len(parts) < 2:
-        await ctx.send("❌ You must include at least role name and color.")
-        return
-
-    role_name = parts[0]
-    color_name = parts[1].lower()
-    emoji_icon = parts[2] if len(parts) > 2 else None
-
-    # Supported color names
-    color_map = {
-        "red": discord.Color.red(),
-        "blue": discord.Color.blue(),
-        "green": discord.Color.green(),
-        "yellow": discord.Color.from_rgb(255, 255, 0),
-        "orange": discord.Color.orange(),
-        "purple": discord.Color.purple(),
-        "teal": discord.Color.teal(),
-        "gold": discord.Color.gold(),
-        "magenta": discord.Color.magenta(),
-        "darkgrey": discord.Color.dark_grey()
-    }
-
-    if color_name not in color_map:
-        await ctx.send("❌ Invalid color. Try: `red`, `yellow`, `green`, `blue`, `orange`, etc.")
-        return
-
+async def createrole(ctx, *, args):
     try:
-        new_role = await ctx.guild.create_role(name=role_name, color=color_map[color_name], reason=f"Created by {ctx.author}")
+        parts = [part.strip() for part in args.split("|")]
+        if len(parts) < 2:
+            return await ctx.send("❌ Format: `$createrole | role name | color | (optional emoji)`")
 
-        if emoji_icon:
+        role_name = parts[0]
+        color_input = parts[1]
+        emoji_input = parts[2] if len(parts) > 2 else None
+
+        # Basic color mapping
+        basic_colors = {
+            "red": discord.Color.red(),
+            "blue": discord.Color.blue(),
+            "green": discord.Color.green(),
+            "orange": discord.Color.orange(),
+            "purple": discord.Color.purple(),
+            "yellow": discord.Color.gold(),
+            "pink": discord.Color.magenta(),
+            "teal": discord.Color.teal(),
+            "grey": discord.Color.light_grey(),
+            "black": discord.Color.default(),
+            "white": discord.Color.default()
+        }
+
+        # Determine role color
+        color_input_lower = color_input.lower()
+        if color_input_lower in basic_colors:
+            role_color = basic_colors[color_input_lower]
+        else:
+            # Try parsing hex color
             try:
-                matching_emoji = discord.utils.get(ctx.guild.emojis, name=emoji_icon.strip(":"))
-                if matching_emoji:
-                    await new_role.edit(icon=matching_emoji)
-            except Exception as e:
-                print(f"[Role Icon Error] {e}")
+                color_input_clean = color_input.replace("#", "")
+                role_color = discord.Color(int(color_input_clean, 16))
+            except:
+                return await ctx.send("❌ Invalid color. Try: `red`, `yellow`, `green`, `blue`, `orange`, or hex codes like `#FF5733`")
 
-        await ctx.send(f"✅ Created role **{new_role.name}** with color `{color_name}`!")
+        # Create role
+        new_role = await ctx.guild.create_role(name=role_name, color=role_color)
+
+        # Set role icon if emoji is provided and valid
+        if emoji_input:
+            for emoji in ctx.guild.emojis:
+                if emoji.name == emoji_input or str(emoji) == emoji_input:
+                    await new_role.edit(display_icon=emoji)
+                    break
+            else:
+                await ctx.send("⚠️ Emoji not found. Role created without icon.")
+
+        await ctx.send(f"✅ Role **{new_role.name}** created successfully!")
+
     except discord.Forbidden:
-        await ctx.send("❌ I don’t have permission to manage roles.")
+        await ctx.send("❌ I don't have permission to manage roles.")
     except Exception as e:
-        await ctx.send(f"⚠️ Error: {e}")
+        await ctx.send(f"⚠️ Something went wrong: `{e}`")
 
 
 
