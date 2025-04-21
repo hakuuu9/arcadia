@@ -1039,25 +1039,34 @@ async def purge_error(ctx, error):
         await ctx.send(f"⚠️ An error occurred: {error}")
 
 
-MODLOG_CHANNEL_ID = 1350497918574006282  # Replace with your mod log channel ID
+MODLOG_CHANNEL_ID = 1350497918574006282  # Modlog channel ID
+TALK_CHANNEL_ID = 1357671759511556216     # Talk channel ID
+MENTION_ROLE_ID = 1363911975016333402     # Role to ping in the talk channel
 
 @bot.command()
 @commands.has_permissions(manage_messages=True)
 async def warn(ctx, member: discord.Member, *, reason: str = "No reason provided."):
+    warning_message = (
+        f"⚠️ You have been warned in **{ctx.guild.name}**.\n"
+        f"**Reason:** {reason}"
+    )
+
+    # Try to DM the user
     try:
-        # DM the user
-        dm_message = (
-            f"⚠️ You have been warned in **{ctx.guild.name}**.\n"
-            f"**Reason:** {reason}"
-        )
-        await member.send(dm_message)
+        await member.send(warning_message)
     except discord.Forbidden:
         await ctx.send(f"❌ Couldn't DM {member.mention}, they may have DMs disabled.")
 
     # Confirm in the server
     await ctx.send(f"✅ {member.mention} has been warned.")
 
-    # Log to mod channel
+    # Mention user and role in the talk channel
+    talk_channel = bot.get_channel(TALK_CHANNEL_ID)
+    mention_role = ctx.guild.get_role(MENTION_ROLE_ID)
+    if talk_channel and mention_role:
+        await talk_channel.send(f"{mention_role.mention} {member.mention}\n{warning_message}")
+
+    # Log in the modlog channel
     log_channel = bot.get_channel(MODLOG_CHANNEL_ID)
     if log_channel:
         embed = discord.Embed(
@@ -1069,6 +1078,7 @@ async def warn(ctx, member: discord.Member, *, reason: str = "No reason provided
         embed.add_field(name="Reason", value=reason, inline=False)
         embed.set_footer(text=f"Server: {ctx.guild.name}")
         await log_channel.send(embed=embed)
+
 
 
 @bot.command(name="userinfo")
