@@ -421,6 +421,7 @@ async def support_info(ctx):
             "`$purge [amount]` – Delete a number of messages in the channel\n"
             "`$warn @user reason` – Warn a user and log the warning\n"
             "`$createrole | role name | hex color | :emoji:` – Create a custom role with color and server emoji\n"
+            "`$inrole` Command – Support Info\n"
         ),
         inline=False
     )
@@ -1165,6 +1166,34 @@ async def createrole(ctx, *, args):
         await ctx.send("❌ I don't have permission to manage roles.")
     except Exception as e:
         await ctx.send(f"⚠️ Something went wrong: `{e}`")
+
+@bot.command()
+async def inrole(ctx, *, role: discord.Role):
+    members_with_role = [member.mention for member in role.members]
+
+    if not members_with_role:
+        await ctx.send(f"No members currently have the role **{role.name}**.")
+        return
+
+    # Chunk members into manageable messages (Discord limit is 2000 characters)
+    chunks = []
+    chunk = ""
+    for mention in members_with_role:
+        if len(chunk) + len(mention) + 2 > 1900:
+            chunks.append(chunk)
+            chunk = ""
+        chunk += mention + ", "
+    chunks.append(chunk)
+
+    embed = discord.Embed(
+        title=f"Members in Role: {role.name}",
+        color=discord.Color.blurple()
+    )
+
+    for i, chunk in enumerate(chunks):
+        embed.add_field(name=f"Page {i+1}", value=chunk.strip(", "), inline=False)
+
+    await ctx.send(embed=embed)
 
 
 keep_alive()
