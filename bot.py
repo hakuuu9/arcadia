@@ -76,52 +76,62 @@ async def on_presence_update(before, after):
     except Exception as e:
         print(f"[Error - Vanity Role Handler]: {e}")
 
-afk_users = {}  # Stores AFK users with reason and original nickname
+afk_users = {}  # Stores user ID -> {"reason": str, "original_nick": str}
+
 
 @bot.command()
 async def afk(ctx, *, reason="AFK"):
-    # Save original nickname and reason
-    original_nick = ctx.author.nick or ctx.author.name
-    afk_users[ctx.author.id] = {
+    user_id = ctx.author.id
+    current_nick = ctx.author.nick or ctx.author.name
+
+    if user_id in afk_users:
+        await ctx.send("You're already AFK!")
+        return
+
+    afk_users[user_id] = {
         "reason": reason,
-        "original_nick": original_nick
+        "original_nick": current_nick
     }
 
-    # Only add [AFK] if not already there
-    if not original_nick.startswith("[AFK]"):
-        try:
-            await ctx.author.edit(nick=f"[AFK] {original_nick}")
-        except discord.Forbidden:
-            await ctx.send("⚠️ I couldn't change your nickname (missing permissions).")
+    # Add [AFK] prefix to nickname
+    try:
+        if not current_nick.startswith("[AFK]"):
+            await ctx.author.edit(nick=f"[AFK] {current_nick}")
+    except discord.Forbidden:
+        await ctx.send("⚠️ I couldn't change your nickname due to permissions.")
 
-    await ctx.send(f"૮₍ ´• ˕ •` ₎ა {ctx.author.display_name} is now AFK: {reason}")
+    await ctx.send(f"૮₍ ´• ˕ •` ₎ა {ctx.author.mention} is now AFK: **{reason}**")
+
 
 @bot.event
 async def on_message(message):
     if message.author.bot:
         return
 
-    # Check if user is returning from AFK
-    if message.author.id in afk_users:
-        data = afk_users.pop(message.author.id)
+    user_id = message.author.id
 
-        # Restore original nickname
+    # If AFK, remove status and reset nickname
+    if user_id in afk_users:
+        data = afk_users.pop(user_id)
+        original_nick = data.get("original_nick")
+
         try:
             if message.author.nick and message.author.nick.startswith("[AFK]"):
-                await message.author.edit(nick=data["original_nick"])
+                await message.author.edit(nick=original_nick)
         except discord.Forbidden:
             pass
 
-        await message.channel.send(f"૮ ˶ᵔ ᵕ ᵔ˶ ა Welcome back, {message.author.mention}! I removed your AFK.")
+        await message.channel.send(f"૮ ˶ᵔ ᵕ ᵔ˶ ა Welcome back {message.author.mention}, your AFK status has been removed!")
 
-    # Check if they mentioned an AFK user
-    for user_id, data in afk_users.items():
-        if f"<@{user_id}>" in message.content or f"<@!{user_id}>" in message.content:
-            await message.channel.send(f"💤 That user is AFK: {data['reason']}")
+    # Check if mentioned user is AFK
+    mentioned_ids = [user.id for user in message.mentions]
+    for uid in mentioned_ids:
+        if uid in afk_users:
+            reason = afk_users[uid]["reason"]
+            await message.channel.send(f"💤 That user is AFK: **{reason}**")
             break
 
     await bot.process_commands(message)
-
 
 
 @bot.command()
