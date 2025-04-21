@@ -1027,6 +1027,18 @@ async def purge(ctx, amount: int):
     deleted = await ctx.channel.purge(limit=amount + 1)  # +1 to include the purge command itself
     await ctx.send(f"🧹 Deleted {len(deleted)-1} messages!", delete_after=3)
 
+@purge.error
+async def purge_error(ctx, error):
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.send("🚫 You don't have permission to use this command.")
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("⚠️ Please specify the number of messages to delete. Example: `$purge 10`")
+    elif isinstance(error, commands.BadArgument):
+        await ctx.send("⚠️ That doesn't seem like a valid number. Please try again.")
+    else:
+        await ctx.send(f"⚠️ An error occurred: {error}")
+
+
 MODLOG_CHANNEL_ID = 1352902957590380584  # Replace with your mod log channel ID
 
 @bot.command()
@@ -1083,46 +1095,45 @@ async def userinfo(ctx, member: discord.Member = None):
 
 @bot.command()
 @commands.has_permissions(manage_roles=True)
-async def createrole(ctx, *, input: str = None):
-    if not input:
-        return await ctx.send("❌ Format: `$createrole | role name | hex color | :emoji:`")
+async def createrole(ctx, *, args=None):
+    if not args:
+        await ctx.send("❌ Format: `$createrole | Role Name | #HEXCOLOR | 😎` (emoji is optional)")
+        return
+
+    parts = [part.strip() for part in args.split("|")]
+
+    if len(parts) < 2:
+        await ctx.send("❌ You must include at least role name and hex color.")
+        return
+
+    role_name = parts[0]
+    color_hex = parts[1] if len(parts) > 1 else "#000000"
+    emoji_icon = parts[2] if len(parts) > 2 else None
 
     try:
-        parts = [part.strip() for part in input.split("|")]
+        color_hex = color_hex.strip().replace(" ", "")
+        if not color_hex.startswith("#") or len(color_hex) != 7:
+            raise ValueError
+        color = discord.Color(int(color_hex[1:], 16))
+    except:
+        await ctx.send("❌ Invalid hex color code. Example: `#FF5733`")
+        return
 
-        if len(parts) < 2:
-            return await ctx.send("❌ Format: `$createrole | role name | hex color | :emoji:`")
-
-        role_name = parts[0]
-        color_hex = parts[1] if len(parts) > 1 else "#2f3136"
-        emoji = parts[2] if len(parts) > 2 else None
-
-        # Convert hex color
-        try:
-            color = discord.Color(int(color_hex.strip("#"), 16))
-        except ValueError:
-            return await ctx.send("❌ Invalid hex color code. Example: `#FF5733`")
-
-        # Create the role
+    try:
         new_role = await ctx.guild.create_role(name=role_name, color=color, reason=f"Created by {ctx.author}")
 
-        # If emoji is specified, find the custom emoji and assign it as the role icon
-        if emoji:
-            for e in ctx.guild.emojis:
-                if str(e) == emoji:
-                    emoji_url = e.url
-                    async with ctx.bot.session.get(emoji_url) as resp:
-                        if resp.status == 200:
-                            icon_bytes = await resp.read()
-                            await new_role.edit(display_icon=icon_bytes)
-                        else:
-                            return await ctx.send("⚠️ Couldn't fetch emoji image.")
-                    break
-            else:
-                return await ctx.send("❌ Emoji not found in this server.")
+        if emoji_icon:
+            try:
+                # Find emoji from the server
+                matching_emoji = discord.utils.get(ctx.guild.emojis, name=emoji_icon.strip(":"))
+                if matching_emoji:
+                    await new_role.edit(icon=matching_emoji)
+            except Exception as e:
+                print(f"[Role Icon Error] {e}")
 
-        await ctx.send(f"✅ Role **{new_role.name}** created successfully!")
-
+        await ctx.send(f"✅ Created role **{new_role.name}** with color `{color_hex}`!")
+    except discord.Forbidden:
+        await ctx.send("❌ I don’t have permission to manage roles.")
     except Exception as e:
         await ctx.send(f"⚠️ Error: {e}")
 
