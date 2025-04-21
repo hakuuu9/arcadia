@@ -417,6 +417,7 @@ async def support_info(ctx):
             "`$createembed #channel | [title] | [description] | [#hexcolor]` — Post a custom embed\n"
             "`$role @member @role` — Add or remove a role from a member"
             "`$serverinfo` - Shows server details\n"
+            "`$purge [amount]` – Delete a number of messages in the channel\n"
         ),
         inline=False
     )
@@ -977,6 +978,16 @@ async def serverinfo(ctx):
     embed.add_field(name="🌍 Region", value=str(guild.preferred_locale).replace('_', '-'), inline=True)
 
     await ctx.send(embed=embed)
+
+@bot.command()
+@commands.has_permissions(manage_messages=True)
+async def purge(ctx, amount: int):
+    if amount <= 0:
+        return await ctx.send("❌ Please provide a number greater than 0.")
+
+    deleted = await ctx.channel.purge(limit=amount + 1)  # +1 to include the purge command itself
+    await ctx.send(f"🧹 Deleted {len(deleted)-1} messages!", delete_after=3)
+
     
 keep_alive()
 bot.run(TOKEN)
