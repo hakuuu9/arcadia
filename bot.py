@@ -1040,7 +1040,7 @@ async def purge_error(ctx, error):
 
 
 MODLOG_CHANNEL_ID = 1350497918574006282  # Replace with your mod log channel ID
-TALK_CHANNEL_ID = 1357671759511556216  # Channel where warned users are mentioned
+TALK_CHANNEL_ID = 1363918605678411807  # Channel where warned users are mentioned
 WARNED_ROLE_ID = 1363911975016333402    # "Warned" role that lets users see the warning channel
 
 @bot.command()
