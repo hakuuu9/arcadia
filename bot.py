@@ -6,6 +6,8 @@ import asyncio
 import json
 import os
 import html
+import time
+import datetime
 from config import TOKEN, GUILD_ID, ROLE_ID, VANITY_LINK, LOG_CHANNEL_ID, VANITY_IMAGE_URL
 from keep_alive import keep_alive
 
@@ -74,29 +76,63 @@ async def on_presence_update(before, after):
     except Exception as e:
         print(f"[Error - Vanity Role Handler]: {e}")
 
-afk_users = {}  # ✅ Store AFK users here
+afk_users = {}  # {user_id: {"reason": str, "since": float, "old_nick": str}}
 
 @bot.command()
 async def afk(ctx, *, reason="AFK"):
-    afk_users[ctx.author.id] = reason
-    await ctx.send(f"🛑 {ctx.author.display_name} is now AFK: {reason}")
+    try:
+        old_nick = ctx.author.display_name
+        new_nick = f"[AFK] {old_nick}"
+        if ctx.guild.me.guild_permissions.manage_nicknames:
+            await ctx.author.edit(nick=new_nick[:32])  # Ensure it fits Discord's nickname limit
+    except:
+        old_nick = None  # In case nickname editing fails
+
+    afk_users[ctx.author.id] = {
+        "reason": reason,
+        "since": time.time(),
+        "old_nick": old_nick
+    }
+
+    await ctx.send(f"૮ ˶ᵔ ᵕ ᵔ˶ ა {ctx.author.mention} is now AFK – _{reason}_")
 
 @bot.event
 async def on_message(message):
     if message.author.bot:
         return
 
-    if message.author.id in afk_users:
-        del afk_users[message.author.id]
-        await message.channel.send(f"👋 Welcome back, {message.author.mention}! I removed your AFK.")
+    user_id = message.author.id
 
-    for user_id in afk_users:
-        if f"<@{user_id}>" in message.content or f"<@!{user_id}>" in message.content:
-            reason = afk_users[user_id]
-            await message.channel.send(f"💤 That user is AFK: {reason}")
+    # Remove AFK status
+    if user_id in afk_users:
+        afk_data = afk_users.pop(user_id)
+        if message.guild and afk_data.get("old_nick"):
+            try:
+                if message.guild.me.guild_permissions.manage_nicknames:
+                    await message.author.edit(nick=afk_data["old_nick"])
+            except:
+                pass
+
+        await message.channel.send(f"૮₍ ´• ˕ •` ₎ა Welcome back {message.author.mention}, I removed your AFK.")
+
+    # Notify when someone mentions an AFK user
+    for user in message.mentions:
+        if user.id in afk_users:
+            data = afk_users[user.id]
+            reason = data["reason"]
+            since = datetime.datetime.fromtimestamp(data["since"])
+            delta = datetime.datetime.utcnow() - since
+            mins = int(delta.total_seconds() // 60)
+            secs = int(delta.total_seconds() % 60)
+            duration = f" (for {mins}m {secs}s)" if mins or secs > 30 else ""
+
+            await message.channel.send(
+                f"૮₍ ´• ˕ •` ₎ა {user.display_name} is AFK – _{reason}_{duration}"
+            )
             break
 
     await bot.process_commands(message)
+
 
 @bot.command()
 async def ship(ctx, user1: discord.Member = None, user2: discord.Member = None):
