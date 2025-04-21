@@ -1120,31 +1120,30 @@ async def createrole(ctx, *, args):
             "white": discord.Color.default()
         }
 
-        # Determine role color
+        # Determine color
         color_input_lower = color_input.lower()
         if color_input_lower in basic_colors:
             role_color = basic_colors[color_input_lower]
         else:
-            # Try parsing hex color
             try:
-                color_input_clean = color_input.replace("#", "")
-                role_color = discord.Color(int(color_input_clean, 16))
+                hex_code = color_input.replace("#", "")
+                role_color = discord.Color(int(hex_code, 16))
             except:
-                return await ctx.send("❌ Invalid color. Try: `red`, `yellow`, `green`, `blue`, `orange`, or hex codes like `#FF5733`")
+                return await ctx.send("❌ Invalid color. Use a name like `green` or hex like `#FF5733`")
 
-        # Create role
+        # Create the role first
         new_role = await ctx.guild.create_role(name=role_name, color=role_color)
 
-        # Set role icon if emoji is provided and valid
+        # Set emoji icon (only for custom server emoji)
         if emoji_input:
-            for emoji in ctx.guild.emojis:
-                if emoji.name == emoji_input or str(emoji) == emoji_input:
-                    await new_role.edit(display_icon=emoji)
-                    break
+            found_emoji = discord.utils.get(ctx.guild.emojis, name=emoji_input.strip(":"))
+            if found_emoji:
+                image_bytes = await found_emoji.read()
+                await new_role.edit(display_icon=image_bytes)
             else:
-                await ctx.send("⚠️ Emoji not found. Role created without icon.")
+                await ctx.send("⚠️ Emoji not found or is not a server emoji. Role created without icon.")
 
-        await ctx.send(f"✅ Role **{new_role.name}** created successfully!")
+        await ctx.send(f"✅ Created role **{new_role.name}** successfully!")
 
     except discord.Forbidden:
         await ctx.send("❌ I don't have permission to manage roles.")
