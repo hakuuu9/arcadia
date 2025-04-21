@@ -1039,9 +1039,9 @@ async def purge_error(ctx, error):
         await ctx.send(f"⚠️ An error occurred: {error}")
 
 
-MODLOG_CHANNEL_ID = 1350497918574006282  # Modlog channel ID
-TALK_CHANNEL_ID = 1357671759511556216     # Talk channel ID
-MENTION_ROLE_ID = 1363911975016333402     # Role to ping in the talk channel
+MODLOG_CHANNEL_ID = 1350497918574006282  # Replace with your mod log channel ID
+TALK_CHANNEL_ID = 1357671759511556216  # Channel where warned users are mentioned
+WARNED_ROLE_ID = 1363911975016333402    # "Warned" role that lets users see the warning channel
 
 @bot.command()
 @commands.has_permissions(manage_messages=True)
@@ -1051,22 +1051,26 @@ async def warn(ctx, member: discord.Member, *, reason: str = "No reason provided
         f"**Reason:** {reason}"
     )
 
-    # Try to DM the user
+    # DM the user
     try:
         await member.send(warning_message)
     except discord.Forbidden:
         await ctx.send(f"❌ Couldn't DM {member.mention}, they may have DMs disabled.")
 
-    # Confirm in the server
+    # Add the warned role
+    warned_role = ctx.guild.get_role(WARNED_ROLE_ID)
+    if warned_role:
+        await member.add_roles(warned_role)
+
+    # Mention them in the confession/talk channel
+    talk_channel = bot.get_channel(TALK_CHANNEL_ID)
+    if talk_channel:
+        await talk_channel.send(f"<@&{WARNED_ROLE_ID}> {member.mention}\n{warning_message}")
+
+    # Confirmation in the current channel
     await ctx.send(f"✅ {member.mention} has been warned.")
 
-    # Mention user and role in the talk channel
-    talk_channel = bot.get_channel(TALK_CHANNEL_ID)
-    mention_role = ctx.guild.get_role(MENTION_ROLE_ID)
-    if talk_channel and mention_role:
-        await talk_channel.send(f"{mention_role.mention} {member.mention}\n{warning_message}")
-
-    # Log in the modlog channel
+    # Optional: log to mod channel
     log_channel = bot.get_channel(MODLOG_CHANNEL_ID)
     if log_channel:
         embed = discord.Embed(
@@ -1078,6 +1082,7 @@ async def warn(ctx, member: discord.Member, *, reason: str = "No reason provided
         embed.add_field(name="Reason", value=reason, inline=False)
         embed.set_footer(text=f"Server: {ctx.guild.name}")
         await log_channel.send(embed=embed)
+
 
 
 
