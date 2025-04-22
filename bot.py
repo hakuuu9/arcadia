@@ -363,100 +363,82 @@ async def rps(ctx, opponent: discord.Member = None):
     )
     view.message = msg
 
+INFO_GIF_URL = "https://i.imgur.com/JxsCfCe.gif"
+
 class InfoPages(View):
-    def __init__(self, embeds):
-        super().__init__(timeout=None)
+    def __init__(self, embeds, author):
+        super().__init__(timeout=120)
         self.embeds = embeds
+        self.author = author
         self.current_page = 0
-        self.message = None
 
-        # Add buttons
-        self.add_item(Button(label="◀️ Prev", style=discord.ButtonStyle.primary, custom_id="prev"))
-        self.add_item(Button(label="▶️ Next", style=discord.ButtonStyle.primary, custom_id="next"))
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        return interaction.user == self.author
 
-    @discord.ui.button(label="◀️ Prev", style=discord.ButtonStyle.primary, row=1)
+    @discord.ui.button(label="◀️ Prev", style=discord.ButtonStyle.primary)
     async def prev_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user != self.message.author:
-            return await interaction.response.send_message("Only the command user can navigate.", ephemeral=True)
-
         if self.current_page > 0:
             self.current_page -= 1
             await interaction.response.edit_message(embed=self.embeds[self.current_page], view=self)
 
-    @discord.ui.button(label="▶️ Next", style=discord.ButtonStyle.primary, row=1)
+    @discord.ui.button(label="▶️ Next", style=discord.ButtonStyle.primary)
     async def next_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user != self.message.author:
-            return await interaction.response.send_message("Only the command user can navigate.", ephemeral=True)
-
         if self.current_page < len(self.embeds) - 1:
             self.current_page += 1
             await interaction.response.edit_message(embed=self.embeds[self.current_page], view=self)
 
 @bot.command(name="info")
 async def info_command(ctx):
-    gif_url = "https://i.imgur.com/JxsCfCe.gif"  # Replace with your own
-
-    embed1 = discord.Embed(title="👥 Member Commands", color=discord.Color.purple())
-    embed1.set_thumbnail(url=gif_url)
+    embed1 = discord.Embed(
+        title="📖 Arcadian Bot – Member Commands",
+        description="✨ Explore the fun features available to all members!",
+        color=discord.Color.blurple()
+    )
+    embed1.set_thumbnail(url=INFO_GIF_URL)
     embed1.add_field(
-        name="Commands:",
+        name="👥 Member Commands",
         value=(
-            "`$ship @user1 @user2` - Ship two users\n"
-            "`$choose option1, option2` - Randomly choose one\n"
-            "`$avatar [@user]` - Get user's avatar\n"
-            "`$8b question` - Magic 8-Ball answers\n"
-            "`$remind [time] [task]` - Set a reminder\n"
-            "`$afk [reason]` - Set your AFK status\n"
-            "`$simpfor @user` – See how hard you're simping for someone\n"
-            "`$userinfo [@user]` – Display user info\n"
-            "`$bal` - Check your current coin balance\n"
-        )
+            "💘 `$ship @user1 @user2` – Ship two users romantically\n"
+            "🎲 `$choose option1, option2` – Randomly pick one\n"
+            "🖼️ `$avatar [@user]` – View a user's avatar\n"
+            "🎱 `$8b [question]` – Magic 8-Ball prediction\n"
+            "⏰ `$remind [time] [task]` – Set a reminder\n"
+            "💤 `$afk [reason]` – Set yourself as AFK\n"
+            "💗 `$simpfor @user` – See your simp level\n"
+            "🧑‍💼 `$userinfo [@user]` – View user info\n"
+            "🎁 `$daily` – Claim your daily coin reward\n"
+            "🧠 `$ask [question]` – Ask the AI anything\n"
+        ),
+        inline=False,
     )
 
-    embed2 = discord.Embed(title="🎮 Game Commands", color=discord.Color.purple())
-    embed2.set_thumbnail(url=gif_url)
+    embed2 = discord.Embed(
+        title="🎮 Arcadian Bot – Game Commands",
+        description="🎮 Play fun interactive games with friends!",
+        color=discord.Color.green()
+    )
+    embed2.set_thumbnail(url=INFO_GIF_URL)
     embed2.add_field(
-        name="Commands:",
+        name="🎲 Game Commands",
         value=(
-            "`$rps @user` - Rock-Paper-Scissors challenge\n"
-            "`$hangman solo` - Solo Hangman\n"
-            "`$hangman duo @user` - 2-player Hangman\n"
-            "`$hangman free` - Free-for-all Hangman\n"
-            "`$tictactoe @user` - Play Tic Tac Toe\n"
-            "`$wordchain [word]` - Start a Word Chain game\n"
-            "`$arcadiaroll` - Roll a number from 1 to 100\n"
-            "`$unscramble` – Unscramble the word challenge\n"
-            "`$unscramblescore` – View unscramble leaderboard\n"
-            "`$spotlie` - Spot the lie among 3 statements\n"
-            "`$arcadia` - Fun interactive RPG style bot game\n"
-        )
+            "🪨 `$rps @user` – Rock-Paper-Scissors\n"
+            "🔠 `$unscramble` – Unscramble the word\n"
+            "📈 `$unscramblescore` – Check the top players\n"
+            "🪓 `$hangman solo` – Hangman solo mode\n"
+            "👥 `$hangman duo @user` – 2-player Hangman\n"
+            "🌐 `$hangman free` – Free-for-all Hangman\n"
+            "❌ `$tictactoe @user` – Classic tic-tac-toe\n"
+            "🧠 `$wordchain [word]` – Continue the chain!\n"
+            "🎯 `$arcadiaroll` – Guess the hidden number\n"
+            "🕵️ `$spotlie` – Spot the fake statement\n"
+            "⚔️ `$arcadia` – Play an RPG-style minigame\n"
+        ),
+        inline=False,
     )
 
-    embed3 = discord.Embed(title="🪙 Coin & Fun", color=discord.Color.purple())
-    embed3.set_thumbnail(url=gif_url)
-    embed3.add_field(
-        name="Commands:",
-        value=(
-            "`$daily` - Claim daily coins (24hr cooldown)\n"
-            "`$coinflip heads/tails [amount]` - Bet coins on a coin toss\n"
-            "`$highlow [bet]` - Guess if the next number is higher or lower\n"
-            "`$coinlb` - View the coin leaderboard\n"
-        )
-    )
+    view = InfoPages([embed1, embed2], ctx.author)
+    await ctx.send(embed=embed1, view=view)
 
-    embed4 = discord.Embed(title="🤖 AI Commands", color=discord.Color.purple())
-    embed4.set_thumbnail(url=gif_url)
-    embed4.add_field(
-        name="Commands:",
-        value="`$ask [question]` - Chat with the AI for help or fun"
-    )
-    embed4.set_footer(text="Use `$` before each command. Enjoy Arcadia!")
-
-    embeds = [embed1, embed2, embed3, embed4]
-    view = InfoPages(embeds)
-    view.message = ctx
-
-    await ctx.send(embed=embeds[0], view=view)
 
 
 @bot.command(name="supportinfo")
