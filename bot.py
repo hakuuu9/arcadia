@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands, tasks
 from discord.ui import Button, View
 import random
+import openai
 import math
 import asyncio
 import json
@@ -1250,13 +1251,9 @@ async def daily_error(ctx, error):
         )
         await ctx.send(embed=embed)
 
-import discord
-from discord.ext import commands
-import openai
-import os
 
 # OpenAI API Key
-openai.api_key = os.getenv("OPENAI_API_KEY")  # or set manually: openai.api_key = "your-key"
+openai.api_key = os.getenv("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")  # or set manually: openai.api_key = "your-key"
 
 bot = commands.Bot(command_prefix="$", intents=discord.Intents.all())
 
