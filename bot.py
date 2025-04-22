@@ -363,6 +363,8 @@ async def rps(ctx, opponent: discord.Member = None):
     )
     view.message = msg
 
+# ------------------------------------------------------------------------------------ start of bot info
+
 @bot.command(name="info")
 async def info_command(ctx):
     pages = [
@@ -396,11 +398,9 @@ async def info_command(ctx):
                 "🎯 `$hangman solo` / `duo @user` / `free` - Hangman modes\n"
                 "❌ `$tictactoe @user` - Play Tic Tac Toe\n"
                 "🔤 `$wordchain [word]` - Continue the chain\n"
-                "🎰 `$arcadiaroll` - Number guessing game\n"
                 "🧠 `$unscramble` – Word puzzle\n"
                 "🏆 `$unscramblescore` – Leaderboard\n"
                 "🤔 `$spotlie` - Find the lie!\n"
-                "⚔️ `$arcadia` - RPG-style adventure game"
             ),
             inline=False
         ).set_thumbnail(url="https://i.imgur.com/JxsCfCe.gif"),
@@ -412,13 +412,7 @@ async def info_command(ctx):
         ).add_field(
             name="🔧 Utility Commands",
             value=(
-                "📅 `$daily` - Claim your daily coins\n"
-                "💼 `$bal` - Check your coin balance\n"
-                "🎰 `$coinflip [heads/tails] [amount]` - Bet coins!\n"
-                "📈 `$coinlb` - See the richest users\n"
-                "📊 `$highlow [amount]` - Guess higher/lower\n"
-                "🎫 `$ticket` - Open a support ticket\n"
-                "🤖 `$ask [question]` - Ask an AI anything"
+                "🤖 `$arcadia [question]` - Ask Arcadia anything"
             ),
             inline=False
         ).set_thumbnail(url="https://i.imgur.com/JxsCfCe.gif"),
@@ -467,28 +461,31 @@ async def info_command(ctx):
 @commands.has_permissions(manage_messages=True)
 async def support_info(ctx):
     embed = discord.Embed(
-        title="🛠️ Support / Staff Commands",
-        description="Only staff members can use these commands.",
+        title="🛠️ Arcadian Staff Commands",
+        description="**These commands are for server staff and support team only.**",
         color=discord.Color.red()
     )
 
+    embed.set_thumbnail(url="https://i.imgur.com/JxsCfCe.gif")  # Optional: same GIF for consistency
+
     embed.add_field(
-        name="Support Commands",
+        name="🧰 Moderation & Support Tools",
         value=(
-            "`$createembed #channel | [title] | [description] | [#hexcolor]` — Post a custom embed\n"
-            "`$role @member @role` — Add or remove a role from a member"
-            "`$serverinfo` - Shows server details\n"
-            "`$purge [amount]` – Delete a number of messages in the channel\n"
-            "`$warn @user reason` – Warn a user and log the warning\n"
-            "`$createrole | role name | hex color | :emoji:` – Create a custom role with color and server emoji\n"
-            "`$inrole` Command – Support Info\n"
+            "📩 `$createembed #channel | title | description | #hexcolor` – Post a styled embed\n"
+            "🎭 `$role @member @role` – Add/remove a role from a member\n"
+            "📊 `$serverinfo` – Show server stats and info\n"
+            "🧹 `$purge [amount]` – Delete messages in a channel\n"
+            "⚠️ `$warn @user reason` – Warn a user & log it\n"
+            "🎨 `$createrole | role name | hex color | :emoji:` – Create a custom colored role\n"
+            "📌 `$inrole` – Show members with a certain role"
         ),
         inline=False
     )
 
-    embed.set_footer(text="Staff access only.")
+    embed.set_footer(text="Only users with Manage Messages permission can use these.")
     await ctx.send(embed=embed)
 
+# -------------------------------------------------------------------------------- end of bot info
 
 import aiohttp
 @bot.command()
@@ -742,55 +739,6 @@ class GuessButton(Button):
         else:
             await interaction.response.send_message("❌ Nope, try again!", ephemeral=True)
 
-
-@commands.command(name="arcadiaroll")
-async def arcadiaroll(ctx, *, args):
-    try:
-        parts = [p.strip() for p in args.split("|")]
-        if len(parts) != 3:
-            return await ctx.send("❌ Format: `$arcadiaroll | number | range (e.g. 1-100) | #channel`")
-
-        secret_number = int(parts[0])
-        range_str = parts[1]
-        channel_mention = parts[2]
-
-        if not channel_mention.startswith("<#") or not channel_mention.endswith(">"):
-            return await ctx.send("❌ Please mention a valid channel (e.g. #general).")
-
-        channel_id = int(channel_mention[2:-1])
-        target_channel = ctx.guild.get_channel(channel_id)
-
-        if not target_channel:
-            return await ctx.send("❌ Could not find the channel.")
-
-        min_val, max_val = map(int, range_str.replace(" ", "").split("-"))
-        if secret_number < min_val or secret_number > max_val:
-            return await ctx.send(f"❌ Your secret number must be between {min_val} and {max_val}.")
-
-        buttons = []
-        for n in range(min_val, max_val + 1):
-            button = GuessButton(n, secret_number)
-            buttons.append(button)
-
-        view = View(timeout=None)
-        for button in buttons:
-            view.add_item(button)
-
-        embed = discord.Embed(
-            title="🎲 Arcadia Roll",
-            description=(
-                f"A number between **{min_val}** and **{max_val}** has been chosen!\n"
-                "Click the buttons to guess the number. First one to guess correctly wins!"
-            ),
-            color=discord.Color.random()
-        )
-        embed.set_footer(text=f"Hosted by {ctx.author}", icon_url=ctx.author.display_avatar.url)
-
-        await target_channel.send(embed=embed, view=view)
-        await ctx.send(f"✅ Game posted in {target_channel.mention}.")
-
-    except Exception as e:
-        await ctx.send(f"⚠️ Error: {e}")
 
 @bot.command()
 async def unscramble(ctx):
@@ -1130,59 +1078,6 @@ async def inrole(ctx, *, role: discord.Role):
         embed.add_field(name=f"Page {i+1}", value=chunk.strip(", "), inline=False)
 
     await ctx.send(embed=embed)
-
-
-
-
-COIN_FILE = "daily_coins.json"
-COIN_EMOJI = "<a:coin~1:1364089392456663062>"  # Replace with your actual emoji
-
-# Make sure the file exists and is formatted
-if not os.path.exists(COIN_FILE):
-    with open(COIN_FILE, "w") as f:
-        json.dump({}, f)
-
-def load_coins():
-    with open(COIN_FILE, "r") as f:
-        return json.load(f)
-
-def save_coins(data):
-    with open(COIN_FILE, "w") as f:
-        json.dump(data, f, indent=4)
-
-@bot.command()
-@commands.cooldown(1, 86400, commands.BucketType.user)
-async def daily(ctx):
-    user_id = str(ctx.author.id)
-    coins = load_coins()
-
-    # If user not found, initialize
-    if user_id not in coins:
-        coins[user_id] = 0
-
-    coins[user_id] += 1
-    save_coins(coins)
-
-    embed = discord.Embed(
-        title="**Daily Reward Claimed!**",
-        description=f"You received **1** {COIN_EMOJI} today!\n\nKeep grinding and come back tomorrow!",
-        color=discord.Color.gold()
-    )
-    embed.set_thumbnail(url="https://i.imgur.com/O3DHIA5.gif")
-    embed.set_footer(text=f"{ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
-
-    await ctx.send(embed=embed)
-
-@daily.error
-async def daily_error(ctx, error):
-    if isinstance(error, commands.CommandOnCooldown):
-        time_left = str(timedelta(seconds=int(error.retry_after)))
-        embed = discord.Embed(
-            title="**Slow down!**",
-            description=f"You’ve already claimed your daily reward.\nCome back in `{time_left}`.",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed)
 
 # Your OpenRouter API key and base URL
 OPENROUTER_API_KEY = "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"
