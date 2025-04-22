@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands, tasks
 from discord.ui import Button, View
 import random
-import openai
+from openai import OpenAI
 import math
 import asyncio
 import json
@@ -1251,45 +1251,46 @@ async def daily_error(ctx, error):
         )
         await ctx.send(embed=embed)
 
+# Your OpenRouter API key and base URL
+OPENROUTER_API_KEY = "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"
+client = OpenAI(
+    api_key=OPENROUTER_API_KEY,
+    base_url="https://openrouter.ai/api/v1"
+)
 
-# Set OpenRouter API key and endpoint
-openai.api_key = "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"
-openai.base_url = "https://openrouter.ai/api/v1"
+# Fancy embed GIF (replace with any hosted GIF URL)
+HEADER_GIF_URL = "https://media.tenor.com/vvX8vUzU4jMAAAAC/ai-robot.gif"
+
+bot = commands.Bot(command_prefix="$", intents=discord.Intents.all())
 
 @bot.command()
-async def aiask(ctx, *, prompt: str):
-    try:
-        thinking_gif = "https://media.tenor.com/0AV6aJ8fNfUAAAAC/thinking-ai.gif"
+async def ask(ctx, *, question: str):
+    """Ask AI a question using OpenRouter."""
 
-        thinking_embed = discord.Embed(
-            title="Thinking...",
-            description="I'm processing your question, hang tight!",
+    thinking = await ctx.send("**Thinking...**")
+
+    try:
+        response = client.chat.completions.create(
+            model="mistralai/mistral-7b-instruct",  # You can change to any available OpenRouter model
+            messages=[{"role": "user", "content": question}]
+        )
+
+        answer = response.choices[0].message.content.strip()
+
+        embed = discord.Embed(
+            title="AI Assistant",
+            description=answer,
             color=discord.Color.blurple()
         )
-        thinking_embed.set_image(url=thinking_gif)
-        thinking_msg = await ctx.send(embed=thinking_embed)
+        embed.set_image(url=HEADER_GIF_URL)
+        embed.set_footer(text=f"Question by {ctx.author.name}")
 
-        # Make the chat completion request using OpenRouter
-        response = openai.ChatCompletion.create(
-            model="openai/gpt-3.5-turbo",  # You can change this to another OpenRouter-supported model
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": prompt}
-            ]
-        )
-
-        answer = response["choices"][0]["message"]["content"]
-
-        answer_embed = discord.Embed(
-            title="AI Response",
-            description=answer,
-            color=discord.Color.green()
-        )
-        answer_embed.set_image(url=thinking_gif)
-        await thinking_msg.edit(embed=answer_embed)
+        await thinking.delete()
+        await ctx.send(embed=embed)
 
     except Exception as e:
-        await ctx.send(f"Something went wrong:\n```{e}```")
+        await thinking.edit(content=f"**Something went wrong:** `{e}`")
+
 
 
 keep_alive()
