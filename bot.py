@@ -365,7 +365,14 @@ async def rps(ctx, opponent: discord.Member = None):
 
 @bot.command(name="info")
 async def info_command(ctx):
-    embed = discord.Embed(title="📖 Arcadian Bot Command Info", color=discord.Color.purple())
+    embed = discord.Embed(
+        title="📖 Arcadian Bot Command Info",
+        description="A list of commands you can use with `$` prefix!",
+        color=discord.Color.purple()
+    )
+
+    # ✅ Add your GIF thumbnail here (replace URL)
+    embed.set_thumbnail(url="https://i.imgur.com/JxsCfCe.gif")
 
     embed.add_field(
         name="👥 Member Commands",
@@ -378,11 +385,12 @@ async def info_command(ctx):
             "`$afk [reason]` - Set your AFK status\n"
             "`$simpfor @user` – See how hard you're simping for someone\n"
             "`$userinfo [@user]` – Display user info\n"
+            "`$bal` - Check your current coin balance\n"
         ),
         inline=False,
     )
 
-    embed.add_field(name="\u200b", value="\u200b", inline=False)  # spacer
+    embed.add_field(name="\u200b", value="\u200b", inline=False)  # Spacer
 
     embed.add_field(
         name="🎮 Game Commands",
@@ -402,7 +410,29 @@ async def info_command(ctx):
         inline=False,
     )
 
-    embed.set_footer(text="Use commands with the `$` prefix. Have fun!")
+    embed.add_field(name="\u200b", value="\u200b", inline=False)  # Spacer
+
+    embed.add_field(
+        name="🪙 Coin & Fun",
+        value=(
+            "`$daily` - Claim daily coins (24hr cooldown)\n"
+            "`$coinflip heads/tails [amount]` - Bet coins on a coin toss\n"
+            "`$highlow [bet]` - Guess if the next number is higher or lower\n"
+            "`$coinlb` - View the coin leaderboard\n"
+        ),
+        inline=False,
+    )
+
+    embed.add_field(
+        name="🤖 AI Powered",
+        value=(
+            "`$ask [question]` - Chat with the AI for help or fun\n"
+        ),
+        inline=False
+    )
+
+    embed.set_footer(text="Use commands with the $ prefix. Enjoy your time in Arcadia!")
+
     await ctx.send(embed=embed)
 
 
