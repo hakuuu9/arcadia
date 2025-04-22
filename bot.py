@@ -1252,42 +1252,36 @@ async def daily_error(ctx, error):
         await ctx.send(embed=embed)
 
 
-# Your OpenAI API key
-openai.api_key = "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"
 
-# AI-themed GIF URL (you can replace it with your own)
-AI_GIF_URL = "https://media.giphy.com/media/3o7aD2saalBwwftBIY/giphy.gif"
 
-@bot.command(name="ask", help="Ask a question to the AI")
-async def ask(ctx, *, question: str):
-    await ctx.typing()
+# Replace this with your OpenRouter API key
+openai.api_key = "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"
+openai.base_url = "https://openrouter.ai/api/v1"  # Use OpenRouter instead of OpenAI
 
-    try:
-        client = openai.OpenAI(api_key=openai.api_key)
+@bot.command(name="ask")
+async def aiask(ctx, *, question: str):
+    gif_url = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExZ3Z5b21heTJ5NmlpdWc0aWJoNmV3N2RqcDI2ZW1vbGtsODJlM2hrOCZlcD12MV9naWZzX3NlYXJjaCZjdD1n/qgQUggAC3Pfv687qPC/giphy.gif"  # Fancy typing gif
 
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": question}],
-            max_tokens=1024,
-            temperature=0.7
-        )
+    async with ctx.typing():
+        try:
+            response = openai.ChatCompletion.create(
+                model="openai/gpt-3.5-turbo",  # You can change to Claude, Mistral, etc.
+                messages=[{"role": "user", "content": question}]
+            )
+            reply = response["choices"][0]["message"]["content"]
+        except Exception as e:
+            await ctx.send(f"**Something went wrong:** `{e}`")
+            return
 
-        answer = response.choices[0].message.content
+    embed = discord.Embed(
+        title="Ask AI",
+        description=f"**Question:** {question}\n\n**Answer:**\n{reply}",
+        color=discord.Color.blue()
+    )
+    embed.set_image(url=gif_url)
+    embed.set_footer(text="Powered by OpenRouter.ai")
 
-        embed = discord.Embed(
-            title="AI Assistant",
-            description=f"**Question:** {question}",
-            color=discord.Color.purple()
-        )
-        embed.add_field(name="Response", value=answer[:1024], inline=False)
-        embed.set_image(url=AI_GIF_URL)
-        embed.set_footer(text=f"Requested by {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
-        embed.timestamp = ctx.message.created_at
-
-        await ctx.send(embed=embed)
-
-    except Exception as e:
-        await ctx.send(f"Something went wrong: `{str(e)}`")
+    await ctx.send(embed=embed)
 
 
 keep_alive()
