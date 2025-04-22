@@ -1252,39 +1252,39 @@ async def daily_error(ctx, error):
         await ctx.send(embed=embed)
 
 
-# OpenAI API Key
-openai.api_key = os.getenv("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")  # or set manually: openai.api_key = "your-key"
 
+# Your OpenAI API Key (put it directly here as you requested)
+openai.api_key = "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"
 
-@bot.command()
-async def askai(ctx, *, question: str):
-    await ctx.trigger_typing()
+# Make sure your bot is already defined like this:
+# intents = discord.Intents.default()
+# bot = commands.Bot(command_prefix="$", intents=intents)
+
+@bot.command(name="ask", help="Ask a question to the AI")
+async def ask(ctx, *, question: str):
+    await ctx.typing()  # Show typing indicator while processing
+
     try:
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
-            messages=[
-                {"role": "user", "content": question}
-            ],
-            max_tokens=150,
-            temperature=0.7,
+            messages=[{"role": "user", "content": question}]
         )
 
-        answer = response.choices[0].message["content"]
+        answer = response["choices"][0]["message"]["content"]
 
         embed = discord.Embed(
-            title="**AI Assistant Response**",
-            description=f"> {question}",
-            color=discord.Color.teal()
+            title="Ask AI",
+            description=f"**Your Question:**\n{question}",
+            color=discord.Color.purple()
         )
-        embed.add_field(name="Answer", value=answer, inline=False)
-        embed.set_thumbnail(url="https://i.imgur.com/GN6IcZm.png")  # Optional AI-style icon
-        embed.set_footer(text=f"Asked by {ctx.author.display_name}", icon_url=ctx.author.avatar.url if ctx.author.avatar else None)
+        embed.add_field(name="AI's Response", value=answer[:1024], inline=False)
+        embed.set_footer(text=f"Requested by {ctx.author}", icon_url=ctx.author.display_avatar.url)
+        embed.timestamp = ctx.message.created_at
 
         await ctx.send(embed=embed)
 
     except Exception as e:
-        print(f"[Error in askai command]: {e}")
-        await ctx.send("❌ There was an error while fetching the AI response.")
+        await ctx.send(f"Something went wrong: `{str(e)}`")
 
 
 keep_alive()
