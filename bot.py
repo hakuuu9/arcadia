@@ -1197,43 +1197,45 @@ async def inrole(ctx, *, role: discord.Role):
 
     await ctx.send(embed=embed)
 
-DAILY_FILE = "daily_data.json"
-COIN_EMOJI = "<a:coin~1:1364089392456663062>"  # Replace with your coin emoji
+
 
 
 COIN_FILE = "daily_coins.json"
 COIN_EMOJI = "<a:coin~1:1364089392456663062>"  # Replace with your actual emoji
 
-# Ensure file exists
+# Make sure the file exists and is formatted
 if not os.path.exists(COIN_FILE):
     with open(COIN_FILE, "w") as f:
         json.dump({}, f)
 
+def load_coins():
+    with open(COIN_FILE, "r") as f:
+        return json.load(f)
+
+def save_coins(data):
+    with open(COIN_FILE, "w") as f:
+        json.dump(data, f, indent=4)
+
 @bot.command()
-@commands.cooldown(1, 86400, commands.BucketType.user)  # 86400 seconds = 24 hours
+@commands.cooldown(1, 86400, commands.BucketType.user)
 async def daily(ctx):
     user_id = str(ctx.author.id)
+    coins = load_coins()
 
-    # Load coin data
-    with open(COIN_FILE, "r") as f:
-        coins = json.load(f)
-
+    # If user not found, initialize
     if user_id not in coins:
-        coins[user_id] = {"coins": 0}
+        coins[user_id] = 0
 
-    coins[user_id]["coins"] += 1
-
-    # Save coin data
-    with open(COIN_FILE, "w") as f:
-        json.dump(coins, f, indent=4)
+    coins[user_id] += 1
+    save_coins(coins)
 
     embed = discord.Embed(
         title="**Daily Reward Claimed!**",
-        description=f"You've received **1** {COIN_EMOJI}!\n\nCome back in 24 hours for more!",
+        description=f"You received **1** {COIN_EMOJI} today!\n\nKeep grinding and come back tomorrow!",
         color=discord.Color.gold()
     )
-    embed.set_footer(text=f"Claimed by {ctx.author.display_name}", icon_url=ctx.author.avatar.url if ctx.author.avatar else None)
-    embed.set_thumbnail(url="https://i.imgur.com/O3DHIA5.gif")  # Optional: spinning coin GIF
+    embed.set_thumbnail(url="https://i.imgur.com/O3DHIA5.gif")
+    embed.set_footer(text=f"{ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
 
     await ctx.send(embed=embed)
 
@@ -1242,11 +1244,12 @@ async def daily_error(ctx, error):
     if isinstance(error, commands.CommandOnCooldown):
         time_left = str(timedelta(seconds=int(error.retry_after)))
         embed = discord.Embed(
-            title="**You're too early!**",
-            description=f"You've already claimed your daily reward.\nTry again in `{time_left}`.",
+            title="**Slow down!**",
+            description=f"You’ve already claimed your daily reward.\nCome back in `{time_left}`.",
             color=discord.Color.red()
         )
         await ctx.send(embed=embed)
+
 
 
 keep_alive()
