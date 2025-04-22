@@ -10,6 +10,7 @@ import time
 import datetime
 from config import TOKEN, GUILD_ID, ROLE_ID, VANITY_LINK, LOG_CHANNEL_ID, VANITY_IMAGE_URL
 from keep_alive import keep_alive
+from datetime import datetime, timedelta
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -1194,6 +1195,55 @@ async def inrole(ctx, *, role: discord.Role):
         embed.add_field(name=f"Page {i+1}", value=chunk.strip(", "), inline=False)
 
     await ctx.send(embed=embed)
+
+DAILY_FILE = "daily_data.json"
+COIN_EMOJI = "<a:coin~1:1364089392456663062>"  # Replace with your coin emoji
+
+
+# Load daily data
+if os.path.exists(DAILY_FILE):
+    with open(DAILY_FILE, "r") as f:
+        daily_data = json.load(f)
+else:
+    daily_data = {}
+
+@bot.command()
+async def daily(ctx):
+    user_id = str(ctx.author.id)
+    now = datetime.utcnow()
+
+    last_claim_time_str = daily_data.get(user_id, {}).get("last_claim")
+    last_claim_time = datetime.strptime(last_claim_time_str, "%Y-%m-%d %H:%M:%S") if last_claim_time_str else None
+
+    if last_claim_time and now - last_claim_time < timedelta(hours=24):
+        remaining = timedelta(hours=24) - (now - last_claim_time)
+        hours, remainder = divmod(remaining.total_seconds(), 3600)
+        minutes = remainder // 60
+        await ctx.send(f"⏳ You already claimed your daily reward! Come back in {int(hours)}h {int(minutes)}m.")
+        return
+
+    # Grant coin
+    current_balance = daily_data.get(user_id, {}).get("coins", 0)
+    new_balance = current_balance + 1
+
+    # Save updated data
+    daily_data[user_id] = {
+        "coins": new_balance,
+        "last_claim": now.strftime("%Y-%m-%d %H:%M:%S")
+    }
+
+    with open(DAILY_FILE, "w") as f:
+        json.dump(daily_data, f, indent=4)
+
+    await ctx.send(f"{ctx.author.mention}, you've claimed your daily reward! {COIN_EMOJI} You now have **{new_balance}** coins.")
+
+@bot.command()
+async def coins(ctx, member: discord.Member = None):
+    member = member or ctx.author
+    user_id = str(member.id)
+    balance = daily_data.get(user_id, {}).get("coins", 0)
+    await ctx.send(f"{member.mention} has **{balance}** {COIN_EMOJI} coins.")
+
 
 
 keep_alive()
