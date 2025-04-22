@@ -1252,33 +1252,36 @@ async def daily_error(ctx, error):
         await ctx.send(embed=embed)
 
 
-
-# Your OpenAI API Key (put it directly here as you requested)
+# Your OpenAI API key
 openai.api_key = "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"
 
-# Make sure your bot is already defined like this:
-# intents = discord.Intents.default()
-# bot = commands.Bot(command_prefix="$", intents=intents)
+# AI-themed GIF URL (you can replace it with your own)
+AI_GIF_URL = "https://media.giphy.com/media/3o7aD2saalBwwftBIY/giphy.gif"
 
 @bot.command(name="ask", help="Ask a question to the AI")
 async def ask(ctx, *, question: str):
-    await ctx.typing()  # Show typing indicator while processing
+    await ctx.typing()
 
     try:
-        response = openai.ChatCompletion.create(
+        client = openai.OpenAI(api_key=openai.api_key)
+
+        response = client.chat.completions.create(
             model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": question}]
+            messages=[{"role": "user", "content": question}],
+            max_tokens=1024,
+            temperature=0.7
         )
 
-        answer = response["choices"][0]["message"]["content"]
+        answer = response.choices[0].message.content
 
         embed = discord.Embed(
-            title="Ask AI",
-            description=f"**Your Question:**\n{question}",
+            title="AI Assistant",
+            description=f"**Question:** {question}",
             color=discord.Color.purple()
         )
-        embed.add_field(name="AI's Response", value=answer[:1024], inline=False)
-        embed.set_footer(text=f"Requested by {ctx.author}", icon_url=ctx.author.display_avatar.url)
+        embed.add_field(name="Response", value=answer[:1024], inline=False)
+        embed.set_image(url=AI_GIF_URL)
+        embed.set_footer(text=f"Requested by {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
         embed.timestamp = ctx.message.created_at
 
         await ctx.send(embed=embed)
