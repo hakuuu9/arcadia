@@ -1250,6 +1250,45 @@ async def daily_error(ctx, error):
         )
         await ctx.send(embed=embed)
 
+import discord
+from discord.ext import commands
+import openai
+import os
+
+# OpenAI API Key
+openai.api_key = os.getenv("OPENAI_API_KEY")  # or set manually: openai.api_key = "your-key"
+
+bot = commands.Bot(command_prefix="$", intents=discord.Intents.all())
+
+@bot.command()
+async def askai(ctx, *, question: str):
+    await ctx.trigger_typing()
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "user", "content": question}
+            ],
+            max_tokens=150,
+            temperature=0.7,
+        )
+
+        answer = response.choices[0].message["content"]
+
+        embed = discord.Embed(
+            title="**AI Assistant Response**",
+            description=f"> {question}",
+            color=discord.Color.teal()
+        )
+        embed.add_field(name="Answer", value=answer, inline=False)
+        embed.set_thumbnail(url="https://i.imgur.com/GN6IcZm.png")  # Optional AI-style icon
+        embed.set_footer(text=f"Asked by {ctx.author.display_name}", icon_url=ctx.author.avatar.url if ctx.author.avatar else None)
+
+        await ctx.send(embed=embed)
+
+    except Exception as e:
+        print(f"[Error in askai command]: {e}")
+        await ctx.send("❌ There was an error while fetching the AI response.")
 
 
 keep_alive()
