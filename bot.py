@@ -1201,42 +1201,53 @@ DAILY_FILE = "daily_data.json"
 COIN_EMOJI = "<a:coin~1:1364089392456663062>"  # Replace with your coin emoji
 
 
-# Load daily data
-if os.path.exists(DAILY_FILE):
-    with open(DAILY_FILE, "r") as f:
-        daily_data = json.load(f)
-else:
-    daily_data = {}
+COIN_FILE = "daily_coins.json"
+COIN_EMOJI = "<a:coin~1:1364089392456663062>"  # Replace with your actual emoji
+
+# Ensure file exists
+if not os.path.exists(COIN_FILE):
+    with open(COIN_FILE, "w") as f:
+        json.dump({}, f)
 
 @bot.command()
+@commands.cooldown(1, 86400, commands.BucketType.user)  # 86400 seconds = 24 hours
 async def daily(ctx):
     user_id = str(ctx.author.id)
-    now = datetime.utcnow()
 
-    last_claim_time_str = daily_data.get(user_id, {}).get("last_claim")
-    last_claim_time = datetime.strptime(last_claim_time_str, "%Y-%m-%d %H:%M:%S") if last_claim_time_str else None
+    # Load coin data
+    with open(COIN_FILE, "r") as f:
+        coins = json.load(f)
 
-    if last_claim_time and now - last_claim_time < timedelta(hours=24):
-        remaining = timedelta(hours=24) - (now - last_claim_time)
-        hours, remainder = divmod(remaining.total_seconds(), 3600)
-        minutes = remainder // 60
-        await ctx.send(f"⏳ You already claimed your daily reward! Come back in {int(hours)}h {int(minutes)}m.")
-        return
+    if user_id not in coins:
+        coins[user_id] = {"coins": 0}
 
-    # Grant coin
-    current_balance = daily_data.get(user_id, {}).get("coins", 0)
-    new_balance = current_balance + 1
+    coins[user_id]["coins"] += 1
 
-    # Save updated data
-    daily_data[user_id] = {
-        "coins": new_balance,
-        "last_claim": now.strftime("%Y-%m-%d %H:%M:%S")
-    }
+    # Save coin data
+    with open(COIN_FILE, "w") as f:
+        json.dump(coins, f, indent=4)
 
-    with open(DAILY_FILE, "w") as f:
-        json.dump(daily_data, f, indent=4)
+    embed = discord.Embed(
+        title="**Daily Reward Claimed!**",
+        description=f"You've received **1** {COIN_EMOJI}!\n\nCome back in 24 hours for more!",
+        color=discord.Color.gold()
+    )
+    embed.set_footer(text=f"Claimed by {ctx.author.display_name}", icon_url=ctx.author.avatar.url if ctx.author.avatar else None)
+    embed.set_thumbnail(url="https://i.imgur.com/O3DHIA5.gif")  # Optional: spinning coin GIF
 
-    await ctx.send(f"{ctx.author.mention}, you've claimed your daily reward! {COIN_EMOJI} You now have **{new_balance}** coins.")
+    await ctx.send(embed=embed)
+
+@daily.error
+async def daily_error(ctx, error):
+    if isinstance(error, commands.CommandOnCooldown):
+        time_left = str(timedelta(seconds=int(error.retry_after)))
+        embed = discord.Embed(
+            title="**You're too early!**",
+            description=f"You've already claimed your daily reward.\nTry again in `{time_left}`.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
+
 
 @bot.command()
 async def coins(ctx, member: discord.Member = None):
