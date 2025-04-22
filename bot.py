@@ -1259,7 +1259,7 @@ client = OpenAI(
 )
 
 # Fancy embed GIF (replace with any hosted GIF URL)
-HEADER_GIF_URL = "https://media.tenor.com/vvX8vUzU4jMAAAAC/ai-robot.gif"
+HEADER_GIF_URL = "https://tenor.com/fl9bI0q0Bfp.gif"
 
 @bot.command()
 async def ask(ctx, *, question: str):
