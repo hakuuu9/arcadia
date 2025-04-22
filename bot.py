@@ -1252,36 +1252,44 @@ async def daily_error(ctx, error):
         await ctx.send(embed=embed)
 
 
-
-
-# Replace this with your OpenRouter API key
+# Set OpenRouter API key and endpoint
 openai.api_key = "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"
-openai.base_url = "https://openrouter.ai/api/v1"  # Use OpenRouter instead of OpenAI
+openai.base_url = "https://openrouter.ai/api/v1"
 
-@bot.command(name="ask")
-async def aiask(ctx, *, question: str):
-    gif_url = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExZ3Z5b21heTJ5NmlpdWc0aWJoNmV3N2RqcDI2ZW1vbGtsODJlM2hrOCZlcD12MV9naWZzX3NlYXJjaCZjdD1n/qgQUggAC3Pfv687qPC/giphy.gif"  # Fancy typing gif
+@bot.command()
+async def aiask(ctx, *, prompt: str):
+    try:
+        thinking_gif = "https://media.tenor.com/0AV6aJ8fNfUAAAAC/thinking-ai.gif"
 
-    async with ctx.typing():
-        try:
-            response = openai.ChatCompletion.create(
-                model="openai/gpt-3.5-turbo",  # You can change to Claude, Mistral, etc.
-                messages=[{"role": "user", "content": question}]
-            )
-            reply = response["choices"][0]["message"]["content"]
-        except Exception as e:
-            await ctx.send(f"**Something went wrong:** `{e}`")
-            return
+        thinking_embed = discord.Embed(
+            title="Thinking...",
+            description="I'm processing your question, hang tight!",
+            color=discord.Color.blurple()
+        )
+        thinking_embed.set_image(url=thinking_gif)
+        thinking_msg = await ctx.send(embed=thinking_embed)
 
-    embed = discord.Embed(
-        title="Ask AI",
-        description=f"**Question:** {question}\n\n**Answer:**\n{reply}",
-        color=discord.Color.blue()
-    )
-    embed.set_image(url=gif_url)
-    embed.set_footer(text="Powered by OpenRouter.ai")
+        # Make the chat completion request using OpenRouter
+        response = openai.ChatCompletion.create(
+            model="openai/gpt-3.5-turbo",  # You can change this to another OpenRouter-supported model
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": prompt}
+            ]
+        )
 
-    await ctx.send(embed=embed)
+        answer = response["choices"][0]["message"]["content"]
+
+        answer_embed = discord.Embed(
+            title="AI Response",
+            description=answer,
+            color=discord.Color.green()
+        )
+        answer_embed.set_image(url=thinking_gif)
+        await thinking_msg.edit(embed=answer_embed)
+
+    except Exception as e:
+        await ctx.send(f"Something went wrong:\n```{e}```")
 
 
 keep_alive()
