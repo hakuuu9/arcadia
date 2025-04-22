@@ -1244,6 +1244,20 @@ async def coins(ctx, member: discord.Member = None):
     balance = daily_data.get(user_id, {}).get("coins", 0)
     await ctx.send(f"{member.mention} has **{balance}** {COIN_EMOJI} coins.")
 
+@bot.command()
+async def bal(ctx, member: discord.Member = None):
+    user = member or ctx.author
+    user_id = str(user.id)
+
+    try:
+        with open("daily_data.json", "r") as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        data = {}
+
+    coins = data.get(user_id, {}).get("coins", 0)
+
+    await ctx.send(f"**{user.display_name}** has **{coins}** coins.")
 
 
 keep_alive()
