@@ -363,82 +363,104 @@ async def rps(ctx, opponent: discord.Member = None):
     )
     view.message = msg
 
-INFO_GIF_URL = "https://i.imgur.com/JxsCfCe.gif"
-
-class InfoPages(View):
-    def __init__(self, embeds, author):
-        super().__init__(timeout=120)
-        self.embeds = embeds
-        self.author = author
-        self.current_page = 0
-
-    async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        return interaction.user == self.author
-
-    @discord.ui.button(label="◀️ Prev", style=discord.ButtonStyle.primary)
-    async def prev_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if self.current_page > 0:
-            self.current_page -= 1
-            await interaction.response.edit_message(embed=self.embeds[self.current_page], view=self)
-
-    @discord.ui.button(label="▶️ Next", style=discord.ButtonStyle.primary)
-    async def next_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if self.current_page < len(self.embeds) - 1:
-            self.current_page += 1
-            await interaction.response.edit_message(embed=self.embeds[self.current_page], view=self)
-
 @bot.command(name="info")
 async def info_command(ctx):
-    embed1 = discord.Embed(
-        title="📖 Arcadian Bot – Member Commands",
-        description="✨ Explore the fun features available to all members!",
-        color=discord.Color.blurple()
-    )
-    embed1.set_thumbnail(url=INFO_GIF_URL)
-    embed1.add_field(
-        name="👥 Member Commands",
-        value=(
-            "💘 `$ship @user1 @user2` – Ship two users romantically\n"
-            "🎲 `$choose option1, option2` – Randomly pick one\n"
-            "🖼️ `$avatar [@user]` – View a user's avatar\n"
-            "🎱 `$8b [question]` – Magic 8-Ball prediction\n"
-            "⏰ `$remind [time] [task]` – Set a reminder\n"
-            "💤 `$afk [reason]` – Set yourself as AFK\n"
-            "💗 `$simpfor @user` – See your simp level\n"
-            "🧑‍💼 `$userinfo [@user]` – View user info\n"
-            "🎁 `$daily` – Claim your daily coin reward\n"
-            "🧠 `$ask [question]` – Ask the AI anything\n"
-        ),
-        inline=False,
-    )
+    pages = [
+        discord.Embed(
+            title="📖 Arcadian Bot Command Info - Page 1",
+            description="Explore all my features, games, utilities, and more!",
+            color=discord.Color.purple()
+        ).add_field(
+            name="👥 Member Commands",
+            value=(
+                "🔹 `$ship @user1 @user2` - Ship two users\n"
+                "🔹 `$choose option1, option2` - Randomly choose one\n"
+                "🔹 `$avatar [@user]` - Get user's avatar\n"
+                "🔹 `$8b question` - Magic 8-Ball answers\n"
+                "🔹 `$remind [time] [task]` - Set a reminder\n"
+                "🔹 `$afk [reason]` - Set your AFK status\n"
+                "🔹 `$simpfor @user` – See how hard you're simping for someone\n"
+                "🔹 `$userinfo [@user]` – Display user info"
+            ),
+            inline=False
+        ).set_thumbnail(url="https://i.imgur.com/JxsCfCe.gif"),
 
-    embed2 = discord.Embed(
-        title="🎮 Arcadian Bot – Game Commands",
-        description="🎮 Play fun interactive games with friends!",
-        color=discord.Color.green()
-    )
-    embed2.set_thumbnail(url=INFO_GIF_URL)
-    embed2.add_field(
-        name="🎲 Game Commands",
-        value=(
-            "🪨 `$rps @user` – Rock-Paper-Scissors\n"
-            "🔠 `$unscramble` – Unscramble the word\n"
-            "📈 `$unscramblescore` – Check the top players\n"
-            "🪓 `$hangman solo` – Hangman solo mode\n"
-            "👥 `$hangman duo @user` – 2-player Hangman\n"
-            "🌐 `$hangman free` – Free-for-all Hangman\n"
-            "❌ `$tictactoe @user` – Classic tic-tac-toe\n"
-            "🧠 `$wordchain [word]` – Continue the chain!\n"
-            "🎯 `$arcadiaroll` – Guess the hidden number\n"
-            "🕵️ `$spotlie` – Spot the fake statement\n"
-            "⚔️ `$arcadia` – Play an RPG-style minigame\n"
-        ),
-        inline=False,
-    )
+        discord.Embed(
+            title="🎮 Arcadian Bot Command Info - Page 2",
+            description="Time to play!",
+            color=discord.Color.purple()
+        ).add_field(
+            name="🎮 Game Commands",
+            value=(
+                "🎲 `$rps @user` - Rock-Paper-Scissors\n"
+                "🎯 `$hangman solo` / `duo @user` / `free` - Hangman modes\n"
+                "❌ `$tictactoe @user` - Play Tic Tac Toe\n"
+                "🔤 `$wordchain [word]` - Continue the chain\n"
+                "🎰 `$arcadiaroll` - Number guessing game\n"
+                "🧠 `$unscramble` – Word puzzle\n"
+                "🏆 `$unscramblescore` – Leaderboard\n"
+                "🤔 `$spotlie` - Find the lie!\n"
+                "⚔️ `$arcadia` - RPG-style adventure game"
+            ),
+            inline=False
+        ).set_thumbnail(url="https://i.imgur.com/JxsCfCe.gif"),
 
-    view = InfoPages([embed1, embed2], ctx.author)
-    await ctx.send(embed=embed1, view=view)
+        discord.Embed(
+            title="🛠️ Arcadian Bot Command Info - Page 3",
+            description="Useful tools and utilities.",
+            color=discord.Color.purple()
+        ).add_field(
+            name="🔧 Utility Commands",
+            value=(
+                "📅 `$daily` - Claim your daily coins\n"
+                "💼 `$bal` - Check your coin balance\n"
+                "🎰 `$coinflip [heads/tails] [amount]` - Bet coins!\n"
+                "📈 `$coinlb` - See the richest users\n"
+                "📊 `$highlow [amount]` - Guess higher/lower\n"
+                "🎫 `$ticket` - Open a support ticket\n"
+                "🤖 `$ask [question]` - Ask an AI anything"
+            ),
+            inline=False
+        ).set_thumbnail(url="https://i.imgur.com/JxsCfCe.gif"),
+    ]
 
+    current_page = 0
+
+    class PaginatorView(View):
+        def __init__(self):
+            super().__init__(timeout=300)
+            self.value = None
+
+        @discord.ui.button(label="◀️ Prev", style=discord.ButtonStyle.blurple)
+        async def prev(self, interaction: discord.Interaction, button: Button):
+            nonlocal current_page
+            if interaction.user != ctx.author:
+                await interaction.response.send_message("Only the command author can use the buttons!", ephemeral=True)
+                return
+
+            current_page = (current_page - 1) % len(pages)
+            await interaction.response.edit_message(embed=pages[current_page], view=self)
+
+        @discord.ui.button(label="Next ▶️", style=discord.ButtonStyle.blurple)
+        async def next(self, interaction: discord.Interaction, button: Button):
+            nonlocal current_page
+            if interaction.user != ctx.author:
+                await interaction.response.send_message("Only the command author can use the buttons!", ephemeral=True)
+                return
+
+            current_page = (current_page + 1) % len(pages)
+            await interaction.response.edit_message(embed=pages[current_page], view=self)
+
+        async def on_timeout(self):
+            for child in self.children:
+                child.disabled = True
+            try:
+                await message.edit(view=self)
+            except:
+                pass
+
+    view = PaginatorView()
+    message = await ctx.send(embed=pages[current_page], view=view)
 
 
 @bot.command(name="supportinfo")
