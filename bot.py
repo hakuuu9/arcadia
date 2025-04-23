@@ -1056,32 +1056,53 @@ async def createrole(ctx, *, args):
         await ctx.send(f"⚠️ Something went wrong: `{e}`")
 
 @bot.command()
-async def inrole(ctx, *, role: discord.Role):
-    members_with_role = [member.mention for member in role.members]
+async def inrole(ctx, *, role_input: str):
+    role = None
 
-    if not members_with_role:
-        await ctx.send(f"No members currently have the role **{role.name}**.")
+    # Try to get role by mention
+    if role_input.startswith("<@&") and role_input.endswith(">"):
+        role_id = int(role_input[3:-1])
+        role = ctx.guild.get_role(role_id)
+    else:
+        # Try by ID
+        if role_input.isdigit():
+            role = ctx.guild.get_role(int(role_input))
+        # Try by name (case insensitive)
+        if not role:
+            role = discord.utils.find(lambda r: r.name.lower() == role_input.lower(), ctx.guild.roles)
+
+    if not role:
+        await ctx.send("❌ Role not found. You can use a role name, mention, or ID.")
         return
 
-    # Chunk members into manageable messages (Discord limit is 2000 characters)
-    chunks = []
-    chunk = ""
-    for mention in members_with_role:
-        if len(chunk) + len(mention) + 2 > 1900:
-            chunks.append(chunk)
-            chunk = ""
-        chunk += mention + ", "
-    chunks.append(chunk)
+    members_with_role = [member.display_name for member in role.members]
+
+    if not members_with_role:
+        await ctx.send(f"👤 No members currently have the role **{role.name}**.")
+        return
 
     embed = discord.Embed(
-        title=f"Members in Role: {role.name}",
-        color=discord.Color.blurple()
+        title=f"👥 Members in Role: {role.name}",
+        color=role.color if role.color.value else discord.Color.blurple()
     )
 
+    # Show role icon if it exists
+    if role.icon:
+        embed.set_thumbnail(url=role.icon.url)
+
+    # Chunk list into 30 users per field
+    chunk_size = 30
+    chunks = [members_with_role[i:i + chunk_size] for i in range(0, len(members_with_role), chunk_size)]
+
     for i, chunk in enumerate(chunks):
-        embed.add_field(name=f"Page {i+1}", value=chunk.strip(", "), inline=False)
+        embed.add_field(
+            name=f"Page {i + 1}",
+            value="\n".join(chunk),
+            inline=False
+        )
 
     await ctx.send(embed=embed)
+
 
 # Your OpenRouter API key and base URL
 OPENROUTER_API_KEY = "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"
