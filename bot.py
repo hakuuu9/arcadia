@@ -1118,35 +1118,49 @@ async def arcadia(ctx, *, question: str):
     except Exception as e:
         await thinking.edit(content=f"**Something went wrong:** `{e}`")
 
-@bot.command()
-async def rank(ctx, *, input_data: str):
+class RankPaginationView(ui.View):
+    def __init__(self, embeds):
+        super().__init__(timeout=300)
+        self.embeds = embeds
+        self.current = 0
+
+    @ui.button(label="⬅️ Prev", style=discord.ButtonStyle.gray)
+    async def prev(self, interaction: discord.Interaction, button: ui.Button):
+        if self.current > 0:
+            self.current -= 1
+            await interaction.response.edit_message(embed=self.embeds[self.current], view=self)
+
+    @ui.button(label="Next ➡️", style=discord.ButtonStyle.gray)
+    async def next(self, interaction: discord.Interaction, button: ui.Button):
+        if self.current < len(self.embeds) - 1:
+            self.current += 1
+            await interaction.response.edit_message(embed=self.embeds[self.current], view=self)
+
+@bot.command(name="rank")
+@commands.has_permissions(manage_messages=True)
+async def rank(ctx, channel: discord.TextChannel, *, args):
     try:
-        # Split the input
-        parts = [part.strip() for part in input_data.split('|')]
-        if len(parts) < 3:
-            return await ctx.send("❌ Usage: `$rank | title | description | hexcode`")
+        title, description, hex_color = map(str.strip, args.split("|"))
+    except ValueError:
+        return await ctx.send("❌ Use: `$rank #channel | title | description | #hexcode`")
 
-        title, description, hex_code = parts
+    leaderboard_data = [f"**{i+1}.** User{i+1} – {100-i} points" for i in range(25)]
+    pages = [leaderboard_data[i:i + 5] for i in range(0, len(leaderboard_data), 5)]
 
-        # Convert hex string to integer color
-        if not hex_code.startswith("#"):
-            hex_code = "#" + hex_code
-        color = int(hex_code.replace("#", ""), 16)
-
-        # Create the embed
+    embeds = []
+    for idx, page in enumerate(pages):
         embed = discord.Embed(
-            title=f"🏆 {title}",
-            description=description,
-            color=color
+            title=title,
+            description=description + "\n\n" + "\n".join(page),
+            color=int(hex_color.replace("#", ""), 16)
         )
-
-        # Set thumbnail (top right)
         embed.set_thumbnail(url="https://i.imgur.com/JxsCfCe.gif")
+        embed.set_footer(text=f"Page {idx + 1} of {len(pages)} • {datetime.utcnow().strftime('%Y-%m-%d')}")
+        embeds.append(embed)
 
-        await ctx.send(embed=embed)
+    view = RankPaginationView(embeds)
+    await channel.send(embed=embeds[0], view=view)
 
-    except Exception as e:
-        await ctx.send(f"⚠️ Error: `{e}`")
 
 
 
