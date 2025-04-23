@@ -3,3 +3,4 @@ discord.py
 openai>=1.0.0
 flask
 aiohttp
+pillow
