@@ -1117,6 +1117,36 @@ async def arcadia(ctx, *, question: str):
     except Exception as e:
         await thinking.edit(content=f"**Something went wrong:** `{e}`")
 
+@bot.command()
+async def rank(ctx, *, input_data: str):
+    try:
+        # Split the input
+        parts = [part.strip() for part in input_data.split('|')]
+        if len(parts) < 3:
+            return await ctx.send("❌ Usage: `$rank | title | description | hexcode`")
+
+        title, description, hex_code = parts
+
+        # Convert hex string to integer color
+        if not hex_code.startswith("#"):
+            hex_code = "#" + hex_code
+        color = int(hex_code.replace("#", ""), 16)
+
+        # Create the embed
+        embed = discord.Embed(
+            title=f"🏆 {title}",
+            description=description,
+            color=color
+        )
+
+        # Set thumbnail (top right)
+        embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/YOUR_CHANNEL/YOUR_GIF.gif")
+
+        await ctx.send(embed=embed)
+
+    except Exception as e:
+        await ctx.send(f"⚠️ Error: `{e}`")
+
 
 
 keep_alive()
