@@ -1217,27 +1217,18 @@ async def arclb(ctx, *, content: str = None):
         await ctx.send(f"⚠️ Error: {e}")
 
 # ------------------------------------------------------------------------
-# File for storing message counts
-message_data_file = "message_counts.json"
 
-# Load data
-if os.path.exists(message_data_file):
-    with open(message_data_file, "r") as f:
-        message_counts = json.load(f)
-else:
-    message_counts = {}
+message_counts = {}
 
-# Save data every 5 minutes
-@tasks.loop(minutes=5)
-async def save_message_counts():
-    with open(message_data_file, "w") as f:
-        json.dump(message_counts, f, indent=4)
+# Load message count data from file
+if os.path.exists("message_counts.json"):
+    with open("message_counts.json", "r") as f:
+        try:
+            message_counts = json.load(f)
+        except json.JSONDecodeError:
+            message_counts = {}
 
-@bot.event
-async def on_ready():
-    save_message_counts.start()
-    print(f"Bot connected as {bot.user}")
-
+# Event to track messages
 @bot.event
 async def on_message(message):
     if message.author.bot:
@@ -1245,24 +1236,30 @@ async def on_message(message):
 
     user_id = str(message.author.id)
     channel_id = str(message.channel.id)
-    today = datetime.utcnow().strftime('%Y-%m-%d')
 
     if user_id not in message_counts:
-        message_counts[user_id] = {
-            "total": 0,
-            "daily": {},
-            "per_channel": {}
-        }
+        message_counts[user_id] = {"total": 0, "channels": {}}
 
-    user_data = message_counts[user_id]
-    user_data["total"] += 1
-    user_data["daily"][today] = user_data["daily"].get(today, 0) + 1
-    user_data["per_channel"][channel_id] = user_data["per_channel"].get(channel_id, 0) + 1
+    message_counts[user_id]["total"] += 1
+    message_counts[user_id]["channels"][channel_id] = message_counts[user_id]["channels"].get(channel_id, 0) + 1
 
     await bot.process_commands(message)
 
+# Loop to save message counts every 60 seconds
+@tasks.loop(seconds=60)
+async def save_message_counts():
+    with open("message_counts.json", "w") as f:
+        json.dump(message_counts, f, indent=4)
+
+# Bot startup
+@bot.event
+async def on_ready():
+    save_message_counts.start()
+    print(f"✅ Logged in as {bot.user}")
+
+# Command to view message counts
 @bot.command(name="message")
-async def message_stats(ctx, member: discord.Member = None):
+async def message(ctx, member: discord.Member = None):
     member = member or ctx.author
     user_id = str(member.id)
     channel_id = str(ctx.channel.id)
@@ -1271,36 +1268,19 @@ async def message_stats(ctx, member: discord.Member = None):
         await ctx.send("❌ No message data found.")
         return
 
-    user_data = message_counts[user_id]
-    total = user_data["total"]
-    today = datetime.utcnow().strftime('%Y-%m-%d')
-    this_week = 0
-    this_month = 0
-
-    for date_str, count in user_data["daily"].items():
-        date = datetime.strptime(date_str, "%Y-%m-%d")
-        delta = datetime.utcnow() - date
-        if delta.days < 7:
-            this_week += count
-        if date.month == datetime.utcnow().month and date.year == datetime.utcnow().year:
-            this_month += count
-
-    channel_count = user_data["per_channel"].get(channel_id, 0)
+    total = message_counts[user_id]["total"]
+    channel_total = message_counts[user_id]["channels"].get(channel_id, 0)
 
     embed = discord.Embed(
-        title=f"{member.display_name}'s Messages",
-        description="Messages Sent:",
+        title=f"📨 Message Count for {member.display_name}",
         color=discord.Color.blurple()
     )
-    embed.add_field(name="Today", value=f"{user_data['daily'].get(today, 0):,}", inline=False)
-    embed.add_field(name="This Week", value=f"{this_week:,}", inline=False)
-    embed.add_field(name="This Month", value=f"{this_month:,}", inline=False)
-    embed.add_field(name="Total", value=f"{total:,}", inline=False)
-    embed.add_field(name=f"In #{ctx.channel.name}", value=f"{channel_count:,}", inline=False)
-    embed.set_thumbnail(url=member.display_avatar.url)
-    embed.set_footer(text=f"Requested by {ctx.author.display_name}")
+    embed.add_field(name="🧮 Total Messages (All Channels)", value=f"**{total}**", inline=False)
+    embed.add_field(name=f"#️⃣ In #{ctx.channel.name}", value=f"**{channel_total}**", inline=False)
+    embed.set_footer(text="Tracked by Arcadia Bot")
 
     await ctx.send(embed=embed)
+
 # -------------------------------------------------------------------------------
 
 AUTORESPONSES_FILE = "autoresponses.json"
