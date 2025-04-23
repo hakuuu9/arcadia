@@ -1369,57 +1369,28 @@ async def on_message(message):
 
 # ----------------------------------------------------------------------------
 
-class Quote(commands.Cog):
-    def __init__(self, bot):
-        self.bot = bot
+@bot.command(name="quote")
+@commands.has_permissions(manage_messages=True)
+async def quote(ctx):
+    if not ctx.message.reference:
+        await ctx.send("❌ You need to reply to a message to quote it.")
+        return
 
-    @app_commands.command(name="quote", description="Turn a replied message into a quote image.")
-    async def quote(self, interaction: discord.Interaction):
-        if not interaction.channel:
-            return await interaction.response.send_message("This command must be used in a server.", ephemeral=True)
+    try:
+        referenced_message = await ctx.channel.fetch_message(ctx.message.reference.message_id)
 
-        ref = interaction.channel.get_partial_message(interaction.message.reference.message_id) if interaction.message and interaction.message.reference else None
+        embed = discord.Embed(
+            description=referenced_message.content,
+            color=discord.Color.blurple()
+        )
+        embed.set_author(name=referenced_message.author.display_name, icon_url=referenced_message.author.display_avatar.url)
+        embed.set_footer(text=f"Quoted by {ctx.author.display_name}")
+        embed.timestamp = referenced_message.created_at
 
-        if not ref:
-            return await interaction.response.send_message("Please use this command by replying to a message.", ephemeral=True)
+        await ctx.send(embed=embed)
 
-        try:
-            msg = await ref.fetch()
-        except:
-            return await interaction.response.send_message("Failed to fetch the message.", ephemeral=True)
-
-        # Fetch avatar
-        avatar_url = msg.author.display_avatar.replace(size=128).url
-        avatar_bytes = requests.get(avatar_url).content
-        avatar_img = Image.open(io.BytesIO(avatar_bytes)).resize((100, 100)).convert("RGBA")
-
-        # Create image
-        img = Image.new("RGB", (700, 250), color=(20, 20, 20))
-        draw = ImageDraw.Draw(img)
-
-        # Fonts
-        font_quote = ImageFont.truetype("arial.ttf", 24)
-        font_author = ImageFont.truetype("arial.ttf", 20)
-        font_handle = ImageFont.truetype("arial.ttf", 16)
-
-        # Draw avatar
-        img.paste(avatar_img, (50, 75))
-
-        # Draw text
-        draw.text((170, 80), msg.content[:100], font=font_quote, fill=(255, 255, 255))
-        draw.text((170, 140), f"{msg.author.display_name}", font=font_author, fill=(200, 200, 200))
-        draw.text((170, 170), f"@{msg.author}", font=font_handle, fill=(160, 160, 160))
-
-        # Save to bytes
-        buffer = io.BytesIO()
-        img.save(buffer, format="PNG")
-        buffer.seek(0)
-
-        file = discord.File(fp=buffer, filename="quote.png")
-        await interaction.response.send_message(file=file)
-
-async def setup(bot):
-    await bot.add_cog(Quote(bot))
+    except Exception as e:
+        await ctx.send(f"⚠️ Couldn't quote the message: {e}")
 
 
 keep_alive()
