@@ -10,6 +10,7 @@ import os
 import html
 import time
 import datetime
+from collections import defaultdict
 from config import TOKEN, GUILD_ID, ROLE_ID, VANITY_LINK, LOG_CHANNEL_ID, VANITY_IMAGE_URL
 from keep_alive import keep_alive
 from datetime import datetime, timedelta
@@ -382,7 +383,8 @@ async def info_command(ctx):
                 "🔹 `$remind [time] [task]` - Set a reminder\n"
                 "🔹 `$afk [reason]` - Set your AFK status\n"
                 "🔹 `$simpfor @user` – See how hard you're simping for someone\n"
-                "🔹 `$userinfo [@user]` – Display user info"
+                "🔹 `$userinfo [@user]` – Display user info\n"
+                "🔹 `$message` – Count a user's messages (overall & per channel)"
             ),
             inline=False
         ).set_thumbnail(url="https://i.imgur.com/JxsCfCe.gif"),
@@ -478,7 +480,7 @@ async def support_info(ctx):
             "⚠️ `$warn @user reason` – Warn a user & log it\n"
             "🎨 `$createrole | role name | hex color | :emoji:` – Create a custom colored role\n"
             "📌 `$inrole` – Show members with a certain role\n"
-            "🏆 `$rank | title | description | hex` – Create a leaderboard-style embed"
+            "📊 `$arclb` – $arclb #channel | [title] | [description] | [hex color (optional)] | [GIF URL (optional)]\n"
         ),
         inline=False
     )
@@ -1176,6 +1178,68 @@ async def arclb(ctx, *, content: str = None):
 
     except Exception as e:
         await ctx.send(f"⚠️ Error: {e}")
+
+# ------------------------------------------------------------------------
+# In-memory store
+message_log = defaultdict(lambda: {
+    "total": 0,
+    "daily": 0,
+    "weekly": 0,
+    "monthly": 0,
+    "channels": defaultdict(int),
+    "last_reset": datetime.utcnow()
+})
+
+@bot.event
+async def on_message(message):
+    if message.author.bot:
+        return
+
+    user_data = message_log[message.author.id]
+    now = datetime.utcnow()
+
+    # Reset counters if needed
+    if now.date() != user_data["last_reset"].date():
+        user_data["daily"] = 0
+    if now - user_data["last_reset"] > timedelta(days=7):
+        user_data["weekly"] = 0
+    if now.month != user_data["last_reset"].month:
+        user_data["monthly"] = 0
+
+    user_data["total"] += 1
+    user_data["daily"] += 1
+    user_data["weekly"] += 1
+    user_data["monthly"] += 1
+    user_data["channels"][message.channel.id] += 1
+    user_data["last_reset"] = now
+
+    await bot.process_commands(message)
+
+@bot.command(name="message")
+async def message(ctx, member: discord.Member = None):
+    member = member or ctx.author
+    user_data = message_log.get(member.id)
+
+    if not user_data:
+        await ctx.send(f"📭 No messages tracked yet for {member.mention}.")
+        return
+
+    channel_count = user_data["channels"].get(ctx.channel.id, 0)
+
+    embed = discord.Embed(
+        title=f"{member.display_name}'s Messages",
+        description="Messages Sent:",
+        color=discord.Color.dark_purple()
+    )
+    embed.set_thumbnail(url=member.display_avatar.url)
+    embed.add_field(name="Today", value=f"**{user_data['daily']:,}**", inline=False)
+    embed.add_field(name="This Week", value=f"**{user_data['weekly']:,}**", inline=False)
+    embed.add_field(name="This Month", value=f"**{user_data['monthly']:,}**", inline=False)
+    embed.add_field(name="Total", value=f"**{user_data['total']:,}**", inline=False)
+    embed.add_field(name=f"In #{ctx.channel.name}", value=f"**{channel_count:,}**", inline=False)
+    embed.set_footer(text=f"{ctx.guild.name} • {datetime.utcnow().strftime('%b %d, %Y • %H:%M UTC')}")
+    
+    await ctx.send(embed=embed)
 
 
 keep_alive()
