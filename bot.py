@@ -1180,65 +1180,89 @@ async def arclb(ctx, *, content: str = None):
         await ctx.send(f"⚠️ Error: {e}")
 
 # ------------------------------------------------------------------------
-# In-memory store
-message_log = defaultdict(lambda: {
-    "total": 0,
-    "daily": 0,
-    "weekly": 0,
-    "monthly": 0,
-    "channels": defaultdict(int),
-    "last_reset": datetime.utcnow()
-})
+# File for storing message counts
+message_data_file = "message_counts.json"
+
+# Load data
+if os.path.exists(message_data_file):
+    with open(message_data_file, "r") as f:
+        message_counts = json.load(f)
+else:
+    message_counts = {}
+
+# Save data every 5 minutes
+@tasks.loop(minutes=5)
+async def save_message_counts():
+    with open(message_data_file, "w") as f:
+        json.dump(message_counts, f, indent=4)
+
+@bot.event
+async def on_ready():
+    save_message_counts.start()
+    print(f"Bot connected as {bot.user}")
 
 @bot.event
 async def on_message(message):
     if message.author.bot:
         return
 
-    user_data = message_log[message.author.id]
-    now = datetime.utcnow()
+    user_id = str(message.author.id)
+    channel_id = str(message.channel.id)
+    today = datetime.utcnow().strftime('%Y-%m-%d')
 
-    # Reset counters if needed
-    if now.date() != user_data["last_reset"].date():
-        user_data["daily"] = 0
-    if now - user_data["last_reset"] > timedelta(days=7):
-        user_data["weekly"] = 0
-    if now.month != user_data["last_reset"].month:
-        user_data["monthly"] = 0
+    if user_id not in message_counts:
+        message_counts[user_id] = {
+            "total": 0,
+            "daily": {},
+            "per_channel": {}
+        }
 
+    user_data = message_counts[user_id]
     user_data["total"] += 1
-    user_data["daily"] += 1
-    user_data["weekly"] += 1
-    user_data["monthly"] += 1
-    user_data["channels"][message.channel.id] += 1
-    user_data["last_reset"] = now
+    user_data["daily"][today] = user_data["daily"].get(today, 0) + 1
+    user_data["per_channel"][channel_id] = user_data["per_channel"].get(channel_id, 0) + 1
 
     await bot.process_commands(message)
 
 @bot.command(name="message")
-async def message(ctx, member: discord.Member = None):
+async def message_stats(ctx, member: discord.Member = None):
     member = member or ctx.author
-    user_data = message_log.get(member.id)
+    user_id = str(member.id)
+    channel_id = str(ctx.channel.id)
 
-    if not user_data:
-        await ctx.send(f"📭 No messages tracked yet for {member.mention}.")
+    if user_id not in message_counts:
+        await ctx.send("❌ No message data found.")
         return
 
-    channel_count = user_data["channels"].get(ctx.channel.id, 0)
+    user_data = message_counts[user_id]
+    total = user_data["total"]
+    today = datetime.utcnow().strftime('%Y-%m-%d')
+    this_week = 0
+    this_month = 0
+
+    for date_str, count in user_data["daily"].items():
+        date = datetime.strptime(date_str, "%Y-%m-%d")
+        delta = datetime.utcnow() - date
+        if delta.days < 7:
+            this_week += count
+        if date.month == datetime.utcnow().month and date.year == datetime.utcnow().year:
+            this_month += count
+
+    channel_count = user_data["per_channel"].get(channel_id, 0)
 
     embed = discord.Embed(
         title=f"{member.display_name}'s Messages",
         description="Messages Sent:",
-        color=discord.Color.dark_purple()
+        color=discord.Color.blurple()
     )
+    embed.add_field(name="Today", value=f"{user_data['daily'].get(today, 0):,}", inline=False)
+    embed.add_field(name="This Week", value=f"{this_week:,}", inline=False)
+    embed.add_field(name="This Month", value=f"{this_month:,}", inline=False)
+    embed.add_field(name="Total", value=f"{total:,}", inline=False)
+    embed.add_field(name=f"In #{ctx.channel.name}", value=f"{channel_count:,}", inline=False)
     embed.set_thumbnail(url=member.display_avatar.url)
-    embed.add_field(name="Today", value=f"**{user_data['daily']:,}**", inline=False)
-    embed.add_field(name="This Week", value=f"**{user_data['weekly']:,}**", inline=False)
-    embed.add_field(name="This Month", value=f"**{user_data['monthly']:,}**", inline=False)
-    embed.add_field(name="Total", value=f"**{user_data['total']:,}**", inline=False)
-    embed.add_field(name=f"In #{ctx.channel.name}", value=f"**{channel_count:,}**", inline=False)
-    embed.set_footer(text=f"{ctx.guild.name} • {datetime.utcnow().strftime('%b %d, %Y • %H:%M UTC')}")
-    
+    embed.set_footer(text=f"Requested by {ctx.author.display_name}")
+
     await ctx.send(embed=embed)
 
 
