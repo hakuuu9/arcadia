@@ -478,6 +478,7 @@ async def support_info(ctx):
             "⚠️ `$warn @user reason` – Warn a user & log it\n"
             "🎨 `$createrole | role name | hex color | :emoji:` – Create a custom colored role\n"
             "📌 `$inrole` – Show members with a certain role"
+            "🏆 `$rank | title | description | hex` – Create a leaderboard-style embed"
         ),
         inline=False
     )
@@ -1140,7 +1141,7 @@ async def rank(ctx, *, input_data: str):
         )
 
         # Set thumbnail (top right)
-        embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/YOUR_CHANNEL/YOUR_GIF.gif")
+        embed.set_thumbnail(url="https://i.imgur.com/JxsCfCe.gif")
 
         await ctx.send(embed=embed)
 
