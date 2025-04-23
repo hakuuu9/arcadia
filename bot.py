@@ -477,7 +477,7 @@ async def support_info(ctx):
             "🧹 `$purge [amount]` – Delete messages in a channel\n"
             "⚠️ `$warn @user reason` – Warn a user & log it\n"
             "🎨 `$createrole | role name | hex color | :emoji:` – Create a custom colored role\n"
-            "📌 `$inrole` – Show members with a certain role"
+            "📌 `$inrole` – Show members with a certain role\n"
             "🏆 `$rank | title | description | hex` – Create a leaderboard-style embed"
         ),
         inline=False
