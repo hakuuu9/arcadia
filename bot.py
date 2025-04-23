@@ -10,6 +10,7 @@ import os
 import html
 import time
 import datetime
+import aiohttp
 from discord import app_commands
 from PIL import Image, ImageDraw, ImageFont
 import io
@@ -1369,33 +1370,59 @@ async def on_message(message):
 
 # ----------------------------------------------------------------------------
 
-@bot.command(name="quote")
-@commands.has_permissions(manage_messages=True)
+async def download_image(url, path):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            if resp.status == 200:
+                with open(path, 'wb') as f:
+                    f.write(await resp.read())
+
+@bot.command()
 async def quote(ctx):
     if not ctx.message.reference:
-        await ctx.send("❌ You need to reply to a message to quote it.")
-        return
+        return await ctx.send("Please reply to a message to quote it.")
 
-    try:
-        referenced_message = await ctx.channel.fetch_message(ctx.message.reference.message_id)
-        author = referenced_message.author
+    quoted_message = await ctx.channel.fetch_message(ctx.message.reference.message_id)
+    author = quoted_message.author
+    quote_text = quoted_message.content.strip()
 
-        embed = discord.Embed(
-            description=f"**{author.display_name}** said:\n{referenced_message.content or '*[No text content]*'}",
-            color=discord.Color.blurple(),
-            timestamp=referenced_message.created_at
-        )
+    if not quote_text:
+        return await ctx.send("The quoted message is empty.")
 
-        # Avatar to the left like Discord's style
-        embed.set_thumbnail(url=author.avatar.url if author.avatar else author.default_avatar.url)
+    # Download avatar
+    avatar_url = author.display_avatar.url
+    avatar_path = f"/tmp/{author.id}_avatar.png"
+    await download_image(avatar_url, avatar_path)
 
-        embed.set_footer(text=f"Quoted by {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
+    # Create quote image
+    image = Image.new("RGB", (1000, 500), (0, 0, 0))
+    draw = ImageDraw.Draw(image)
 
-        await ctx.send(embed=embed)
+    # Add avatar
+    avatar = Image.open(avatar_path).convert("RGBA").resize((200, 200))
+    image.paste(avatar, (100, 150))
 
-    except Exception as e:
-        await ctx.send(f"⚠️ Couldn't quote the message: {e}")
+    # Load fonts
+    font_path_bold = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    name_font = ImageFont.truetype(font_path_bold, 48)
+    handle_font = ImageFont.truetype(font_path, 30)
+    quote_font = ImageFont.truetype(font_path, 40)
 
+    # Add text
+    draw.text((350, 170), quote_text, font=quote_font, fill="white")
+    draw.text((350, 320), author.display_name, font=name_font, fill="white")
+    draw.text((350, 380), f"@{author.name}", font=handle_font, fill="gray")
+
+    # Save and send
+    output_path = f"/tmp/quote_{ctx.message.id}.png"
+    image.save(output_path)
+
+    await ctx.send(file=discord.File(output_path))
+
+    # Cleanup
+    os.remove(avatar_path)
+    os.remove(output_path)
 
 
 keep_alive()
