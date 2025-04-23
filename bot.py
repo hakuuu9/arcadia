@@ -1055,53 +1055,68 @@ async def createrole(ctx, *, args):
     except Exception as e:
         await ctx.send(f"⚠️ Something went wrong: `{e}`")
 
+from discord.ui import View, Button
+
 @bot.command()
 async def inrole(ctx, *, role_input: str):
+    # Try to get role by mention, ID, or name
     role = None
-
-    # Try to get role by mention
     if role_input.startswith("<@&") and role_input.endswith(">"):
         role_id = int(role_input[3:-1])
         role = ctx.guild.get_role(role_id)
+    elif role_input.isdigit():
+        role = ctx.guild.get_role(int(role_input))
     else:
-        # Try by ID
-        if role_input.isdigit():
-            role = ctx.guild.get_role(int(role_input))
-        # Try by name (case insensitive)
-        if not role:
-            role = discord.utils.find(lambda r: r.name.lower() == role_input.lower(), ctx.guild.roles)
+        role = discord.utils.get(ctx.guild.roles, name=role_input)
 
     if not role:
-        await ctx.send("❌ Role not found. You can use a role name, mention, or ID.")
+        await ctx.send("❌ Role not found.")
         return
 
-    members_with_role = [member.display_name for member in role.members]
+    members_with_role = [member.mention for member in role.members]
 
     if not members_with_role:
-        await ctx.send(f"👤 No members currently have the role **{role.name}**.")
+        await ctx.send(f"No members currently have the role **{role.name}**.")
         return
 
-    embed = discord.Embed(
-        title=f"👥 Members in Role: {role.name}",
-        color=role.color if role.color.value else discord.Color.blurple()
-    )
+    pages = [members_with_role[i:i + 10] for i in range(0, len(members_with_role), 10)]
+    total_pages = len(pages)
+    current_page = 0
 
-    # Show role icon if it exists
-    if role.icon:
-        embed.set_thumbnail(url=role.icon.url)
-
-    # Chunk list into 30 users per field
-    chunk_size = 30
-    chunks = [members_with_role[i:i + chunk_size] for i in range(0, len(members_with_role), chunk_size)]
-
-    for i, chunk in enumerate(chunks):
-        embed.add_field(
-            name=f"Page {i + 1}",
-            value="\n".join(chunk),
-            inline=False
+    def create_embed(page_index):
+        embed = discord.Embed(
+            title=f"Members in Role: {role.name}",
+            description="\n".join(pages[page_index]),
+            color=discord.Color.blurple()
         )
+        if role.icon:
+            embed.set_thumbnail(url=role.icon.url)
+        embed.set_footer(text=f"Page {page_index + 1} of {total_pages}")
+        return embed
 
-    await ctx.send(embed=embed)
+    class PaginationView(View):
+        def __init__(self):
+            super().__init__(timeout=300)
+            self.page = 0
+
+        @discord.ui.button(label="Previous", style=discord.ButtonStyle.secondary)
+        async def previous(self, interaction: discord.Interaction, button: Button):
+            if interaction.user != ctx.author:
+                await interaction.response.send_message("Only the command user can use this.", ephemeral=True)
+                return
+            self.page = (self.page - 1) % total_pages
+            await interaction.response.edit_message(embed=create_embed(self.page), view=self)
+
+        @discord.ui.button(label="Next", style=discord.ButtonStyle.secondary)
+        async def next(self, interaction: discord.Interaction, button: Button):
+            if interaction.user != ctx.author:
+                await interaction.response.send_message("Only the command user can use this.", ephemeral=True)
+                return
+            self.page = (self.page + 1) % total_pages
+            await interaction.response.edit_message(embed=create_embed(self.page), view=self)
+
+    await ctx.send(embed=create_embed(0), view=PaginationView())
+
 
 
 # Your OpenRouter API key and base URL
