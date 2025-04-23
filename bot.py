@@ -1119,6 +1119,64 @@ async def arcadia(ctx, *, question: str):
         await thinking.edit(content=f"**Something went wrong:** `{e}`")
 
 
+@bot.command(name="arclb")
+@commands.has_permissions(manage_messages=True)
+async def arclb(ctx, *, content: str = None):
+    if not content:
+        await ctx.send("Usage: `$arclb #channel | [title] | [description] | [hex color (optional)] | [GIF URL (optional)]`")
+        return
+    try:
+        parts = [part.strip() for part in content.split("|")]
+        if len(parts) < 2:
+            await ctx.send("❌ Format: `$arclb #channel | [title] | [description] | [hex color (optional)] | [GIF URL (optional)]`")
+            return
+
+        channel_mention = parts[0]
+        title = parts[1] if parts[1] else None
+        description = parts[2] if len(parts) > 2 else None
+        color_hex = parts[3] if len(parts) > 3 else None
+        gif_url = parts[4] if len(parts) > 4 else None
+
+        if not channel_mention.startswith("<#") or not channel_mention.endswith(">"):
+            await ctx.send("❌ Please mention a valid channel.")
+            return
+
+        channel_id = int(channel_mention[2:-1])
+        channel = bot.get_channel(channel_id)
+
+        if not channel:
+            await ctx.send("❌ Could not find that channel.")
+            return
+
+        color = discord.Color.blue()
+        if color_hex:
+            try:
+                color = discord.Color(int(color_hex.strip("#"), 16))
+            except:
+                pass
+
+        embed = discord.Embed(
+            title=title,
+            description=description,
+            color=color
+        )
+        embed.set_footer(text=f"Posted by {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
+
+        # Optional thumbnail (GIF)
+        if gif_url and (gif_url.endswith(".gif") or gif_url.endswith(".webp")):
+            embed.set_thumbnail(url=gif_url)
+
+        # Optional image attachment
+        if ctx.message.attachments:
+            attachment = ctx.message.attachments[0]
+            if attachment.content_type and attachment.content_type.startswith("image/"):
+                embed.set_image(url=attachment.url)
+
+        await channel.send(embed=embed)
+        await ctx.send(f"✅ Embed sent to {channel.mention}")
+
+    except Exception as e:
+        await ctx.send(f"⚠️ Error: {e}")
 
 
 keep_alive()
