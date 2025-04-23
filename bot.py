@@ -1057,6 +1057,8 @@ async def createrole(ctx, *, args):
 
 from discord.ui import View, Button
 
+from discord.ui import View, Button
+
 @bot.command()
 async def inrole(ctx, *, role_input: str):
     # Try to get role by mention, ID, or name
@@ -1073,7 +1075,7 @@ async def inrole(ctx, *, role_input: str):
         await ctx.send("❌ Role not found.")
         return
 
-    members_with_role = [member.mention for member in role.members]
+    members_with_role = [f"{i+1}. {member.mention}" for i, member in enumerate(role.members)]
 
     if not members_with_role:
         await ctx.send(f"No members currently have the role **{role.name}**.")
@@ -1081,7 +1083,6 @@ async def inrole(ctx, *, role_input: str):
 
     pages = [members_with_role[i:i + 10] for i in range(0, len(members_with_role), 10)]
     total_pages = len(pages)
-    current_page = 0
 
     def create_embed(page_index):
         embed = discord.Embed(
@@ -1116,7 +1117,6 @@ async def inrole(ctx, *, role_input: str):
             await interaction.response.edit_message(embed=create_embed(self.page), view=self)
 
     await ctx.send(embed=create_embed(0), view=PaginationView())
-
 
 
 # Your OpenRouter API key and base URL
