@@ -391,6 +391,7 @@ async def info_command(ctx):
                 "🔹 `$userinfo [@user]` – Display user info\n"
                 "🔹 `$message` – Count a user's messages (overall & per channel)"
                 "🔹 `$autoresponse add/delete/list` – Set auto-replies for keywords\n"
+                "🔹 `$quote` - Reply to a message and turn it into a styled quote image\n"
             ),
             inline=False
         ).set_thumbnail(url="https://i.imgur.com/JxsCfCe.gif"),
