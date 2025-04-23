@@ -385,6 +385,7 @@ async def info_command(ctx):
                 "🔹 `$simpfor @user` – See how hard you're simping for someone\n"
                 "🔹 `$userinfo [@user]` – Display user info\n"
                 "🔹 `$message` – Count a user's messages (overall & per channel)"
+                "🔹 `$autoresponse add/delete/list` – Set auto-replies for keywords\n"
             ),
             inline=False
         ).set_thumbnail(url="https://i.imgur.com/JxsCfCe.gif"),
@@ -1264,6 +1265,87 @@ async def message_stats(ctx, member: discord.Member = None):
     embed.set_footer(text=f"Requested by {ctx.author.display_name}")
 
     await ctx.send(embed=embed)
+# -------------------------------------------------------------------------------
+
+AUTORESPONSES_FILE = "autoresponses.json"
+
+# Load or initialize autoresponses
+if os.path.exists(AUTORESPONSES_FILE):
+    with open(AUTORESPONSES_FILE, "r") as f:
+        autoresponses = json.load(f)
+else:
+    autoresponses = {}
+
+def save_autoresponses():
+    with open(AUTORESPONSES_FILE, "w") as f:
+        json.dump(autoresponses, f, indent=4)
+
+@bot.command(name="autoresponse")
+@commands.has_permissions(manage_messages=True)
+async def autoresponse_cmd(ctx, action: str = None, *, args: str = None):
+    if action not in ["add", "delete", "list"]:
+        await ctx.send("Usage: `$autoresponse add [keyword] | [response] | [#channel (optional)]`\n"
+                       "or `$autoresponse delete [keyword]`\n"
+                       "or `$autoresponse list`")
+        return
+
+    if action == "add":
+        if not args or "|" not in args:
+            await ctx.send("Usage: `$autoresponse add [keyword] | [response] | [#channel (optional)]`")
+            return
+        parts = [p.strip() for p in args.split("|")]
+        keyword = parts[0].lower()
+        response = parts[1]
+        channel_id = None
+
+        if len(parts) > 2:
+            if parts[2].startswith("<#") and parts[2].endswith(">"):
+                try:
+                    channel_id = str(int(parts[2][2:-1]))
+                except:
+                    pass
+
+        autoresponses[keyword] = {"response": response, "channel_id": channel_id}
+        save_autoresponses()
+        await ctx.send(f"✅ Auto-response for `{keyword}` added.")
+
+    elif action == "delete":
+        if not args:
+            await ctx.send("Usage: `$autoresponse delete [keyword]`")
+            return
+        keyword = args.lower()
+        if keyword in autoresponses:
+            del autoresponses[keyword]
+            save_autoresponses()
+            await ctx.send(f"🗑️ Auto-response for `{keyword}` deleted.")
+        else:
+            await ctx.send("❌ Keyword not found.")
+
+    elif action == "list":
+        if not autoresponses:
+            await ctx.send("No autoresponses set.")
+            return
+
+        embed = discord.Embed(title="📃 Auto-Responses", color=discord.Color.blurple())
+        for kw, info in autoresponses.items():
+            chan = f"<#{info['channel_id']}>" if info['channel_id'] else "Any channel"
+            embed.add_field(name=kw, value=f"💬 `{info['response']}`\n🌐 {chan}", inline=False)
+        await ctx.send(embed=embed)
+
+# Listener for autoresponses
+@bot.event
+async def on_message(message):
+    if message.author.bot:
+        return
+
+    content = message.content.lower()
+    for keyword, info in autoresponses.items():
+        if keyword in content:
+            if info["channel_id"] is None or str(message.channel.id) == info["channel_id"]:
+                await message.channel.send(info["response"])
+                break
+
+    await bot.process_commands(message)
 
 
 keep_alive()
