@@ -1378,19 +1378,24 @@ async def quote(ctx):
 
     try:
         referenced_message = await ctx.channel.fetch_message(ctx.message.reference.message_id)
+        author = referenced_message.author
 
         embed = discord.Embed(
-            description=referenced_message.content,
-            color=discord.Color.blurple()
+            description=f"**{author.display_name}** said:\n{referenced_message.content or '*[No text content]*'}",
+            color=discord.Color.blurple(),
+            timestamp=referenced_message.created_at
         )
-        embed.set_author(name=referenced_message.author.display_name, icon_url=referenced_message.author.display_avatar.url)
-        embed.set_footer(text=f"Quoted by {ctx.author.display_name}")
-        embed.timestamp = referenced_message.created_at
+
+        # Avatar to the left like Discord's style
+        embed.set_thumbnail(url=author.avatar.url if author.avatar else author.default_avatar.url)
+
+        embed.set_footer(text=f"Quoted by {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
 
         await ctx.send(embed=embed)
 
     except Exception as e:
         await ctx.send(f"⚠️ Couldn't quote the message: {e}")
+
 
 
 keep_alive()
