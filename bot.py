@@ -1600,6 +1600,25 @@ async def on_message(message):
         new_msg = await message.channel.send(data["content"])
         sticky_messages[message.channel.id]["message"] = new_msg
 
+@bot.command()
+@commands.has_permissions(manage_messages=True)
+async def unsticky(ctx, channel: discord.TextChannel = None):
+    """Remove the sticky message from a specific channel."""
+    target_channel = channel or ctx.channel
+    channel_id = target_channel.id
+    data = sticky_messages.get(channel_id)
+
+    if not data:
+        await ctx.send(f"❌ There's no sticky message set in {target_channel.mention}.", delete_after=5)
+        return
+
+    try:
+        await data["message"].delete()
+    except discord.NotFound:
+        pass
+
+    del sticky_messages[channel_id]
+    await ctx.send(f"✅ Sticky message has been removed from {target_channel.mention}.", delete_after=5)
 
 
 
