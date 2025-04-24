@@ -1454,6 +1454,39 @@ async def quote(ctx):
     os.remove(avatar_path)
     os.remove(output_path)
 
+# ---------------------------
+
+# Add this at the top of your bot file
+sniped_messages = {}
+
+# Event to store deleted messages
+@bot.event
+async def on_message_delete(message):
+    if message.author.bot:
+        return
+    sniped_messages[message.channel.id] = {
+        "content": message.content,
+        "author": str(message.author),
+        "time": message.created_at.strftime("%Y-%m-%d %H:%M:%S")
+    }
+
+# Snipe command
+@bot.command()
+async def snipe(ctx):
+    snipe_data = sniped_messages.get(ctx.channel.id)
+    if not snipe_data:
+        await ctx.send("There's nothing to snipe!")
+        return
+
+    embed = discord.Embed(
+        description=snipe_data["content"],
+        color=discord.Color.blurple()
+    )
+    embed.set_author(name=snipe_data["author"])
+    embed.set_footer(text=f"Deleted at: {snipe_data['time']}")
+    await ctx.send(embed=embed)
+
+
 
 keep_alive()
 bot.run(TOKEN)
