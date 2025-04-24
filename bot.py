@@ -290,12 +290,29 @@ async def role(ctx, member: discord.Member = None, *, role: discord.Role = None)
         await ctx.send("Usage: `$role @member @role`")
         return
 
+    gif_url = "https://i.imgur.com/JxsCfCe.gif"  # You can customize this GIF link
+
     if role in member.roles:
         await member.remove_roles(role)
-        await ctx.send(f"⚠️ The {role.name} role has been formally rescinded from {member.mention}.")
+
+        embed = discord.Embed(
+            title="🔻 Role Revoked",
+            description=f"The role **{role.name}** has been **revoked** from {member.mention}.",
+            color=discord.Color.red()
+        )
     else:
         await member.add_roles(role)
-        await ctx.send(f"🎖️ {member.mention} has been granted the {role.name} role.")
+
+        embed = discord.Embed(
+            title="🔺 Role Bestowed",
+            description=f"With great honor, **{member.mention}** has been **bestowed** the role of **{role.name}**.",
+            color=discord.Color.green()
+        )
+        embed.set_thumbnail(url=gif_url)
+
+    embed.set_footer(text=f"Authorized by {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
+    await ctx.send(embed=embed)
+
 
 from discord import ui
 
