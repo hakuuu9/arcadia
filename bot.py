@@ -1517,7 +1517,7 @@ async def confess(ctx, *, message=None):
         description=message,
         color=discord.Color.purple()
     )
-    public_embed.set_footer(text="Submitted anonymously • Powered by noir.bot")
+    public_embed.set_footer(text="Submitted anonymously • Powered by Arcadia with love")
 
     # Create private log embed
     log_embed = discord.Embed(
