@@ -1557,7 +1557,7 @@ async def confess(ctx, *, message=None):
 
 STICKY_FILE = "sticky_messages.json"
 
-# Ensure file exists
+# Ensure the sticky file exists
 if not os.path.exists(STICKY_FILE):
     with open(STICKY_FILE, "w") as f:
         json.dump({}, f)
@@ -1569,7 +1569,6 @@ async def sticky(ctx, channel: discord.TextChannel, *, message: str):
     with open(STICKY_FILE, "r") as f:
         data = json.load(f)
 
-    # Delete old sticky if exists
     if str(channel.id) in data:
         try:
             old_msg_id = data[str(channel.id)]["message_id"]
@@ -1590,13 +1589,37 @@ async def sticky(ctx, channel: discord.TextChannel, *, message: str):
 
     await ctx.send(f"✅ Sticky message set for {channel.mention}!")
 
-# Event to resend sticky message
+@bot.command()
+@commands.has_permissions(manage_messages=True)
+async def unsticky(ctx, channel: discord.TextChannel):
+    """Remove the sticky message from a channel."""
+    with open(STICKY_FILE, "r") as f:
+        data = json.load(f)
+
+    if str(channel.id) in data:
+        try:
+            old_msg = await channel.fetch_message(data[str(channel.id)]["message_id"])
+            await old_msg.delete()
+        except:
+            pass
+
+        del data[str(channel.id)]
+        with open(STICKY_FILE, "w") as f:
+            json.dump(data, f, indent=4)
+
+        await ctx.send(f"❌ Sticky message removed from {channel.mention}!")
+    else:
+        await ctx.send("There is no sticky message set for this channel.")
+
 @bot.event
 async def on_message(message):
     if message.author.bot:
         return
 
     await bot.process_commands(message)
+
+    if not (message.content or message.embeds or message.attachments):
+        return
 
     with open(STICKY_FILE, "r") as f:
         data = json.load(f)
@@ -1615,6 +1638,9 @@ async def on_message(message):
 
         with open(STICKY_FILE, "w") as f:
             json.dump(data, f, indent=4)
+
+
+
 
 @bot.command()
 @commands.has_permissions(manage_messages=True)
