@@ -1503,7 +1503,7 @@ async def snipe(ctx, amount: int = 1):
 
 # ---------------------------------------------------------------------------
 
-CONFESS_CHANNEL_ID = 1357671759511556216  # Replace with your public confession channel
+CONFESS_CHANNEL_ID = 1364848318034739220  # Replace with your public confession channel
 CONFESSION_LOG_CHANNEL_ID = 1364839238960549908  # Replace with your log channel
 
 @bot.command()
