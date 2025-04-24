@@ -1513,7 +1513,7 @@ async def confess(ctx, *, message=None):
 
     # Create public embed (no user mention)
     public_embed = discord.Embed(
-        title="Anonymous Confession",
+        title="Arcadia Confession",
         description=message,
         color=discord.Color.purple()
     )
