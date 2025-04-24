@@ -1497,6 +1497,50 @@ async def snipe(ctx, amount: int = 1):
         embed.set_footer(text=f"Deleted {data['time']}")
         await ctx.send(embed=embed)
 
+# ---------------------------------------------------------------------------
+
+# Replace this with your confession channel ID
+CONFESS_CHANNEL_ID = 1357671759511556216
+CONFESSION_COUNT_FILE = "confession_count.json"
+
+def get_confession_number():
+    if not os.path.exists(CONFESSION_COUNT_FILE):
+        with open(CONFESSION_COUNT_FILE, "w") as f:
+            json.dump({"count": 1}, f)
+        return 1
+
+    with open(CONFESSION_COUNT_FILE, "r") as f:
+        data = json.load(f)
+
+    count = data.get("count", 1)
+    data["count"] = count + 1
+
+    with open(CONFESSION_COUNT_FILE, "w") as f:
+        json.dump(data, f)
+
+    return count
+
+@bot.command()
+async def confess(ctx, *, message):
+    await ctx.message.delete()  # Remove the user's original command message
+
+    confession_id = get_confession_number()
+
+    embed = discord.Embed(
+        title=f"Confession #{confession_id}",
+        description=message,
+        color=discord.Color.dark_magenta()
+    )
+    embed.set_footer(text="Confessions in this server are logged | Powered by yourbot")
+
+    confess_channel = bot.get_channel(CONFESS_CHANNEL_ID)
+    if confess_channel:
+        msg = await confess_channel.send(embed=embed)
+        await msg.add_reaction("🫣")
+        await msg.add_reaction("😭")
+        await msg.add_reaction("😮‍💨")
+    else:
+        await ctx.send("Confession channel not found. Please check the channel ID.")
 
 
 
