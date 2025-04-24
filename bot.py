@@ -285,33 +285,45 @@ async def createembed(ctx, *, content: str = None):
 
 @bot.command()
 @commands.has_permissions(manage_roles=True)
-async def role(ctx, member: discord.Member = None, *, role: discord.Role = None):
-    if not member or not role:
+async def role(ctx, member: discord.Member = None, *, role_input: str = None):
+    if not member or not role_input:
         await ctx.send("Usage: `$role @member @role`")
         return
 
-    gif_url = "https://i.imgur.com/JxsCfCe.gif"  # You can customize this GIF link
+    # Try to parse role by mention, ID, or name
+    role = None
+    if role_input.isdigit():
+        role = ctx.guild.get_role(int(role_input))
+    elif role_input.startswith("<@&") and role_input.endswith(">"):
+        role_id = int(role_input[3:-1])
+        role = ctx.guild.get_role(role_id)
+    else:
+        role = discord.utils.get(ctx.guild.roles, name=role_input)
+
+    if not role:
+        await ctx.send("❌ Couldn't find that role.")
+        return
+
+    embed = discord.Embed(color=discord.Color.blurple())
+    embed.set_thumbnail(url="https://i.imgur.com/JxsCfCe.gif")  # GIF top-right
+    embed.set_footer(text=f"Requested by {ctx.author}", icon_url=ctx.author.display_avatar.url)
 
     if role in member.roles:
         await member.remove_roles(role)
-
-        embed = discord.Embed(
-            title="🔻 Role Revoked",
-            description=f"The role **{role.name}** has been **revoked** from {member.mention}.",
-            color=discord.Color.red()
-        )
+        embed.title = "🔻 Role Removed"
+        embed.description = f"{member.mention} is no longer **{role.name}**."
     else:
         await member.add_roles(role)
+        embed.title = "🎖️ Role Granted"
+        embed.description = f"{member.mention} has been promoted to **{role.name}**."
 
-        embed = discord.Embed(
-            title="🔺 Role Bestowed",
-            description=f"With great honor, **{member.mention}** has been **bestowed** the role of **{role.name}**.",
-            color=discord.Color.green()
-        )
-        embed.set_thumbnail(url=gif_url)
-
-    embed.set_footer(text=f"Authorized by {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
     await ctx.send(embed=embed)
+
+    # Log to a specific channel by ID
+    log_channel = ctx.guild.get_channel(1350497918574006282)  # Replace with your actual log channel ID
+    if log_channel:
+        await log_channel.send(embed=embed)
+
 
 
 from discord import ui
