@@ -1456,35 +1456,47 @@ async def quote(ctx):
 
 # ---------------------------
 
-# Add this at the top of your bot file
-sniped_messages = {}
+sniped_messages = {}  # {channel_id: [list of dicts]}
 
-# Event to store deleted messages
 @bot.event
 async def on_message_delete(message):
     if message.author.bot:
         return
-    sniped_messages[message.channel.id] = {
+
+    channel_id = message.channel.id
+    sniped_messages.setdefault(channel_id, [])
+    sniped_messages[channel_id].insert(0, {
         "content": message.content,
         "author": str(message.author),
-        "time": message.created_at.strftime("%Y-%m-%d %H:%M:%S")
-    }
+        "avatar": message.author.display_avatar.url,
+        "time": discord.utils.format_dt(discord.utils.utcnow(), style="R")
+    })
 
-# Snipe command
+    # Limit to last 10 deleted messages per channel
+    if len(sniped_messages[channel_id]) > 10:
+        sniped_messages[channel_id].pop()
+
 @bot.command()
-async def snipe(ctx):
-    snipe_data = sniped_messages.get(ctx.channel.id)
-    if not snipe_data:
+async def snipe(ctx, amount: int = 1):
+    messages = sniped_messages.get(ctx.channel.id, [])
+    if not messages:
         await ctx.send("There's nothing to snipe!")
         return
 
-    embed = discord.Embed(
-        description=snipe_data["content"],
-        color=discord.Color.blurple()
-    )
-    embed.set_author(name=snipe_data["author"])
-    embed.set_footer(text=f"Deleted at: {snipe_data['time']}")
-    await ctx.send(embed=embed)
+    amount = max(1, min(amount, len(messages)))
+    gif_url = "https://i.imgur.com/JxsCfCe.gif"  # Replace with your preferred top-right GIF
+
+    for i in range(amount):
+        data = messages[i]
+        embed = discord.Embed(
+            description=data["content"] or "*No content*",
+            color=discord.Color.blurple()
+        )
+        embed.set_author(name=data["author"], icon_url=data["avatar"])
+        embed.set_thumbnail(url=gif_url)
+        embed.set_footer(text=f"Deleted {data['time']}")
+        await ctx.send(embed=embed)
+
 
 
 
