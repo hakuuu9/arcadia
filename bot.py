@@ -1552,7 +1552,7 @@ async def confess(ctx, *, message=None):
 
 # --------------------------------------------------------------------------------------
 
-# Sticky messages per channel
+# Track sticky messages per channel
 sticky_messages = {}  # {channel_id: {"message": discord.Message, "content": str}}
 
 @bot.event
@@ -1562,30 +1562,21 @@ async def on_ready():
 @bot.command()
 @commands.has_permissions(manage_messages=True)
 async def sticky(ctx, channel_mention: str, *, content):
-    """Set a sticky message in a specific channel."""
+    """Set a sticky message in a channel (plain text)."""
     await ctx.message.delete()
 
     match = re.match(r"<#(\d+)>", channel_mention)
     if not match:
-        await ctx.send("❌ Invalid channel mention. Please mention a channel like `#general`.", delete_after=5)
+        await ctx.send("❌ Please mention a valid channel like `#general`.", delete_after=5)
         return
 
     channel_id = int(match.group(1))
     target_channel = ctx.guild.get_channel(channel_id)
     if not target_channel:
-        await ctx.send("❌ Channel not found in this server.", delete_after=5)
+        await ctx.send("❌ Channel not found.", delete_after=5)
         return
 
-    icon_url = ctx.guild.icon.url if ctx.guild.icon else discord.Embed.Empty
-
-    embed = discord.Embed(
-        title="📌 Stickied Message:",
-        description=content,
-        color=discord.Color.orange()
-    )
-    embed.set_author(name=ctx.guild.name, icon_url=icon_url)
-
-    sticky_msg = await target_channel.send(embed=embed)
+    sticky_msg = await target_channel.send(content)
 
     sticky_messages[channel_id] = {
         "message": sticky_msg,
@@ -1606,16 +1597,9 @@ async def on_message(message):
         except discord.NotFound:
             pass
 
-        icon_url = message.guild.icon.url if message.guild.icon else discord.Embed.Empty
-        embed = discord.Embed(
-            title="📌 Stickied Message:",
-            description=data["content"],
-            color=discord.Color.orange()
-        )
-        embed.set_author(name=message.guild.name, icon_url=icon_url)
-
-        new_msg = await message.channel.send(embed=embed)
+        new_msg = await message.channel.send(data["content"])
         sticky_messages[message.channel.id]["message"] = new_msg
+
 
 
 
