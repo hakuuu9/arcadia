@@ -1557,10 +1557,39 @@ async def confess(ctx, *, message=None):
 
 STICKY_FILE = "sticky_messages.json"
 
-# Ensure the sticky file exists
 if not os.path.exists(STICKY_FILE):
     with open(STICKY_FILE, "w") as f:
         json.dump({}, f)
+
+@bot.event
+async def on_ready():
+    print(f"Bot is ready. Logged in as {bot.user}")
+    refresh_stickies.start()
+
+@tasks.loop(seconds=60)  # Change the interval here
+async def refresh_stickies():
+    with open(STICKY_FILE, "r") as f:
+        data = json.load(f)
+
+    for channel_id, info in data.items():
+        channel = bot.get_channel(int(channel_id))
+        if not channel:
+            continue
+
+        try:
+            old_msg = await channel.fetch_message(info["message_id"])
+            await old_msg.delete()
+        except:
+            pass
+
+        try:
+            sent = await channel.send(info["message"])
+            data[channel_id]["message_id"] = sent.id
+        except:
+            continue
+
+    with open(STICKY_FILE, "w") as f:
+        json.dump(data, f, indent=4)
 
 @bot.command()
 @commands.has_permissions(manage_messages=True)
@@ -1571,18 +1600,13 @@ async def sticky(ctx, channel: discord.TextChannel, *, message: str):
 
     if str(channel.id) in data:
         try:
-            old_msg_id = data[str(channel.id)]["message_id"]
-            old_msg = await channel.fetch_message(old_msg_id)
+            old_msg = await channel.fetch_message(data[str(channel.id)]["message_id"])
             await old_msg.delete()
         except:
             pass
 
     sent = await channel.send(message)
-
-    data[str(channel.id)] = {
-        "message": message,
-        "message_id": sent.id
-    }
+    data[str(channel.id)] = {"message": message, "message_id": sent.id}
 
     with open(STICKY_FILE, "w") as f:
         json.dump(data, f, indent=4)
@@ -1592,53 +1616,25 @@ async def sticky(ctx, channel: discord.TextChannel, *, message: str):
 @bot.command()
 @commands.has_permissions(manage_messages=True)
 async def unsticky(ctx, channel: discord.TextChannel):
-    """Remove the sticky message from a channel."""
+    """Remove sticky from a channel."""
     with open(STICKY_FILE, "r") as f:
         data = json.load(f)
 
     if str(channel.id) in data:
         try:
-            old_msg = await channel.fetch_message(data[str(channel.id)]["message_id"])
-            await old_msg.delete()
+            msg = await channel.fetch_message(data[str(channel.id)]["message_id"])
+            await msg.delete()
         except:
             pass
 
         del data[str(channel.id)]
+
         with open(STICKY_FILE, "w") as f:
             json.dump(data, f, indent=4)
 
-        await ctx.send(f"❌ Sticky message removed from {channel.mention}!")
+        await ctx.send(f"❌ Sticky message removed from {channel.mention}")
     else:
-        await ctx.send("There is no sticky message set for this channel.")
-
-@bot.event
-async def on_message(message):
-    if message.author.bot:
-        return
-
-    await bot.process_commands(message)
-
-    if not (message.content or message.embeds or message.attachments):
-        return
-
-    with open(STICKY_FILE, "r") as f:
-        data = json.load(f)
-
-    channel_id = str(message.channel.id)
-
-    if channel_id in data:
-        try:
-            old_msg = await message.channel.fetch_message(data[channel_id]["message_id"])
-            await old_msg.delete()
-        except:
-            pass
-
-        sent = await message.channel.send(data[channel_id]["message"])
-        data[channel_id]["message_id"] = sent.id
-
-        with open(STICKY_FILE, "w") as f:
-            json.dump(data, f, indent=4)
-
+        await ctx.send("No sticky message set in that channel.")
 
 
 
