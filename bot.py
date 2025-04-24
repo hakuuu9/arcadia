@@ -422,6 +422,7 @@ async def info_command(ctx):
                 "🔹 `$message` – Count a user's messages (overall & per channel)"
                 "🔹 `$autoresponse add/delete/list` – Set auto-replies for keywords\n"
                 "🔹 `$quote` - Reply to a message and turn it into a styled quote image\n"
+                "🔹 `$confess your message` - Send an anonymous confession to a set channel. Also logs the sender privately.\n"
             ),
             inline=False
         ).set_thumbnail(url="https://i.imgur.com/JxsCfCe.gif"),
@@ -518,6 +519,8 @@ async def support_info(ctx):
             "🎨 `$createrole | role name | hex color | :emoji:` – Create a custom colored role\n"
             "📌 `$inrole` – Show members with a certain role\n"
             "📊 `$arclb` – $arclb #channel | [title] | [description] | [hex color (optional)] | [GIF URL (optional)]\n"
+            "📊 `$sticky #channel your message` - Set a sticky message that reposts when users chat.\n"
+            "📊 `$unsticky #channel` - Remove a sticky message from a channel.\n"
         ),
         inline=False
     )
@@ -1552,37 +1555,77 @@ async def confess(ctx, *, message=None):
 
 # --------------------------------------------------------------------------------------
 
-# Track sticky messages per channel
-sticky_messages = {}  # {channel_id: {"message": discord.Message, "content": str}}
+STICKY_FILE = "sticky_messages.json"
+sticky_messages = {}
+
+# Load sticky messages from file
+if os.path.exists(STICKY_FILE):
+    with open(STICKY_FILE, "r") as f:
+        try:
+            saved = json.load(f)
+            for channel_id, data in saved.items():
+                sticky_messages[int(channel_id)] = {
+                    "message_id": int(data["message_id"]),
+                    "content": data["content"]
+                }
+        except json.JSONDecodeError:
+            sticky_messages = {}
 
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user}")
 
+# Sticky command
 @bot.command()
 @commands.has_permissions(manage_messages=True)
-async def sticky(ctx, channel_mention: str, *, content):
-    """Set a sticky message in a channel (plain text)."""
-    await ctx.message.delete()
-
-    match = re.match(r"<#(\d+)>", channel_mention)
-    if not match:
-        await ctx.send("❌ Please mention a valid channel like `#general`.", delete_after=5)
+async def sticky(ctx, channel: discord.TextChannel = None, *, message: str = None):
+    target_channel = channel or ctx.channel
+    if not message:
+        await ctx.send("❗ Usage: `$sticky #channel Your sticky message here`", delete_after=5)
         return
 
-    channel_id = int(match.group(1))
-    target_channel = ctx.guild.get_channel(channel_id)
-    if not target_channel:
-        await ctx.send("❌ Channel not found.", delete_after=5)
-        return
+    # Delete previous sticky if it exists
+    if target_channel.id in sticky_messages:
+        try:
+            old_msg = await target_channel.fetch_message(sticky_messages[target_channel.id]["message_id"])
+            await old_msg.delete()
+        except (discord.NotFound, discord.Forbidden):
+            pass
 
-    sticky_msg = await target_channel.send(content)
-
-    sticky_messages[channel_id] = {
-        "message": sticky_msg,
-        "content": content
+    sent_msg = await target_channel.send(message)
+    sticky_messages[target_channel.id] = {
+        "message_id": sent_msg.id,
+        "content": message
     }
 
+    # Save to file
+    with open(STICKY_FILE, "w") as f:
+        json.dump({str(k): v for k, v in sticky_messages.items()}, f, indent=4)
+
+    await ctx.send(f"✅ Sticky message set in {target_channel.mention}.", delete_after=5)
+
+# Unsticky command
+@bot.command()
+@commands.has_permissions(manage_messages=True)
+async def unsticky(ctx, channel: discord.TextChannel = None):
+    target_channel = channel or ctx.channel
+
+    if target_channel.id in sticky_messages:
+        try:
+            old_msg = await target_channel.fetch_message(sticky_messages[target_channel.id]["message_id"])
+            await old_msg.delete()
+        except (discord.NotFound, discord.Forbidden):
+            pass
+
+        del sticky_messages[target_channel.id]
+        with open(STICKY_FILE, "w") as f:
+            json.dump({str(k): v for k, v in sticky_messages.items()}, f, indent=4)
+
+        await ctx.send(f"🧹 Sticky message removed in {target_channel.mention}.", delete_after=5)
+    else:
+        await ctx.send("There is no sticky message in that channel.", delete_after=5)
+
+# Re-post sticky message if someone sends something
 @bot.event
 async def on_message(message):
     await bot.process_commands(message)
@@ -1590,16 +1633,20 @@ async def on_message(message):
     if message.author.bot:
         return
 
-    data = sticky_messages.get(message.channel.id)
-    if data:
+    channel_id = message.channel.id
+    if channel_id in sticky_messages:
         try:
-            await data["message"].delete()
-        except discord.NotFound:
+            old_msg = await message.channel.fetch_message(sticky_messages[channel_id]["message_id"])
+            await old_msg.delete()
+        except (discord.NotFound, discord.Forbidden):
             pass
 
-        new_msg = await message.channel.send(data["content"])
-        sticky_messages[message.channel.id]["message"] = new_msg
+        new_msg = await message.channel.send(sticky_messages[channel_id]["content"])
+        sticky_messages[channel_id]["message_id"] = new_msg.id
 
+        with open(STICKY_FILE, "w") as f:
+            json.dump({str(k): v for k, v in sticky_messages.items()}, f, indent=4)
+            
 @bot.command()
 @commands.has_permissions(manage_messages=True)
 async def unsticky(ctx, channel: discord.TextChannel = None):
