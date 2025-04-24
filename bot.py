@@ -1498,49 +1498,60 @@ async def snipe(ctx, amount: int = 1):
         await ctx.send(embed=embed)
 
 # ---------------------------------------------------------------------------
+import discord
+from discord.ext import commands
+import json
+import os
 
-# Replace this with your confession channel ID
-CONFESS_CHANNEL_ID = 1357671759511556216
-CONFESSION_COUNT_FILE = "confession_count.json"
+CONFESS_CHANNEL_ID = 1357671759511556216  # Replace with your confession channel ID
+CONFESSION_FILE = "confession_count.json"
 
-def get_confession_number():
-    if not os.path.exists(CONFESSION_COUNT_FILE):
-        with open(CONFESSION_COUNT_FILE, "w") as f:
-            json.dump({"count": 1}, f)
-        return 1
-
-    with open(CONFESSION_COUNT_FILE, "r") as f:
-        data = json.load(f)
-
-    count = data.get("count", 1)
-    data["count"] = count + 1
-
-    with open(CONFESSION_COUNT_FILE, "w") as f:
-        json.dump(data, f)
-
-    return count
+# Create the JSON file if it doesn't exist
+if not os.path.exists(CONFESSION_FILE):
+    with open(CONFESSION_FILE, "w") as f:
+        json.dump({"count": 0}, f)
 
 @bot.command()
-async def confess(ctx, *, message):
-    await ctx.message.delete()  # Remove the user's original command message
+async def confess(ctx, *, message=None):
+    if message is None:
+        await ctx.send("❗ Please include a confession message.\nExample: `$confess I love Noir`")
+        return
 
-    confession_id = get_confession_number()
+    # Load and update confession count
+    with open(CONFESSION_FILE, "r") as f:
+        data = json.load(f)
 
+    data["count"] += 1
+    confession_number = data["count"]
+
+    with open(CONFESSION_FILE, "w") as f:
+        json.dump(data, f)
+
+    # Create embed
     embed = discord.Embed(
-        title=f"Confession #{confession_id}",
+        title=f"Confession #{confession_number}",
         description=message,
-        color=discord.Color.dark_magenta()
+        color=discord.Color.purple()
     )
-    embed.set_footer(text="Confessions in this server are logged | Powered by yourbot")
+    embed.set_footer(text="Confessions in this server are not logged | Powered by Arcadia")
 
+    # Get confession channel
     confess_channel = bot.get_channel(CONFESS_CHANNEL_ID)
+
     if confess_channel:
-        msg = await confess_channel.send(embed=embed)
-        await msg.add_reaction("🫣")
-        await msg.add_reaction("😭")
-        await msg.add_reaction("😮‍💨")
+        await confess_channel.send(embed=embed)
+
+        # Delete original message (only in servers)
+        if isinstance(ctx.channel, discord.TextChannel):
+            await ctx.message.delete()
+
+        # Acknowledge privately or publicly
+        if isinstance(ctx.channel, discord.DMChannel):
+            await ctx.send("✅ Your confession has been anonymously posted.")
+        else:
+            await ctx.author.send("✅ Your confession has been anonymously posted.")
     else:
-        await ctx.send("Confession channel not found. Please check the channel ID.")
+        await ctx.send("⚠️ Confession channel not found. Check the CONFESS_CHANNEL_ID.")
 
 
 
