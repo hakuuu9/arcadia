@@ -1498,18 +1498,9 @@ async def snipe(ctx, amount: int = 1):
         await ctx.send(embed=embed)
 
 # ---------------------------------------------------------------------------
-import discord
-from discord.ext import commands
-import json
-import os
 
-CONFESS_CHANNEL_ID = 1357671759511556216  # Replace with your confession channel ID
-CONFESSION_FILE = "confession_count.json"
-
-# Create the JSON file if it doesn't exist
-if not os.path.exists(CONFESSION_FILE):
-    with open(CONFESSION_FILE, "w") as f:
-        json.dump({"count": 0}, f)
+CONFESS_CHANNEL_ID = 1357671759511556216  # Replace with your public confession channel
+CONFESSION_LOG_CHANNEL_ID = 1364839238960549908  # Replace with your log channel
 
 @bot.command()
 async def confess(ctx, *, message=None):
@@ -1517,41 +1508,47 @@ async def confess(ctx, *, message=None):
         await ctx.send("❗ Please include a confession message.\nExample: `$confess I love Noir`")
         return
 
-    # Load and update confession count
-    with open(CONFESSION_FILE, "r") as f:
-        data = json.load(f)
+    confess_channel = bot.get_channel(CONFESS_CHANNEL_ID)
+    log_channel = bot.get_channel(CONFESSION_LOG_CHANNEL_ID)
 
-    data["count"] += 1
-    confession_number = data["count"]
-
-    with open(CONFESSION_FILE, "w") as f:
-        json.dump(data, f)
-
-    # Create embed
-    embed = discord.Embed(
-        title=f"Confession #{confession_number}",
+    # Create public embed (no user mention)
+    public_embed = discord.Embed(
+        title="Anonymous Confession",
         description=message,
         color=discord.Color.purple()
     )
-    embed.set_footer(text="Confessions in this server are not logged | Powered by Arcadia")
+    public_embed.set_footer(text="Submitted anonymously • Powered by noir.bot")
 
-    # Get confession channel
-    confess_channel = bot.get_channel(CONFESS_CHANNEL_ID)
+    # Create private log embed
+    log_embed = discord.Embed(
+        title="Confession Logged",
+        description=message,
+        color=discord.Color.red()
+    )
+    log_embed.set_author(name=f"{ctx.author} ({ctx.author.id})", icon_url=ctx.author.display_avatar.url)
+    log_embed.set_footer(text=f"Sent from: {ctx.guild.name if ctx.guild else 'DMs'}")
 
     if confess_channel:
-        await confess_channel.send(embed=embed)
+        await confess_channel.send(embed=public_embed)
 
-        # Delete original message (only in servers)
+        # If sent in a server channel, delete original message
         if isinstance(ctx.channel, discord.TextChannel):
             await ctx.message.delete()
 
-        # Acknowledge privately or publicly
+        # Acknowledge to user (in DM or public)
         if isinstance(ctx.channel, discord.DMChannel):
             await ctx.send("✅ Your confession has been anonymously posted.")
         else:
-            await ctx.author.send("✅ Your confession has been anonymously posted.")
+            try:
+                await ctx.author.send("✅ Your confession has been anonymously posted.")
+            except discord.Forbidden:
+                await ctx.send("✅ Your confession has been posted, but I couldn't DM you.")
+
+    if log_channel:
+        await log_channel.send(embed=log_embed)
     else:
-        await ctx.send("⚠️ Confession channel not found. Check the CONFESS_CHANNEL_ID.")
+        print("⚠️ Log channel not found. Please check CONFESSION_LOG_CHANNEL_ID.")
+
 
 
 
