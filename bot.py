@@ -54,7 +54,6 @@ async def on_presence_update(before, after):
                     "• Nickname perms\n"
                     "• Image and embed link perms\n"
                     "• 1.0 XP boost\n"
-                    "• Bypass gcash giveaways"
                 ),
                 color=discord.Color.green()
             )
