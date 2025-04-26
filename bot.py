@@ -1703,7 +1703,7 @@ async def on_message_afk_check(message):
         if member.id in afk_users:
             afk_info = afk_users[member.id]
             reason = afk_info["reason"]
-            time_diff = datetime.datetime.utcnow() - afk_info["time"]
+            time_diff = datetime.utcnow() - afk_info["time"]
             minutes = int(time_diff.total_seconds() // 60)
             time_ago = f"{minutes} minute{'s' if minutes != 1 else ''} ago"
 
