@@ -1618,22 +1618,22 @@ async def timeout(ctx, member: discord.Member, time: str, *, reason="No reason p
             await ctx.send("❌ Invalid time format! Use formats like `10min`, `2hr`, or `1d`.")
             return
 
-        # Check if seconds are in the allowed range (Discord limit: 28 days)
         if seconds <= 0 or seconds > 2419200:
             await ctx.send("❌ Timeout must be between 1 second and 28 days.")
             return
 
-        # Apply the timeout
-        await member.timeout_for(datetime.timedelta(seconds=seconds), reason=reason)
+        # Correct timeout application
+        await member.timeout(until=datetime.datetime.utcnow() + datetime.timedelta(seconds=seconds), reason=reason)
         await ctx.send(f"✅ {member.mention} has been timed out for **{time}**. Reason: {reason}")
 
         try:
             await member.send(f"🚫 You have been timed out in **{ctx.guild.name}** for **{time}**.\nReason: {reason}")
         except discord.Forbidden:
-            pass  # Can't DM the user, ignore
+            pass  # Can't DM the user
 
     except Exception as e:
         await ctx.send(f"⚠️ Error: {e}")
+
 
 
 
