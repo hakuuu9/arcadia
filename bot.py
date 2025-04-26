@@ -420,6 +420,7 @@ async def info_command(ctx):
                 "🔹 `$autoresponse add/delete/list` – Set auto-replies for keywords\n"
                 "🔹 `$quote` - Reply to a message and turn it into a styled quote image\n"
                 "🔹 `$confess your message` - Send an anonymous confession to a set channel. Also logs the sender privately.\n"
+                "🔹 `$snipe` – Retrieve the last deleted message in a channel\n"
             ),
             inline=False
         ).set_thumbnail(url="https://i.imgur.com/JxsCfCe.gif"),
@@ -518,6 +519,7 @@ async def support_info(ctx):
             "📊 `$arclb` – $arclb #channel | [title] | [description] | [hex color (optional)] | [GIF URL (optional)]\n"
             "📊 `$sticky #channel your message` - Set a sticky message that reposts when users chat.\n"
             "📊 `$unsticky #channel` - Remove a sticky message from a channel.\n"
+            "🕓 `$uptime` – See how long the bot has been online\n"
         ),
         inline=False
     )
@@ -1634,6 +1636,30 @@ async def unsticky(ctx, channel: discord.TextChannel):
     else:
         await ctx.send("No sticky message set in that channel.")
 
+# -----------------------------------------------------------------------------
+
+# Store bot start time globally
+bot_start_time = datetime.datetime.utcnow()
+
+@bot.command()
+async def uptime(ctx):
+    now = datetime.datetime.utcnow()
+    uptime_duration = now - bot_start_time
+
+    days, remainder = divmod(uptime_duration.total_seconds(), 86400)
+    hours, remainder = divmod(remainder, 3600)
+    minutes, seconds = divmod(remainder, 60)
+
+    uptime_str = f"{int(days)}d {int(hours)}h {int(minutes)}m {int(seconds)}s"
+    start_time_str = bot_start_time.strftime("%Y-%m-%d %H:%M:%S UTC")
+
+    embed = discord.Embed(
+        title="🟢 Bot Uptime",
+        description=f"**Online for:** {uptime_str}\n**Started at:** {start_time_str}",
+        color=discord.Color.green()
+    )
+    embed.set_footer(text=f"Requested by {ctx.author}", icon_url=ctx.author.display_avatar.url)
+    await ctx.send(embed=embed)
 
 
 keep_alive()
