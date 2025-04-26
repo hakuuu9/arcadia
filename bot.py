@@ -1601,6 +1601,14 @@ async def ban(ctx, member: discord.Member, *, reason="No reason provided"):
     except Exception as e:
         await ctx.send(f"❌ Failed to ban {member.mention}. Error: {e}")
 # ------------------------------------------------------------------------------
+
+# Your log channel ID
+LOG_CHANNEL_ID = 1364839238960549908
+
+@bot.event
+async def on_ready():
+    print(f'Logged in as {bot.user.name}')
+
 @bot.command()
 @commands.has_permissions(moderate_members=True)
 async def timeout(ctx, member: discord.Member, time: str, *, reason="No reason provided."):
@@ -1621,7 +1629,6 @@ async def timeout(ctx, member: discord.Member, time: str, *, reason="No reason p
             await ctx.send("❌ Timeout must be between 1 second and 28 days.")
             return
 
-        from datetime import timedelta
         await member.timeout(timedelta(seconds=seconds), reason=reason)
         await ctx.send(f"✅ {member.mention} has been timed out for **{time}**. Reason: {reason}")
 
@@ -1629,6 +1636,20 @@ async def timeout(ctx, member: discord.Member, time: str, *, reason="No reason p
             await member.send(f"🚫 You have been timed out in **{ctx.guild.name}** for **{time}**.\nReason: {reason}")
         except discord.Forbidden:
             pass  # can't DM
+
+        # Send a log message to the log channel
+        log_channel = bot.get_channel(LOG_CHANNEL_ID)
+        if log_channel:
+            log_embed = discord.Embed(
+                title="Timeout Action",
+                color=discord.Color.orange()
+            )
+            log_embed.add_field(name="Member", value=member.mention, inline=False)
+            log_embed.add_field(name="Moderator", value=ctx.author.mention, inline=False)
+            log_embed.add_field(name="Duration", value=time, inline=False)
+            log_embed.add_field(name="Reason", value=reason, inline=False)
+            log_embed.timestamp = discord.utils.utcnow()
+            await log_channel.send(embed=log_embed)
 
     except Exception as e:
         await ctx.send(f"⚠️ Error: {e}")
