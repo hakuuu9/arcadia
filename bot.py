@@ -1040,51 +1040,58 @@ async def userinfo(ctx, member: discord.Member = None):
 @commands.has_permissions(manage_roles=True)
 async def create_role(ctx, *, args):
     try:
-        parts = [part.strip() for part in args.split('|')]
-        if len(parts) < 2:
-            await ctx.send("❌ Usage: `$createrole | role name | #hexcolor | optional emoji`")
-            return
-
+        parts = [part.strip() for part in args.split("|")]
         role_name = parts[0]
-        hex_color = parts[1].lstrip('#')
-        emoji_or_icon = parts[2] if len(parts) > 2 else None
+        hex_color = parts[1]
+        icon_input = parts[2] if len(parts) > 2 else None
 
-        try:
-            color = discord.Color(int(hex_color, 16))
-        except ValueError:
+        # Ensure hex_color starts with #
+        if not hex_color.startswith("#"):
+            hex_color = f"#{hex_color}"
+
+        # Validate hex color
+        if not re.match(r"^#(?:[0-9a-fA-F]{3}){1,2}$", hex_color):
             await ctx.send("❌ Invalid hex color. Use format like `#ff5733`.")
             return
 
-        # Determine icon: either an attached image or an emoji from the message
-        role_icon_bytes = None
-        if ctx.message.attachments:
-            img = await ctx.message.attachments[0].read()
-            role_icon_bytes = img
-        elif emoji_or_icon:
-            # Try to extract server emoji
-            emoji_match = re.search(r'<a?:\w+:(\d+)>', emoji_or_icon)
-            if emoji_match:
-                emoji_id = int(emoji_match.group(1))
-                emoji = ctx.guild.get_emoji(emoji_id)
-                if emoji:
-                    async with aiohttp.ClientSession() as session:
-                        async with session.get(str(emoji.url)) as resp:
-                            if resp.status == 200:
-                                role_icon_bytes = await resp.read()
+        color = discord.Color(int(hex_color.lstrip('#'), 16))
 
-        role = await ctx.guild.create_role(
-            name=role_name,
-            color=color,
-            icon=role_icon_bytes if role_icon_bytes else None,
-            reason=f"Created by {ctx.author}"
-        )
+        role_kwargs = {
+            "name": role_name,
+            "color": color,
+            "reason": f"Role created by {ctx.author}"
+        }
 
-        await ctx.send(f"✅ Role **{role.name}** created successfully!")
+        # Handle role icon if given
+        if icon_input:
+            if icon_input.startswith("<:") and icon_input.endswith(">"):
+                # It's a custom emoji
+                emoji_id = int(icon_input.split(":")[-1][:-1])
+                emoji = await ctx.guild.fetch_emoji(emoji_id)
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(emoji.url) as resp:
+                        if resp.status != 200:
+                            await ctx.send("❌ Couldn't download emoji.")
+                            return
+                        role_kwargs["icon"] = await resp.read()
+            elif ctx.message.attachments:
+                # It's an uploaded image
+                attachment = ctx.message.attachments[0]
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(attachment.url) as resp:
+                        if resp.status != 200:
+                            await ctx.send("❌ Couldn't download image.")
+                            return
+                        role_kwargs["icon"] = await resp.read()
 
-    except discord.Forbidden:
-        await ctx.send("❌ I don't have permission to manage roles.")
+        # Create the role
+        new_role = await ctx.guild.create_role(**role_kwargs)
+
+        await ctx.send(f"✅ Created role {new_role.mention} successfully!")
+
     except Exception as e:
-        await ctx.send(f"⚠️ Error: {e}")
+        await ctx.send(f"❌ Error: {e}")
+
 # --------------------------------------------------------------------------------------
 
 @bot.command()
