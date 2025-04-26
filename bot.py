@@ -10,7 +10,6 @@ import re
 import os
 import html
 import time
-import datetime
 import aiohttp
 from discord import app_commands
 from PIL import Image, ImageDraw, ImageFont
