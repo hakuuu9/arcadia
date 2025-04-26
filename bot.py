@@ -1563,6 +1563,42 @@ async def unsticky(ctx, channel: discord.TextChannel):
         await ctx.send("No sticky message set in that channel.")
 
 # -----------------------------------------------------------------------------
+@bot.command()
+@commands.has_permissions(kick_members=True)
+async def kick(ctx, member: discord.Member, *, reason="No reason provided"):
+    """Kick a member from the server."""
+    try:
+        # Try to DM the member first
+        try:
+            await member.send(f"🚪 You have been kicked from **{ctx.guild.name}**.\nReason: **{reason}**")
+        except:
+            pass  # Ignore if DMs are closed
+        
+        # Kick the member
+        await member.kick(reason=reason)
+        await ctx.send(f"✅ Successfully kicked {member.mention} for: **{reason}**")
+    except Exception as e:
+        await ctx.send(f"❌ Failed to kick {member.mention}. Error: {e}")
+
+# ----------------------------------------------------------------------------
+@bot.command()
+@commands.has_permissions(ban_members=True)
+async def ban(ctx, member: discord.Member, *, reason="No reason provided"):
+    """Ban a member from the server."""
+    try:
+        # Try to DM the member first
+        try:
+            await member.send(f"🔨 You have been banned from **{ctx.guild.name}**.\nReason: **{reason}**")
+        except:
+            pass  # Ignore if DMs are closed
+        
+        # Ban the member
+        await member.ban(reason=reason)
+        await ctx.send(f"✅ Successfully banned {member.mention} for: **{reason}**")
+    except Exception as e:
+        await ctx.send(f"❌ Failed to ban {member.mention}. Error: {e}")
+
+
 
 keep_alive()
 bot.run(TOKEN)
