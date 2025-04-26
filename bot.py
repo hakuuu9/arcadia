@@ -469,6 +469,8 @@ async def support_info(ctx):
             "📊 `$arclb` – $arclb #channel | [title] | [description] | [hex color (optional)] | [GIF URL (optional)]\n"
             "📊 `$sticky #channel your message` - Set a sticky message that reposts when users chat.\n"
             "📊 `$unsticky #channel` - Remove a sticky message from a channel.\n"
+            "👢 `$kick @user reason` – Kick a member from the server\n"
+            "🔨 `$ban @user reason` – Ban a member from the server\n"
         ),
         inline=False
     )
