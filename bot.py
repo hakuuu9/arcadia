@@ -1638,9 +1638,6 @@ async def unsticky(ctx, channel: discord.TextChannel):
 
 # -----------------------------------------------------------------------------
 
-# Store bot start time globally
-bot_start_time = datetime.datetime.utcnow()
-
 @bot.command()
 async def uptime(ctx):
     now = datetime.datetime.utcnow()
