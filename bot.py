@@ -979,61 +979,72 @@ async def userinfo(ctx, member: discord.Member = None):
     await ctx.send(embed=embed)
 # -----------------------------------------------------------------------------
 
-@bot.command(name="createrole")
-@commands.has_permissions(manage_roles=True)
-async def create_role(ctx, *, args):
+afk_users = {}
+
+@bot.command(name="afk")
+async def afk(ctx, *, reason="AFK"):
+    afk_users[ctx.author.id] = reason
     try:
-        parts = [part.strip() for part in args.split("|")]
-        role_name = parts[0]
-        hex_color = parts[1]
-        icon_input = parts[2] if len(parts) > 2 else None
+        await ctx.author.edit(nick=f"[AFK] {ctx.author.display_name}")
+    except discord.Forbidden:
+        pass  # Bot can't edit nicknames
 
-        # Ensure hex_color starts with #
-        if not hex_color.startswith("#"):
-            hex_color = f"#{hex_color}"
+    embed = discord.Embed(
+        title="🛌 AFK Activated",
+        description=f"**{ctx.author.mention}** is now AFK!\n> **Reason:** {reason}",
+        color=discord.Color.blue(),
+        timestamp=datetime.utcnow()
+    )
+    embed.set_author(name=ctx.guild.name, icon_url=ctx.guild.icon.url if ctx.guild.icon else None)
+    embed.set_footer(text="Arcadia AFK System")
 
-        # Validate hex color
-        if not re.match(r"^#(?:[0-9a-fA-F]{3}){1,2}$", hex_color):
-            await ctx.send("❌ Invalid hex color. Use format like `#ff5733`.")
-            return
+    await ctx.send(embed=embed)
 
-        color = discord.Color(int(hex_color.lstrip('#'), 16))
+@bot.event
+async def on_message(message):
+    if message.author.bot:
+        return
 
-        role_kwargs = {
-            "name": role_name,
-            "color": color,
-            "reason": f"Role created by {ctx.author}"
-        }
+    # Remove AFK if the user sends a message
+    if message.author.id in afk_users:
+        del afk_users[message.author.id]
+        try:
+            if message.author.display_name.startswith("[AFK] "):
+                new_nick = message.author.display_name[5:]
+                await message.author.edit(nick=new_nick)
+        except discord.Forbidden:
+            pass
 
-        # Handle role icon if given
-        if icon_input:
-            if icon_input.startswith("<:") and icon_input.endswith(">"):
-                # It's a custom emoji
-                emoji_id = int(icon_input.split(":")[-1][:-1])
-                emoji = await ctx.guild.fetch_emoji(emoji_id)
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(emoji.url) as resp:
-                        if resp.status != 200:
-                            await ctx.send("❌ Couldn't download emoji.")
-                            return
-                        role_kwargs["icon"] = await resp.read()
-            elif ctx.message.attachments:
-                # It's an uploaded image
-                attachment = ctx.message.attachments[0]
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(attachment.url) as resp:
-                        if resp.status != 200:
-                            await ctx.send("❌ Couldn't download image.")
-                            return
-                        role_kwargs["icon"] = await resp.read()
+        embed = discord.Embed(
+            title="👋 Welcome Back!",
+            description=f"**{message.author.mention}**, your AFK status has been removed!",
+            color=discord.Color.green(),
+            timestamp=datetime.utcnow()
+        )
+        embed.set_author(name=message.guild.name, icon_url=message.guild.icon.url if message.guild.icon else None)
+        embed.set_footer(text="Arcadia AFK System")
 
-        # Create the role
-        new_role = await ctx.guild.create_role(**role_kwargs)
+        await message.channel.send(embed=embed)
 
-        await ctx.send(f"✅ Created role {new_role.mention} successfully!")
+    # Notify when mentioning an AFK user
+    for user_id in afk_users:
+        if any(mention.id == user_id for mention in message.mentions):
+            reason = afk_users[user_id]
+            user = message.guild.get_member(user_id)
+            if user:
+                embed = discord.Embed(
+                    title="💤 AFK Notice",
+                    description=f"**{user.display_name}** is currently AFK.\n> **Reason:** {reason}",
+                    color=discord.Color.orange(),
+                    timestamp=datetime.utcnow()
+                )
+                embed.set_author(name=message.guild.name, icon_url=message.guild.icon.url if message.guild.icon else None)
+                embed.set_footer(text="Arcadia AFK System")
 
-    except Exception as e:
-        await ctx.send(f"❌ Error: {e}")
+                await message.channel.send(embed=embed)
+            break
+
+    await bot.process_commands(message)
 
 # --------------------------------------------------------------------------------------
 
