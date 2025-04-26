@@ -987,43 +987,6 @@ async def userinfo(ctx, member: discord.Member = None):
     await ctx.send(embed=embed)
 # -----------------------------------------------------------------------------
 
-afk_users = {}  # {user_id: {"reason": str, "since": datetime}}
-
-@bot.command()
-async def afk(ctx, *, reason="AFK"):
-    afk_users[ctx.author.id] = {
-        "reason": reason,
-        "since": datetime.datetime.utcnow()
-    }
-    await ctx.send(f"{ctx.author.mention} is now AFK: **{reason}**")
-
-@bot.event
-async def on_message(message):
-    if message.author.bot:
-        return
-
-    # If user was AFK and they spoke, remove their AFK
-    if message.author.id in afk_users:
-        del afk_users[message.author.id]
-        await message.channel.send(f"👋 Welcome back, {message.author.mention}! Removed your AFK status.")
-
-    # If someone mentions an AFK user
-    for mention in message.mentions:
-        if mention.id in afk_users:
-            afk_info = afk_users[mention.id]
-            since = afk_info["since"]
-            delta = datetime.datetime.utcnow() - since
-            minutes = int(delta.total_seconds() // 60)
-            reason = afk_info["reason"]
-            await message.channel.send(
-                f"💤 {mention.display_name} is AFK ({minutes} min ago): **{reason}**"
-            )
-
-    await bot.process_commands(message)
-
-
-# --------------------------------------------------------------------------------------
-
 @bot.command()
 async def inrole(ctx, *, role_input: str):
     # Case-insensitive role lookup
