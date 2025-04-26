@@ -10,6 +10,7 @@ import re
 import os
 import html
 import time
+import datetime
 import aiohttp
 from discord import app_commands
 from PIL import Image, ImageDraw, ImageFont
@@ -1637,29 +1638,6 @@ async def unsticky(ctx, channel: discord.TextChannel):
         await ctx.send("No sticky message set in that channel.")
 
 # -----------------------------------------------------------------------------
-# Set the bot's start time
-bot_start_time = datetime.utcnow()
-
-@bot.command()
-async def uptime(ctx):
-    now = datetime.datetime.utcnow()
-    uptime_duration = now - bot_start_time
-
-    days, remainder = divmod(uptime_duration.total_seconds(), 86400)
-    hours, remainder = divmod(remainder, 3600)
-    minutes, seconds = divmod(remainder, 60)
-
-    uptime_str = f"{int(days)}d {int(hours)}h {int(minutes)}m {int(seconds)}s"
-    start_time_str = bot_start_time.strftime("%Y-%m-%d %H:%M:%S UTC")
-
-    embed = discord.Embed(
-        title="🟢 Bot Uptime",
-        description=f"**Online for:** {uptime_str}\n**Started at:** {start_time_str}",
-        color=discord.Color.green()
-    )
-    embed.set_footer(text=f"Requested by {ctx.author}", icon_url=ctx.author.display_avatar.url)
-    await ctx.send(embed=embed)
-
 
 keep_alive()
 bot.run(TOKEN)
