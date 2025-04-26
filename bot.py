@@ -1566,8 +1566,28 @@ async def unsticky(ctx, channel: discord.TextChannel):
         await ctx.send("No sticky message set in that channel.")
 
 # -----------------------------------------------------------------------------
+
+# Your log channel ID
+LOG_CHANNEL_ID = 1364839238960549908
+
+# The specific role ID that can use the kick command
+ALLOWED_KICK_ROLE_ID = 1347181345922748456  # Replace with the actual role ID
+
+@bot.event
+async def on_ready():
+    print(f'Logged in as {bot.user.name}')
+
+def is_allowed_kick_role():
+    async def predicate(ctx):
+        if ctx.guild:
+            role = ctx.guild.get_role(ALLOWED_KICK_ROLE_ID)
+            if role and role in ctx.author.roles:
+                return True
+        return False
+    return commands.check(predicate)
+
 @bot.command()
-@commands.has_permissions(kick_members=True)
+@is_allowed_kick_role()
 async def kick(ctx, member: discord.Member, *, reason="No reason provided"):
     """Kick a member from the server."""
     try:
@@ -1582,7 +1602,7 @@ async def kick(ctx, member: discord.Member, *, reason="No reason provided"):
         await ctx.send(f"✅ Successfully kicked {member.mention} for: **{reason}**")
 
         # Send a log message to the log channel
-        log_channel = bot.get_channel(1364839238960549908)
+        log_channel = bot.get_channel(LOG_CHANNEL_ID)
         if log_channel:
             log_embed = discord.Embed(
                 title="Kick Action",
@@ -1598,8 +1618,28 @@ async def kick(ctx, member: discord.Member, *, reason="No reason provided"):
         await ctx.send(f"❌ Failed to kick {member.mention}. Error: {e}")
 
 # ----------------------------------------------------------------------------
+
+# Your log channel ID
+LOG_CHANNEL_ID = 1364839238960549908
+
+# The specific role ID that can use the ban command
+ALLOWED_BAN_ROLE_ID = 1347181345922748456  # Replace with the actual role ID
+
+@bot.event
+async def on_ready():
+    print(f'Logged in as {bot.user.name}')
+
+def is_allowed_ban_role():
+    async def predicate(ctx):
+        if ctx.guild:
+            role = ctx.guild.get_role(ALLOWED_BAN_ROLE_ID)
+            if role and role in ctx.author.roles:
+                return True
+        return False
+    return commands.check(predicate)
+
 @bot.command()
-@commands.has_permissions(ban_members=True)
+@is_allowed_ban_role()
 async def ban(ctx, member: discord.Member, *, reason="No reason provided"):
     """Ban a member from the server."""
     try:
@@ -1614,7 +1654,7 @@ async def ban(ctx, member: discord.Member, *, reason="No reason provided"):
         await ctx.send(f"✅ Successfully banned {member.mention} for: **{reason}**")
 
         # Send a log message to the log channel
-        log_channel = bot.get_channel(1364839238960549908)
+        log_channel = bot.get_channel(LOG_CHANNEL_ID)
         if log_channel:
             log_embed = discord.Embed(
                 title="Ban Action",
@@ -1633,12 +1673,24 @@ async def ban(ctx, member: discord.Member, *, reason="No reason provided"):
 # Your log channel ID
 LOG_CHANNEL_ID = 1364839238960549908
 
+# The specific role ID that can use the timeout command
+ALLOWED_ROLE_ID = 1347181345922748456  # Replace with the actual role ID
+
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
 
+def is_allowed_role():
+    async def predicate(ctx):
+        if ctx.guild:
+            role = ctx.guild.get_role(ALLOWED_ROLE_ID)
+            if role and role in ctx.author.roles:
+                return True
+        return False
+    return commands.check(predicate)
+
 @bot.command()
-@commands.has_permissions(moderate_members=True)
+@is_allowed_role()
 async def timeout(ctx, member: discord.Member, time: str, *, reason="No reason provided."):
     try:
         time = time.lower()
