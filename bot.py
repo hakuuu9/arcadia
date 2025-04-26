@@ -1647,6 +1647,33 @@ async def timeout(ctx, member: discord.Member, time: str, *, reason="No reason p
 
 # -----------------------------------------------------------------------------
 
+@bot.command()
+@commands.has_permissions(manage_roles=True)
+@commands.bot_has_permissions(manage_roles=True)
+async def createrole(ctx, role_name: str, role_icon: discord.Emoji = None):
+    """Creates a new role with a specified name and optional icon (server emoji).
+
+    Requires:
+        - You to have the 'Manage Roles' permission.
+        - The bot to have the 'Manage Roles' permission.
+
+    Usage:
+        !createrole [role name] [optional server emoji]
+        Example:
+        !createrole Newbies :star:
+        !createrole VIP
+    """
+    try:
+        if role_icon:
+            role = await ctx.guild.create_role(name=role_name, mentionable=True, icon=role_icon)
+            await ctx.send(f"✅ Role '{role.name}' created with icon {role.icon}!")
+        else:
+            role = await ctx.guild.create_role(name=role_name, mentionable=True)
+            await ctx.send(f"✅ Role '{role.name}' created!")
+    except discord.Forbidden:
+        await ctx.send("❌ I don't have the 'Manage Roles' permission to create roles.")
+    except Exception as e:
+        await ctx.send(f"⚠️ An error occurred while creating the role: {e}")
 
 keep_alive()
 bot.run(TOKEN)
