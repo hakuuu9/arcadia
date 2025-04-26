@@ -1034,69 +1034,58 @@ async def userinfo(ctx, member: discord.Member = None):
     embed.set_footer(text=f"Requested by {ctx.author}", icon_url=ctx.author.display_avatar.url)
 
     await ctx.send(embed=embed)
+# -----------------------------------------------------------------------------
 
-@bot.command()
+@bot.command(name="createrole")
 @commands.has_permissions(manage_roles=True)
-async def createrole(ctx, *, args):
+async def create_role(ctx, *, args):
     try:
-        parts = [part.strip() for part in args.split("|")]
-
+        parts = [part.strip() for part in args.split('|')]
         if len(parts) < 2:
-            return await ctx.send("❌ Format: `$createrole | role name | color | (optional emoji)`")
+            await ctx.send("❌ Usage: `$createrole | role name | #hexcolor | optional emoji`")
+            return
 
         role_name = parts[0]
-        color_input = parts[1]
-        emoji_input = parts[2] if len(parts) >= 3 else None
+        hex_color = parts[1].lstrip('#')
+        emoji_or_icon = parts[2] if len(parts) > 2 else None
 
-        # Basic color mapping
-        basic_colors = {
-            "red": discord.Color.red(),
-            "blue": discord.Color.blue(),
-            "green": discord.Color.green(),
-            "orange": discord.Color.orange(),
-            "purple": discord.Color.purple(),
-            "yellow": discord.Color.gold(),
-            "pink": discord.Color.magenta(),
-            "teal": discord.Color.teal(),
-            "grey": discord.Color.light_grey(),
-            "black": discord.Color.default(),
-            "white": discord.Color.default()
-        }
+        try:
+            color = discord.Color(int(hex_color, 16))
+        except ValueError:
+            await ctx.send("❌ Invalid hex color. Use format like `#ff5733`.")
+            return
 
-        # Determine role color
-        color_input_lower = color_input.lower()
-        if color_input_lower in basic_colors:
-            role_color = basic_colors[color_input_lower]
-        else:
-            try:
-                hex_code = color_input.replace("#", "")
-                role_color = discord.Color(int(hex_code, 16))
-            except:
-                return await ctx.send("❌ Invalid color. Use a name like `green` or hex like `#FF5733`")
+        # Determine icon: either an attached image or an emoji from the message
+        role_icon_bytes = None
+        if ctx.message.attachments:
+            img = await ctx.message.attachments[0].read()
+            role_icon_bytes = img
+        elif emoji_or_icon:
+            # Try to extract server emoji
+            emoji_match = re.search(r'<a?:\w+:(\d+)>', emoji_or_icon)
+            if emoji_match:
+                emoji_id = int(emoji_match.group(1))
+                emoji = ctx.guild.get_emoji(emoji_id)
+                if emoji:
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(str(emoji.url)) as resp:
+                            if resp.status == 200:
+                                role_icon_bytes = await resp.read()
 
-        # Create the role
-        new_role = await ctx.guild.create_role(name=role_name, color=role_color)
+        role = await ctx.guild.create_role(
+            name=role_name,
+            color=color,
+            icon=role_icon_bytes if role_icon_bytes else None,
+            reason=f"Created by {ctx.author}"
+        )
 
-        # Optional: Set role icon if valid custom emoji
-        if emoji_input:
-            emoji_name = emoji_input.strip(":").split(":")[-1]
-            found_emoji = discord.utils.get(ctx.guild.emojis, name=emoji_name)
-            if found_emoji:
-                image_bytes = await found_emoji.read()
-                await new_role.edit(display_icon=image_bytes)
-            else:
-                await ctx.send("⚠️ Emoji provided is not a custom server emoji. Role created without icon.")
-
-        await ctx.send(f"✅ Created role **{new_role.name}** successfully!")
+        await ctx.send(f"✅ Role **{role.name}** created successfully!")
 
     except discord.Forbidden:
         await ctx.send("❌ I don't have permission to manage roles.")
     except Exception as e:
-        await ctx.send(f"⚠️ Something went wrong: `{e}`")
-
-from discord.ui import View, Button
-
-from discord.ui import View, Button
+        await ctx.send(f"⚠️ Error: {e}")
+# --------------------------------------------------------------------------------------
 
 @bot.command()
 async def inrole(ctx, *, role_input: str):
