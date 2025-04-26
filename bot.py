@@ -12,6 +12,7 @@ import html
 import time
 import datetime
 import aiohttp
+import webcolors
 from discord import app_commands
 from PIL import Image, ImageDraw, ImageFont
 import io
@@ -1647,33 +1648,53 @@ async def timeout(ctx, member: discord.Member, time: str, *, reason="No reason p
 
 # -----------------------------------------------------------------------------
 
+# List of common web colors (you can expand this!)
+common_colors = [
+    "red", "green", "blue", "yellow", "orange", "purple", "pink", "brown",
+    "cyan", "magenta", "lime", "teal", "olive", "maroon", "navy", "fuchsia",
+    "silver", "gray", "white", "black", "gold", "indigo", "violet", "salmon",
+    "coral", "turquoise", "lavender", "tan", "mustard", "skyblue", "forestgreen"
+]
+
 @bot.command()
-@commands.has_permissions(manage_roles=True)
-@commands.bot_has_permissions(manage_roles=True)
-async def createrole(ctx, role_name: str, role_icon: discord.Emoji = None):
-    """Creates a new role with a specified name and optional icon (server emoji).
-
-    Requires:
-        - You to have the 'Manage Roles' permission.
-        - The bot to have the 'Manage Roles' permission.
-
-    Usage:
-        !createrole [role name] [optional server emoji]
-        Example:
-        !createrole Newbies :star:
-        !createrole VIP
-    """
+async def color_game(ctx):
+    """Starts a color guessing game."""
+    chosen_color_name = random.choice(common_colors)
     try:
-        if role_icon:
-            role = await ctx.guild.create_role(name=role_name, mentionable=True, icon=role_icon)
-            await ctx.send(f"✅ Role '{role.name}' created with icon {role.icon}!")
+        hex_color = webcolors.name_to_hex(chosen_color_name)
+        rgb_tuple = webcolors.name_to_rgb(chosen_color_name)
+    except ValueError:
+        await ctx.send("⚠️ Error: Could not find a valid hex code for the chosen color.")
+        return
+
+    color_embed = discord.Embed(
+        title="🎨 Guess the Color!",
+        description="What color is displayed below?",
+        color=discord.Color.from_rgb(*rgb_tuple)
+    )
+    await ctx.send(embed=color_embed)
+
+    def check(msg):
+        return msg.author == ctx.author and msg.channel == ctx.channel
+
+    try:
+        guess_msg = await bot.wait_for('message', check=check, timeout=30)
+        if guess_msg is None:
+            await ctx.send(f"⏰ Time's up! The color was **{chosen_color_name.title()}**.")
+            return
+
+        guess = guess_msg.content.lower()
+        if guess == chosen_color_name:
+            await ctx.send(f"🎉 Correct! The color was **{chosen_color_name.title()}**, guessed by {ctx.author.mention}!")
+        elif guess in [webcolors.hex_to_name(webcolors.rgb_to_hex(rgb_tuple)), chosen_color_name]:
+            await ctx.send(f"🎉 Correct! The color was **{chosen_color_name.title()}**, guessed by {ctx.author.mention}!")
+        elif chosen_color_name in webcolors.css3_names_to_hex and guess in [alias.lower() for alias in webcolors.name_to_hex_and_aliases(chosen_color_name)[1]]:
+            await ctx.send(f"🎉 Close enough! **{guess.title()}** is also known as **{chosen_color_name.title()}**, guessed by {ctx.author.mention}!")
         else:
-            role = await ctx.guild.create_role(name=role_name, mentionable=True)
-            await ctx.send(f"✅ Role '{role.name}' created!")
-    except discord.Forbidden:
-        await ctx.send("❌ I don't have the 'Manage Roles' permission to create roles.")
-    except Exception as e:
-        await ctx.send(f"⚠️ An error occurred while creating the role: {e}")
+            await ctx.send(f"❌ Not quite! The color was **{chosen_color_name.title()}**. Better luck next time, {ctx.author.mention}!")
+
+    except asyncio.TimeoutError:
+        await ctx.send(f"⏰ Time's up! The color was **{chosen_color_name.title()}**.")
 
 
 keep_alive()
