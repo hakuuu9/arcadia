@@ -471,6 +471,7 @@ async def support_info(ctx):
             "📊 `$unsticky #channel` - Remove a sticky message from a channel.\n"
             "👢 `$kick @user reason` – Kick a member from the server\n"
             "🔨 `$ban @user reason` – Ban a member from the server\n"
+            "🔇 `$timeout @user seconds reason` – Timeout (mute) a user temporarily\n"
         ),
         inline=False
     )
