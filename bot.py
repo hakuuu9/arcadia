@@ -1762,6 +1762,7 @@ HUNT_NOT_READY_EMBED_TEXT = [
     "Your hunt cooldown will end in",
     "You must wait longer before hunting again",
     "BEEP. BOOP. I AM HUNTBOT. I WILL HUNT FOR YOU MASTER.",
+    "HUNTBOT is currently hunting!",
     # Add any other specific text found in the embed when hunt is on cooldown
 ]
 
@@ -1803,6 +1804,7 @@ HUNT_NOT_READY_MESSAGES = [
     "You can hunt again in",
     "Your hunt cooldown will end in",
     "You must wait longer before hunting again",
+    "HUNTBOT is currently hunting!",
     # Add any other specific messages Owo Bot sends when hunt is on cooldown (plain text)
 ]
 
