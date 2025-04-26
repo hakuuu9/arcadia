@@ -12,7 +12,6 @@ import html
 import time
 import datetime
 import aiohttp
-import webcolors
 from discord import app_commands
 from PIL import Image, ImageDraw, ImageFont
 import io
