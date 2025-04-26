@@ -1683,6 +1683,43 @@ async def timeout(ctx, member: discord.Member, time: str, *, reason="No reason p
 
 # -----------------------------------------------------------------------------
 
+@bot.command()
+@commands.has_permissions(manage_guild=True)  # Adjust permission as needed
+async def lookup(ctx, user: discord.Member):
+    """Retrieves and displays information about a specific user."""
+
+    embed = discord.Embed(title=f"User Information: {user.display_name}", color=discord.Color.blurple())
+
+    embed.set_thumbnail(url=user.avatar.url if user.avatar else user.default_avatar.url)
+
+    embed.add_field(name="User ID", value=user.id, inline=False)
+    embed.add_field(name="Username", value=f"{user.name}#{user.discriminator}", inline=False)
+
+    embed.add_field(name="Account Created At", value=datetime.utcfromtimestamp(
+        ((user.id >> 22) + 1420070400000) / 1000
+    ).strftime('%Y-%m-%d %H:%M:%S UTC'), inline=False)
+
+    embed.add_field(name="Joined Server At", value=user.joined_at.strftime('%Y-%m-%d %H:%M:%S UTC'), inline=False)
+
+    roles = [role.mention for role in user.roles if role != ctx.guild.default_role]
+    if roles:
+        embed.add_field(name=f"Roles ({len(roles)})", value=", ".join(roles), inline=False)
+    else:
+        embed.add_field(name="Roles", value="No roles", inline=False)
+
+    status = str(user.status).title()
+    if user.activity:
+        activity_name = user.activity.name
+        activity_type = str(user.activity.type).split('.')[-1].title()
+        embed.add_field(name="Status", value=f"{status} - {activity_type} {activity_name}", inline=False)
+    else:
+        embed.add_field(name="Status", value=status, inline=False)
+
+    embed.add_field(name="Bot Account?", value="Yes" if user.bot else "No", inline=False)
+
+    # You could add more information here if you store it (e.g., warning history)
+
+    await ctx.send(embed=embed)
 
 
 keep_alive()
