@@ -20,6 +20,7 @@ from collections import defaultdict
 from config import TOKEN, GUILD_ID, ROLE_ID, VANITY_LINK, LOG_CHANNEL_ID, VANITY_IMAGE_URL
 from keep_alive import keep_alive
 from datetime import datetime, timedelta
+from pyfiglet import Figlet
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -1683,30 +1684,16 @@ async def timeout(ctx, member: discord.Member, time: str, *, reason="No reason p
 
 # -----------------------------------------------------------------------------
 
+
 @bot.command()
-@commands.has_permissions(manage_emojis_and_stickers=True)
-@commands.bot_has_permissions(manage_emojis_and_stickers=True)
-async def steal(ctx):
-    """Attempts to steal a random emoji from another server."""
-    mutual_guilds = [guild for guild in bot.guilds if guild.id != ctx.guild.id and guild.emojis]
-
-    if not mutual_guilds:
-        return await ctx.send("😔 I'm not in any other servers with emojis that I can access.")
-
-    chosen_guild = random.choice(mutual_guilds)
-    chosen_emoji = random.choice(chosen_guild.emojis)
-
-    try:
-        emoji_name = chosen_emoji.name
-        emoji_bytes = await chosen_emoji.read()
-        new_emoji = await ctx.guild.create_custom_emoji(name=emoji_name, image=emoji_bytes)
-        await ctx.send(f"🎉 Successfully stole and added emoji **{new_emoji}** from **{chosen_guild.name}**!")
-    except discord.Forbidden:
-        await ctx.send("🚫 I don't have the 'Manage Emojis' permission in this server to add new emojis.")
-    except discord.HTTPException as e:
-        await ctx.send(f"⚠️ Failed to steal the emoji due to an error: {e}")
-    except Exception as e:
-        await ctx.send(f"🤔 Something went wrong while trying to steal that emoji: {e}")
+async def textart(ctx, *, text):
+    """Generates ASCII art from the given text."""
+    f = Figlet(font='standard')  # You can change the font here (try 'slant', 'bulbhead', etc.)
+    ascii_art = f.renderText(text)
+    if len(ascii_art) > 2000:  # Discord message limit
+        await ctx.send("⚠️ The generated ASCII art is too long for a Discord message. Try a shorter text.")
+    else:
+        await ctx.send(f"```\n{ascii_art}\n```")
 
 keep_alive()
 bot.run(TOKEN)
