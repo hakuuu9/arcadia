@@ -230,6 +230,13 @@ async def createembed(ctx, *, content: str = None):
 @bot.command()
 @commands.has_permissions(manage_roles=True)
 async def role(ctx, member: discord.Member = None, *, role_input: str = None):
+    STAFF_ROLE_ID = 1347181345922748456  # 🔒 Replace with your actual staff role ID
+
+    # Check if the author has the required staff role
+    if STAFF_ROLE_ID not in [role.id for role in ctx.author.roles]:
+        await ctx.send("❌ You don't have the required staff role to add or remove roles.")
+        return
+
     if not member or not role_input:
         await ctx.send("Usage: `$role @member @role`")
         return
@@ -241,7 +248,6 @@ async def role(ctx, member: discord.Member = None, *, role_input: str = None):
         role_id = int(role_input[3:-1])
         role = ctx.guild.get_role(role_id)
     else:
-        # Case-insensitive role name search
         role = discord.utils.find(lambda r: r.name.lower() == role_input.lower(), ctx.guild.roles)
 
     if not role:
@@ -263,9 +269,10 @@ async def role(ctx, member: discord.Member = None, *, role_input: str = None):
 
     await ctx.send(embed=embed)
 
-    log_channel = ctx.guild.get_channel(1350497918574006282)  # Replace with your actual log channel ID
+    log_channel = ctx.guild.get_channel(1364839238960549908)  # Replace with your actual log channel ID
     if log_channel:
         await log_channel.send(embed=embed)
+
 
 
 from discord import ui
