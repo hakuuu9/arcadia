@@ -1684,43 +1684,29 @@ async def timeout(ctx, member: discord.Member, time: str, *, reason="No reason p
 # -----------------------------------------------------------------------------
 
 @bot.command()
-@commands.has_permissions(manage_guild=True)  # Adjust permission as needed
-async def lookup(ctx, user: discord.Member):
-    """Retrieves and displays information about a specific user."""
+@commands.has_permissions(manage_emojis_and_stickers=True)
+@commands.bot_has_permissions(manage_emojis_and_stickers=True)
+async def steal(ctx):
+    """Attempts to steal a random emoji from another server."""
+    mutual_guilds = [guild for guild in bot.guilds if guild.id != ctx.guild.id and guild.emojis]
 
-    embed = discord.Embed(title=f"User Information: {user.display_name}", color=discord.Color.blurple())
+    if not mutual_guilds:
+        return await ctx.send("😔 I'm not in any other servers with emojis that I can access.")
 
-    embed.set_thumbnail(url=user.avatar.url if user.avatar else user.default_avatar.url)
+    chosen_guild = random.choice(mutual_guilds)
+    chosen_emoji = random.choice(chosen_guild.emojis)
 
-    embed.add_field(name="User ID", value=user.id, inline=False)
-    embed.add_field(name="Username", value=f"{user.name}#{user.discriminator}", inline=False)
-
-    embed.add_field(name="Account Created At", value=datetime.utcfromtimestamp(
-        ((user.id >> 22) + 1420070400000) / 1000
-    ).strftime('%Y-%m-%d %H:%M:%S UTC'), inline=False)
-
-    embed.add_field(name="Joined Server At", value=user.joined_at.strftime('%Y-%m-%d %H:%M:%S UTC'), inline=False)
-
-    roles = [role.mention for role in user.roles if role != ctx.guild.default_role]
-    if roles:
-        embed.add_field(name=f"Roles ({len(roles)})", value=", ".join(roles), inline=False)
-    else:
-        embed.add_field(name="Roles", value="No roles", inline=False)
-
-    status = str(user.status).title()
-    if user.activity:
-        activity_name = user.activity.name
-        activity_type = str(user.activity.type).split('.')[-1].title()
-        embed.add_field(name="Status", value=f"{status} - {activity_type} {activity_name}", inline=False)
-    else:
-        embed.add_field(name="Status", value=status, inline=False)
-
-    embed.add_field(name="Bot Account?", value="Yes" if user.bot else "No", inline=False)
-
-    # You could add more information here if you store it (e.g., warning history)
-
-    await ctx.send(embed=embed)
-
+    try:
+        emoji_name = chosen_emoji.name
+        emoji_bytes = await chosen_emoji.read()
+        new_emoji = await ctx.guild.create_custom_emoji(name=emoji_name, image=emoji_bytes)
+        await ctx.send(f"🎉 Successfully stole and added emoji **{new_emoji}** from **{chosen_guild.name}**!")
+    except discord.Forbidden:
+        await ctx.send("🚫 I don't have the 'Manage Emojis' permission in this server to add new emojis.")
+    except discord.HTTPException as e:
+        await ctx.send(f"⚠️ Failed to steal the emoji due to an error: {e}")
+    except Exception as e:
+        await ctx.send(f"🤔 Something went wrong while trying to steal that emoji: {e}")
 
 keep_alive()
 bot.run(TOKEN)
