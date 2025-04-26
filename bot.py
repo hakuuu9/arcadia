@@ -1603,13 +1603,38 @@ async def ban(ctx, member: discord.Member, *, reason="No reason provided"):
 # ------------------------------------------------------------------------------
 @bot.command()
 @commands.has_permissions(moderate_members=True)
-async def timeout(ctx, member: discord.Member, seconds: int, *, reason="No reason provided"):
+async def timeout(ctx, member: discord.Member, time: str, *, reason="No reason provided."):
     try:
-        duration = datetime.timedelta(seconds=seconds)
-        await member.timeout(duration, reason=reason)
-        await ctx.send(f"🔇 {member.mention} has been timed out for {seconds} seconds. Reason: {reason}")
+        # Parse the time string
+        time = time.lower()
+        seconds = 0
+        if time.endswith("min"):
+            seconds = int(time[:-3]) * 60
+        elif time.endswith("hr"):
+            seconds = int(time[:-2]) * 60 * 60
+        elif time.endswith("d"):
+            seconds = int(time[:-1]) * 60 * 60 * 24
+        else:
+            await ctx.send("❌ Invalid time format! Use formats like `10min`, `2hr`, or `1d`.")
+            return
+
+        # Check if seconds are in the allowed range (Discord limit: 28 days)
+        if seconds <= 0 or seconds > 2419200:
+            await ctx.send("❌ Timeout must be between 1 second and 28 days.")
+            return
+
+        # Apply the timeout
+        await member.timeout_for(datetime.timedelta(seconds=seconds), reason=reason)
+        await ctx.send(f"✅ {member.mention} has been timed out for **{time}**. Reason: {reason}")
+
+        try:
+            await member.send(f"🚫 You have been timed out in **{ctx.guild.name}** for **{time}**.\nReason: {reason}")
+        except discord.Forbidden:
+            pass  # Can't DM the user, ignore
+
     except Exception as e:
-        await ctx.send(f"⚠️ Failed to timeout: {e}")
+        await ctx.send(f"⚠️ Error: {e}")
+
 
 
 keep_alive()
