@@ -5,3 +5,4 @@ flask
 aiohttp
 pillow
 requests
+pyfiglet
