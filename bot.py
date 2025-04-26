@@ -1606,12 +1606,26 @@ async def ban(ctx, member: discord.Member, *, reason="No reason provided"):
         # Try to DM the member first
         try:
             await member.send(f"🔨 You have been banned from **{ctx.guild.name}**.\nReason: **{reason}**")
-        except:
+        except discord.Forbidden:
             pass  # Ignore if DMs are closed
-        
+
         # Ban the member
         await member.ban(reason=reason)
         await ctx.send(f"✅ Successfully banned {member.mention} for: **{reason}**")
+
+        # Send a log message to the log channel
+        log_channel = bot.get_channel(1364839238960549908)
+        if log_channel:
+            log_embed = discord.Embed(
+                title="Ban Action",
+                color=discord.Color.dark_red()
+            )
+            log_embed.add_field(name="Member", value=member.mention, inline=False)
+            log_embed.add_field(name="Moderator", value=ctx.author.mention, inline=False)
+            log_embed.add_field(name="Reason", value=reason, inline=False)
+            log_embed.timestamp = discord.utils.utcnow()
+            await log_channel.send(embed=log_embed)
+
     except Exception as e:
         await ctx.send(f"❌ Failed to ban {member.mention}. Error: {e}")
 # ------------------------------------------------------------------------------
