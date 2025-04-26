@@ -5,4 +5,3 @@ flask
 aiohttp
 pillow
 requests
-webcolors
