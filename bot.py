@@ -1621,7 +1621,8 @@ async def timeout(ctx, member: discord.Member, time: str, *, reason="No reason p
             await ctx.send("❌ Timeout must be between 1 second and 28 days.")
             return
 
-        await member.timeout(duration=timedelta(seconds=seconds), reason=reason)
+        from datetime import timedelta
+        await member.timeout(timedelta(seconds=seconds), reason=reason)
         await ctx.send(f"✅ {member.mention} has been timed out for **{time}**. Reason: {reason}")
 
         try:
