@@ -458,12 +458,10 @@ async def support_info(ctx):
             "📊 `$serverinfo` – Show server stats and info\n"
             "🧹 `$purge [amount]` – Delete messages in a channel\n"
             "⚠️ `$warn @user reason` – Warn a user & log it\n"
-            "🎨 `$createrole | role name | hex color | :emoji:` – Create a custom colored role\n"
             "📌 `$inrole` – Show members with a certain role\n"
             "📊 `$arclb` – $arclb #channel | [title] | [description] | [hex color (optional)] | [GIF URL (optional)]\n"
             "📊 `$sticky #channel your message` - Set a sticky message that reposts when users chat.\n"
             "📊 `$unsticky #channel` - Remove a sticky message from a channel.\n"
-            "🕓 `$uptime` – See how long the bot has been online\n"
         ),
         inline=False
     )
