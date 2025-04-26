@@ -565,80 +565,114 @@ async def hangman(ctx, mode: str = "solo", opponent: discord.Member = None):
     else:
         await ctx.send(f"💀 Game Over! The word was `{word}`")
 
+# --------------------------------------------------------------------------
+
 # Tic Tac Toe Setup
 active_ttt_games = {}
+reaction_emojis = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣"]
 
 @bot.command(name="tictactoe")
 async def tictactoe(ctx, opponent: discord.Member):
     if ctx.author == opponent:
         return await ctx.send("❌ You can't play against yourself!")
+    if opponent.bot:
+        return await ctx.send("🤖 You can't play against a bot!")
 
-    game_id = f"{ctx.channel.id}"
+    game_id = f"{ctx.channel.id}-{ctx.author.id}-{opponent.id}"
     if game_id in active_ttt_games:
-        return await ctx.send("⚠️ A Tic Tac Toe game is already running in this channel.")
+        return await ctx.send("⚠️ A Tic Tac Toe game is already running between you two in this channel.")
 
-    board = [str(i) for i in range(1, 10)]
+    board = [None] * 9  # Use None for empty cells
     players = [ctx.author, opponent]
     symbols = ["❌", "⭕"]
     current_turn = 0
 
-    active_ttt_games[game_id] = {
+    game_data = {
         "board": board,
         "players": players,
         "symbols": symbols,
-        "turn": current_turn
+        "turn": current_turn,
+        "message": None  # To store the board message
     }
+    active_ttt_games[game_id] = game_data
 
-    await ctx.send(render_board(board, players, symbols, current_turn))
+    board_message = await ctx.send(render_board(board, players, symbols, current_turn))
+    game_data["message"] = board_message
+
+    for emoji in reaction_emojis:
+        await board_message.add_reaction(emoji)
 
 
 @bot.event
-async def on_message(message):
-    if message.author.bot:
+async def on_reaction_add(reaction, user):
+    if user.bot:
+        return
+    if str(reaction.emoji) not in reaction_emojis:
+        return
+    if reaction.message.author != bot.user:
         return
 
-    game_id = f"{message.channel.id}"
-    if game_id not in active_ttt_games:
-        return await bot.process_commands(message)
+    game_id_match = None
+    for gid, data in active_ttt_games.items():
+        if data["message"] and data["message"].id == reaction.message.id:
+            # Ensure the game is between the reactor and one of the players
+            if user in data["players"]:
+                game_id_match = gid
+                break
 
-    game = active_ttt_games[game_id]
-    player = message.author
-    if player != game["players"][game["turn"]]:
+    if not game_id_match:
         return
 
-    content = message.content.strip()
-    if not content.isdigit() or not (1 <= int(content) <= 9):
-        return await message.channel.send("⛔ Enter a number between 1 and 9.")
+    game = active_ttt_games[game_id_match]
+    current_player = game["players"][game["turn"]]
+    if user != current_player:
+        await reaction.message.remove_reaction(reaction.emoji, user)
+        return
 
-    pos = int(content) - 1
-    if game["board"][pos] in ["❌", "⭕"]:
-        return await message.channel.send("❗ That spot is already taken.")
+    position = reaction_emojis.index(str(reaction.emoji))
+    if game["board"][position] is not None:
+        await reaction.message.remove_reaction(reaction.emoji, user)
+        return
 
-    game["board"][pos] = game["symbols"][game["turn"]]
+    game["board"][position] = game["symbols"][game["turn"]]
+
+    await reaction.message.clear_reactions()
+    await reaction.message.edit(content=render_board(game["board"], game["players"], game["symbols"], game["turn"]))
 
     if check_win(game["board"], game["symbols"][game["turn"]]):
-        await message.channel.send(render_board(game["board"], game["players"], game["symbols"], game["turn"]))
-        await message.channel.send(f"🏆 {player.mention} wins!")
-        del active_ttt_games[game_id]
+        await reaction.message.edit(content=render_board(game["board"], game["players"], game["symbols"], game["turn"]) + f"\n🏆 {current_player.mention} wins!")
+        del active_ttt_games[game_id_match]
         return
 
-    if all(cell in ["❌", "⭕"] for cell in game["board"]):
-        await message.channel.send(render_board(game["board"], game["players"], game["symbols"], game["turn"]))
-        await message.channel.send("🤝 It's a draw!")
-        del active_ttt_games[game_id]
+    if all(cell is not None for cell in game["board"]):
+        await reaction.message.edit(content=render_board(game["board"], game["players"], game["symbols"], game["turn"]) + "\n🤝 It's a draw!")
+        del active_ttt_games[game_id_match]
         return
 
     game["turn"] = 1 - game["turn"]
-    await message.channel.send(render_board(game["board"], game["players"], game["symbols"], game["turn"]))
+    await reaction.message.edit(content=render_board(game["board"], game["players"], game["symbols"], game["turn"]) + f"\n➡️ {game['players'][game['turn']].mention}'s turn!")
 
-    await bot.process_commands(message)
+    for emoji in reaction_emojis:
+        if game["board"][reaction_emojis.index(emoji)] is None:
+            await reaction.message.add_reaction(emoji)
 
 
 def render_board(board, players, symbols, turn):
-    b = board
-    grid = f"```\n| {b[0]} | {b[1]} | {b[2]} |\n| {b[3]} | {b[4]} | {b[5]} |\n| {b[6]} | {b[7]} | {b[8]} |\n```"
+    grid = "```\n"
+    for i in range(9):
+        if board[i] is None:
+            grid += str(i + 1)
+        else:
+            grid += board[i]
+        if (i + 1) % 3 == 0:
+            grid += "|\n"
+            if i < 8:
+                grid += "|--- --- ---|\n"
+        else:
+            grid += " | "
+    grid += "```"
     turn_msg = f"🎮 Tic Tac Toe: {players[0].mention} ({symbols[0]}) vs {players[1].mention} ({symbols[1]})\n\n" + grid
-    turn_msg += f"\n{players[turn].mention}'s turn! Choose a number from 1–9."
+    turn_msg += f"\n⬆️ {players[turn].mention}'s turn! Click a reaction to make your move."
     return turn_msg
 
 
@@ -649,6 +683,8 @@ def check_win(board, symbol):
         [0, 4, 8], [2, 4, 6]              # diagonals
     ]
     return any(all(board[i] == symbol for i in combo) for combo in wins)
+
+# ---------------------------------------------------------------------------------
 
 wordchain_sessions = {}
 
