@@ -382,7 +382,7 @@ async def info_command(ctx):
             description="Time to play!",
             color=discord.Color.purple()
         ).add_field(
-            name="🎮 Game Commands",
+            name="🎮 Fun Commands",
             value=(
                 "🎲 `$rps @user` - Rock-Paper-Scissors\n"
                 "🎯 `$hangman solo` / `duo @user` / `free` - Hangman modes\n"
@@ -391,6 +391,7 @@ async def info_command(ctx):
                 "🧠 `$unscramble` – Word puzzle\n"
                 "🏆 `$unscramblescore` – Leaderboard\n"
                 "🤔 `$spotlie` - Find the lie!\n"
+                "✍️ `$textart <text>` - Generate ASCII art!\n"
             ),
             inline=False
         ).set_thumbnail(url="https://i.imgur.com/JxsCfCe.gif"),
@@ -1746,6 +1747,42 @@ async def textart(ctx, *, text):
         await ctx.send("⚠️ The generated ASCII art is too long for a Discord message. Try a shorter text.")
     else:
         await ctx.send(f"```\n{ascii_art}\n```")
+
+# -----------------------------------------------------------------------
+
+# The User ID of the Owo Hunt Bot (replace with the actual ID)
+OWO_HUNT_BOT_ID = 408785106942164992  # Example ID, find the real one!
+
+# The ID of your "huntbots only" channel (replace with the actual Channel ID)
+HUNTBOTS_CHANNEL_ID = 1346508582031724615  # Example ID, find the real one!
+
+# The message content to look for when the hunt is NOT ready
+HUNT_NOT_READY_MESSAGES = [
+    "You can hunt again in",
+    "Your hunt cooldown will end in",
+    "You must wait longer before hunting again",
+    # Add any other specific messages Owo Bot sends when hunt is on cooldown
+]
+
+@bot.event
+async def on_message(message):
+    if message.author.id == OWO_HUNT_BOT_ID and message.channel.id == HUNTBOTS_CHANNEL_ID:
+        for not_ready_message in HUNT_NOT_READY_MESSAGES:
+            if not_ready_message in message.content:
+                try:
+                    await message.delete()
+                    if message.reference and message.reference.resolved and not message.reference.resolved.author.bot:
+                        await message.reference.resolved.reply(" охота message from Owo Bot (not ready) has been automatically deleted to keep chat clean.", mention_author=False)
+                    break  # Stop checking other messages if one is found
+                except discord.Forbidden:
+                    print(f"Error: Bot does not have 'Manage Messages' permission in #{message.channel.name}")
+                except discord.NotFound:
+                    print(f"Error: Message to delete not found in #{message.channel.name}")
+                except discord.HTTPException as e:
+                    print(f"Error deleting message in #{message.channel.name}: {e}")
+
+    # This is important to process other bot commands and events
+    await bot.process_commands(message)
 
 keep_alive()
 bot.run(TOKEN)
