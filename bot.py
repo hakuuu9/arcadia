@@ -1100,7 +1100,7 @@ from discord.ui import View, Button
 
 @bot.command()
 async def inrole(ctx, *, role_input: str):
-    # Try to get role by mention, ID, or case-insensitive name
+    # Case-insensitive role lookup
     role = None
     if role_input.startswith("<@&") and role_input.endswith(">"):
         role_id = int(role_input[3:-1])
@@ -1108,7 +1108,6 @@ async def inrole(ctx, *, role_input: str):
     elif role_input.isdigit():
         role = ctx.guild.get_role(int(role_input))
     else:
-        # Case-insensitive role name match
         role = discord.utils.find(lambda r: r.name.lower() == role_input.lower(), ctx.guild.roles)
 
     if not role:
@@ -1132,7 +1131,10 @@ async def inrole(ctx, *, role_input: str):
         )
         if role.icon:
             embed.set_thumbnail(url=role.icon.url)
-        embed.set_footer(text=f"Page {page_index + 1} of {total_pages}")
+        else:
+            embed.set_thumbnail(url="https://i.imgur.com/JxsCfCe.gif")  # fallback gif
+
+        embed.set_footer(text=f"Page {page_index + 1} of {total_pages} • Total members: {len(members_with_role)}")
         return embed
 
     class PaginationView(View):
