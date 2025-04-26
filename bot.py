@@ -977,72 +977,40 @@ async def userinfo(ctx, member: discord.Member = None):
     await ctx.send(embed=embed)
 # -----------------------------------------------------------------------------
 
-afk_users = {}
+afk_users = {}  # {user_id: {"reason": str, "since": datetime}}
 
-@bot.command(name="afk")
+@bot.command()
 async def afk(ctx, *, reason="AFK"):
-    afk_users[ctx.author.id] = reason
-    try:
-        await ctx.author.edit(nick=f"[AFK] {ctx.author.display_name}")
-    except discord.Forbidden:
-        pass  # Bot can't edit nicknames
-
-    embed = discord.Embed(
-        title="🛌 AFK Activated",
-        description=f"**{ctx.author.mention}** is now AFK!\n> **Reason:** {reason}",
-        color=discord.Color.blue(),
-        timestamp=datetime.utcnow()
-    )
-    embed.set_author(name=ctx.guild.name, icon_url=ctx.guild.icon.url if ctx.guild.icon else None)
-    embed.set_footer(text="Arcadia AFK System")
-
-    await ctx.send(embed=embed)
+    afk_users[ctx.author.id] = {
+        "reason": reason,
+        "since": datetime.datetime.utcnow()
+    }
+    await ctx.send(f"{ctx.author.mention} is now AFK: **{reason}**")
 
 @bot.event
 async def on_message(message):
     if message.author.bot:
         return
 
-    # Remove AFK if the user sends a message
+    # If user was AFK and they spoke, remove their AFK
     if message.author.id in afk_users:
         del afk_users[message.author.id]
-        try:
-            if message.author.display_name.startswith("[AFK] "):
-                new_nick = message.author.display_name[5:]
-                await message.author.edit(nick=new_nick)
-        except discord.Forbidden:
-            pass
+        await message.channel.send(f"👋 Welcome back, {message.author.mention}! Removed your AFK status.")
 
-        embed = discord.Embed(
-            title="👋 Welcome Back!",
-            description=f"**{message.author.mention}**, your AFK status has been removed!",
-            color=discord.Color.green(),
-            timestamp=datetime.utcnow()
-        )
-        embed.set_author(name=message.guild.name, icon_url=message.guild.icon.url if message.guild.icon else None)
-        embed.set_footer(text="Arcadia AFK System")
-
-        await message.channel.send(embed=embed)
-
-    # Notify when mentioning an AFK user
-    for user_id in afk_users:
-        if any(mention.id == user_id for mention in message.mentions):
-            reason = afk_users[user_id]
-            user = message.guild.get_member(user_id)
-            if user:
-                embed = discord.Embed(
-                    title="💤 AFK Notice",
-                    description=f"**{user.display_name}** is currently AFK.\n> **Reason:** {reason}",
-                    color=discord.Color.orange(),
-                    timestamp=datetime.utcnow()
-                )
-                embed.set_author(name=message.guild.name, icon_url=message.guild.icon.url if message.guild.icon else None)
-                embed.set_footer(text="Arcadia AFK System")
-
-                await message.channel.send(embed=embed)
-            break
+    # If someone mentions an AFK user
+    for mention in message.mentions:
+        if mention.id in afk_users:
+            afk_info = afk_users[mention.id]
+            since = afk_info["since"]
+            delta = datetime.datetime.utcnow() - since
+            minutes = int(delta.total_seconds() // 60)
+            reason = afk_info["reason"]
+            await message.channel.send(
+                f"💤 {mention.display_name} is AFK ({minutes} min ago): **{reason}**"
+            )
 
     await bot.process_commands(message)
+
 
 # --------------------------------------------------------------------------------------
 
