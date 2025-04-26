@@ -1599,7 +1599,16 @@ async def ban(ctx, member: discord.Member, *, reason="No reason provided"):
         await ctx.send(f"✅ Successfully banned {member.mention} for: **{reason}**")
     except Exception as e:
         await ctx.send(f"❌ Failed to ban {member.mention}. Error: {e}")
-
+# ------------------------------------------------------------------------------
+@bot.command()
+@commands.has_permissions(moderate_members=True)
+async def timeout(ctx, member: discord.Member, seconds: int, *, reason="No reason provided"):
+    try:
+        duration = datetime.timedelta(seconds=seconds)
+        await member.timeout(duration, reason=reason)
+        await ctx.send(f"🔇 {member.mention} has been timed out for {seconds} seconds. Reason: {reason}")
+    except Exception as e:
+        await ctx.send(f"⚠️ Failed to timeout: {e}")
 
 
 keep_alive()
