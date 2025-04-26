@@ -28,6 +28,9 @@ intents.members = True
 
 bot = commands.Bot(command_prefix="$", intents=intents)
 
+# Set the bot's start time
+bot_start_time = datetime.utcnow()
+
 @bot.event
 async def on_presence_update(before, after):
     member = after
