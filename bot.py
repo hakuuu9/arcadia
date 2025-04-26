@@ -1097,7 +1097,7 @@ from discord.ui import View, Button
 
 @bot.command()
 async def inrole(ctx, *, role_input: str):
-    # Try to get role by mention, ID, or name
+    # Try to get role by mention, ID, or case-insensitive name
     role = None
     if role_input.startswith("<@&") and role_input.endswith(">"):
         role_id = int(role_input[3:-1])
@@ -1105,7 +1105,8 @@ async def inrole(ctx, *, role_input: str):
     elif role_input.isdigit():
         role = ctx.guild.get_role(int(role_input))
     else:
-        role = discord.utils.get(ctx.guild.roles, name=role_input)
+        # Case-insensitive role name match
+        role = discord.utils.find(lambda r: r.name.lower() == role_input.lower(), ctx.guild.roles)
 
     if not role:
         await ctx.send("❌ Role not found.")
