@@ -290,7 +290,6 @@ async def role(ctx, member: discord.Member = None, *, role_input: str = None):
         await ctx.send("Usage: `$role @member @role`")
         return
 
-    # Try to parse role by mention, ID, or name
     role = None
     if role_input.isdigit():
         role = ctx.guild.get_role(int(role_input))
@@ -298,14 +297,15 @@ async def role(ctx, member: discord.Member = None, *, role_input: str = None):
         role_id = int(role_input[3:-1])
         role = ctx.guild.get_role(role_id)
     else:
-        role = discord.utils.get(ctx.guild.roles, name=role_input)
+        # Case-insensitive role name search
+        role = discord.utils.find(lambda r: r.name.lower() == role_input.lower(), ctx.guild.roles)
 
     if not role:
         await ctx.send("❌ Couldn't find that role.")
         return
 
     embed = discord.Embed(color=discord.Color.blurple())
-    embed.set_thumbnail(url="https://i.imgur.com/JxsCfCe.gif")  # GIF top-right
+    embed.set_thumbnail(url="https://i.imgur.com/JxsCfCe.gif")
     embed.set_footer(text=f"Requested by {ctx.author}", icon_url=ctx.author.display_avatar.url)
 
     if role in member.roles:
@@ -319,11 +319,9 @@ async def role(ctx, member: discord.Member = None, *, role_input: str = None):
 
     await ctx.send(embed=embed)
 
-    # Log to a specific channel by ID
     log_channel = ctx.guild.get_channel(1350497918574006282)  # Replace with your actual log channel ID
     if log_channel:
         await log_channel.send(embed=embed)
-
 
 
 from discord import ui
