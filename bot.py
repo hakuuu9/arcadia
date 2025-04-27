@@ -12,6 +12,7 @@ import html
 import time
 import datetime
 import aiohttp
+from googletrans import Translator
 from discord import app_commands
 from PIL import Image, ImageDraw, ImageFont
 import io
@@ -1879,6 +1880,29 @@ async def on_message(message):
 
     # This is important to process other bot commands and events
     await bot.process_commands(message)
+
+# ----------------------------------------------------------------------------------------------------
+
+translator = Translator()
+
+@bot.command()
+async def translate(ctx, *, text: str):
+    """Automatically detects the language of the text and translates it to English."""
+    try:
+        detection = translator.detect(text)
+        detected_language = detection.lang
+        translation = translator.translate(text, dest='en')
+        await ctx.send(f"**Detected Language ({detected_language}):** {text}\n**Translated to English:** {translation.text}")
+    except Exception as e:
+        await ctx.send(f"❌ Translation to English failed. Error: {e}")
+
+@translate.error
+async def translate_error(ctx, error):
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("⚠️ Please provide the text you want to translate to English. Example: `!translate Kumusta ka?`")
+    else:
+        print(f"Error in translate command: {error}")
+        await ctx.send("❌ An unexpected error occurred during translation.")
 
 keep_alive()
 bot.run(TOKEN)
