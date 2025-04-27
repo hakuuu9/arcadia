@@ -21,6 +21,7 @@ from config import TOKEN, GUILD_ID, ROLE_ID, VANITY_LINK, LOG_CHANNEL_ID, VANITY
 from keep_alive import keep_alive
 from datetime import datetime, timedelta
 from pyfiglet import Figlet
+import ssl
 import pymongo
 from pymongo import MongoClient
 
@@ -1783,12 +1784,14 @@ async def roll_error(ctx, error):
 
 # -------------------------------------------------------------------------------
 
+
 MONGO_URI = "mongodb+srv://hakuuonly:ryukenshin123@cluster0.k2nydsc.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
 
-client = MongoClient(MONGO_URI)
+client = MongoClient(MONGO_URI, ssl_cert_reqs=ssl.CERT_NONE)
 
-db = client["arcadia_bot"]  # your database name
-collection = db["confessions"]  # your collection name
+db = client["arcadia_bot"]
+collection = db["confessions"]
+
 
 CONFESS_CHANNEL_ID = 1364848318034739220  # Your confession public channel
 CONFESSION_LOG_CHANNEL_ID = 1364839238960549908  # Your log channel
