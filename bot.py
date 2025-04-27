@@ -1873,6 +1873,83 @@ async def unsticky(ctx, channel: discord.TextChannel):
     else:
         await ctx.send("❌ No sticky message found in that channel.")
 
+# ------------------------------------------------------------------------
+
+# Store posted messages by channel
+posted_messages = {}
+
+@bot.command()
+async def post(ctx, channel_id: int, option: str, *, message: str = None, interval: str = None):
+    """
+    Post a message with an optional interval or remove a post.
+    Usage: 
+    $post <channel id> | <embed/normal> | <message with emoji support> | <interval>
+    """
+    if not message or not interval:
+        await ctx.send("❗ Please include a message and an interval. Format: `$post <channel id> | <embed/normal> | <message> | <interval>`")
+        return
+
+    # Check if the option (embed/normal) is valid
+    if option not in ['embed', 'normal']:
+        await ctx.send("❗ Please specify 'embed' or 'normal' for message type.")
+        return
+
+    # Check if the channel exists
+    channel = bot.get_channel(channel_id)
+    if not channel:
+        await ctx.send(f"❗ Invalid channel ID: {channel_id}. Please check the channel ID and try again.")
+        return
+
+    # Interval parsing
+    time_interval = parse_interval(interval)
+    if time_interval is None:
+        await ctx.send("❗ Invalid interval format. Use '1min', '60sec', '1d', '1hr', etc.")
+        return
+
+    # Post message as embed or normal
+    if option == 'embed':
+        embed = discord.Embed(description=message, color=discord.Color.purple())
+        embed.set_footer(text="Posted by Arcadia Bot")
+        posted_message = await channel.send(embed=embed)
+    else:
+        posted_message = await channel.send(message)
+
+    # Track the posted message
+    if channel.id not in posted_messages:
+        posted_messages[channel.id] = []
+    posted_messages[channel.id].append(posted_message)
+
+    # Send confirmation
+    await ctx.send(f"✅ Your message has been posted in {channel.name} and will be removed in {interval}.")
+
+    # Set a task to remove the post after the interval
+    await asyncio.sleep(time_interval.total_seconds())
+    await posted_message.delete()
+    posted_messages[channel.id].remove(posted_message)
+    await ctx.send(f"✅ The posted message in {channel.name} has been automatically removed after the interval.")
+
+def parse_interval(interval):
+    """Parse a time interval like '1min', '60sec', '1d' into a timedelta object."""
+    interval_pattern = re.compile(r"(\d+)([a-zA-Z]+)")
+    match = interval_pattern.match(interval)
+    if not match:
+        return None
+
+    value = int(match.group(1))
+    unit = match.group(2).lower()
+
+    if unit == 'sec' or unit == 'second' or unit == 's':
+        return timedelta(seconds=value)
+    elif unit == 'min' or unit == 'minute' or unit == 'm':
+        return timedelta(minutes=value)
+    elif unit == 'hour' or unit == 'h':
+        return timedelta(hours=value)
+    elif unit == 'day' or unit == 'd':
+        return timedelta(days=value)
+    else:
+        return None
+
+
 
 keep_alive()
 bot.run(TOKEN)
