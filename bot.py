@@ -1787,10 +1787,14 @@ async def roll_error(ctx, error):
 
 MONGO_URI = "mongodb+srv://hakuuonly:ryukenshin123@cluster0.k2nydsc.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
 
-client = MongoClient(MONGO_URI, ssl_cert_reqs=ssl.CERT_NONE)
+client = MongoClient(
+    MONGO_URI,
+    tls=True,
+    tlsAllowInvalidCertificates=True
+)
 
-db = client["arcadia_bot"]
-collection = db["confessions"]
+db = client["arcadia_bot"]  # Database name
+collection = db["confessions"]  # Collection name
 
 
 CONFESS_CHANNEL_ID = 1364848318034739220  # Your confession public channel
