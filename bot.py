@@ -1663,6 +1663,9 @@ async def kick_error(ctx, error):
 
 # ----------------------------------------------------------------------------
 
+import discord
+from discord.ext import commands
+
 # Your log channel ID
 LOG_CHANNEL_ID = 1364839238960549908
 
@@ -1712,6 +1715,14 @@ async def ban(ctx, member: discord.Member, *, reason="No reason provided"):
 
     except Exception as e:
         await ctx.send(f"❌ Failed to ban {member.mention}. Error: {e}")
+
+@ban.error
+async def ban_error(ctx, error):
+    if isinstance(error, commands.CheckFailure):
+        await ctx.send("⚠️ You do not have the required role to use the ban command.")
+    else:
+        print(f"Error in ban command: {error}")
+        await ctx.send("❌ An unexpected error occurred while trying to ban.")
 # ------------------------------------------------------------------------------
 
 # Your log channel ID
