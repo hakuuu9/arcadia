@@ -1536,19 +1536,22 @@ async def refresh_stickies():
     for channel_id, info in data.items():
         channel = bot.get_channel(int(channel_id))
         if not channel:
+            print(f"Warning: Channel {channel_id} not found.")
             continue
 
         try:
             old_msg = await channel.fetch_message(info["message_id"])
             await old_msg.delete()
-        except:
-            pass
+            print(f"Deleted old sticky in {channel.id}")
+        except Exception as e:
+            print(f"Error deleting sticky in {channel.id}: {e}")
 
         try:
             sent = await channel.send(info["message"])
             data[channel_id]["message_id"] = sent.id
-        except:
-            continue
+            print(f"Sent new sticky in {channel.id} with ID {sent.id}")
+        except Exception as e:
+            print(f"Error sending sticky in {channel.id}: {e}")
 
     with open(STICKY_FILE, "w") as f:
         json.dump(data, f, indent=4)
