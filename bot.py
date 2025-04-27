@@ -1524,12 +1524,6 @@ if not os.path.exists(STICKY_FILE):
     with open(STICKY_FILE, "w") as f:
         json.dump({}, f)
 
-intents = discord.Intents.default()
-intents.messages = True
-intents.guilds = True
-
-bot = commands.Bot(command_prefix="$", intents=intents)
-
 @bot.event
 async def on_ready():
     print(f"✅ Bot is ready. Logged in as {bot.user}")
