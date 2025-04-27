@@ -1725,27 +1725,31 @@ async def ban_error(ctx, error):
         await ctx.send("❌ An unexpected error occurred while trying to ban.")
 # ------------------------------------------------------------------------------
 
+import discord
+from discord.ext import commands
+from datetime import timedelta
+
 # Your log channel ID
 LOG_CHANNEL_ID = 1364839238960549908
 
 # The specific role ID that can use the timeout command
-ALLOWED_ROLE_ID = 1347181345922748456  # Replace with the actual role ID
+ALLOWED_TIMEOUT_ROLE_ID = 1347181345922748456  # Replace with the actual role ID
 
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
 
-def is_allowed_role():
+def is_allowed_timeout_role():
     async def predicate(ctx):
         if ctx.guild:
-            role = ctx.guild.get_role(ALLOWED_ROLE_ID)
+            role = ctx.guild.get_role(ALLOWED_TIMEOUT_ROLE_ID)
             if role and role in ctx.author.roles:
                 return True
         return False
     return commands.check(predicate)
 
 @bot.command()
-@is_allowed_role()
+@is_allowed_timeout_role()
 async def timeout(ctx, member: discord.Member, time: str, *, reason="No reason provided."):
     try:
         time = time.lower()
@@ -1788,6 +1792,14 @@ async def timeout(ctx, member: discord.Member, time: str, *, reason="No reason p
 
     except Exception as e:
         await ctx.send(f"⚠️ Error: {e}")
+
+@timeout.error
+async def timeout_error(ctx, error):
+    if isinstance(error, commands.CheckFailure):
+        await ctx.send("⚠️ You do not have the required role to use the timeout command.")
+    else:
+        print(f"Error in timeout command: {error}")
+        await ctx.send("❌ An unexpected error occurred while trying to timeout.")
 
 # -----------------------------------------------------------------------------
 
