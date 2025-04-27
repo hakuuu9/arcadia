@@ -21,9 +21,6 @@ from config import TOKEN, GUILD_ID, ROLE_ID, VANITY_LINK, LOG_CHANNEL_ID, VANITY
 from keep_alive import keep_alive
 from datetime import datetime, timedelta
 from pyfiglet import Figlet
-import ssl
-import pymongo
-from pymongo import MongoClient
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -1784,21 +1781,8 @@ async def roll_error(ctx, error):
 
 # -------------------------------------------------------------------------------
 
-
-MONGO_URI = "mongodb+srv://hakuuonly:ryukenshin123@cluster0.k2nydsc.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
-
-client = MongoClient(
-    MONGO_URI,
-    tls=True,
-    tlsAllowInvalidCertificates=True
-)
-
-db = client["arcadia_bot"]  # Database name
-collection = db["confessions"]  # Collection name
-
-
-CONFESS_CHANNEL_ID = 1364848318034739220  # Your confession public channel
-CONFESSION_LOG_CHANNEL_ID = 1364839238960549908  # Your log channel
+CONFESS_CHANNEL_ID = 1364848318034739220  # Replace with your public confession channel
+CONFESSION_LOG_CHANNEL_ID = 1364839238960549908  # Replace with your log channel
 
 @bot.command()
 async def confess(ctx, *, message=None):
@@ -1809,20 +1793,9 @@ async def confess(ctx, *, message=None):
     confess_channel = bot.get_channel(CONFESS_CHANNEL_ID)
     log_channel = bot.get_channel(CONFESSION_LOG_CHANNEL_ID)
 
-    # Get confession number by counting documents in MongoDB
-    confession_number = collection.count_documents({}) + 1
-
-    # Insert confession into MongoDB
-    confession_data = {
-        "user_id": ctx.author.id,
-        "confession_number": confession_number,
-        "message": message
-    }
-    collection.insert_one(confession_data)
-
-    # Create public embed
+    # Create public embed (no user mention)
     public_embed = discord.Embed(
-        title=f"Arcadia Confession #{confession_number}",
+        title="Arcadia Confession",
         description=message,
         color=discord.Color.purple()
     )
@@ -1830,7 +1803,7 @@ async def confess(ctx, *, message=None):
 
     # Create private log embed
     log_embed = discord.Embed(
-        title=f"Confession #{confession_number} Logged",
+        title="Confession Logged",
         description=message,
         color=discord.Color.red()
     )
@@ -1840,19 +1813,65 @@ async def confess(ctx, *, message=None):
     if confess_channel:
         await confess_channel.send(embed=public_embed)
 
+        # If sent in a server channel, delete original message
         if isinstance(ctx.channel, discord.TextChannel):
             await ctx.message.delete()
 
-        try:
-            await ctx.author.send("✅ Your confession has been anonymously posted.")
-        except discord.Forbidden:
-            await ctx.send("✅ Your confession has been posted, but I couldn't DM you.")
+        # Acknowledge to user (in DM or public)
+        if isinstance(ctx.channel, discord.DMChannel):
+            await ctx.send("✅ Your confession has been anonymously posted.")
+        else:
+            try:
+                await ctx.author.send("✅ Your confession has been anonymously posted.")
+            except discord.Forbidden:
+                await ctx.send("✅ Your confession has been posted, but I couldn't DM you.")
 
     if log_channel:
         await log_channel.send(embed=log_embed)
     else:
         print("⚠️ Log channel not found. Please check CONFESSION_LOG_CHANNEL_ID.")
 
+# --------------------------------------------------------------------------------------
+
+sticky_messages = {}
+
+@bot.command()
+@commands.has_permissions(manage_messages=True)
+async def sticky(ctx, channel: discord.TextChannel, *, message: str):
+    await ctx.send(f"✅ Sticky message set for {channel.mention}!")
+    
+    async def send_sticky():
+        await bot.wait_until_ready()
+        while True:
+            # Delete the previous sticky if exists
+            if channel.id in sticky_messages:
+                try:
+                    previous_message = await channel.fetch_message(sticky_messages[channel.id])
+                    await previous_message.delete()
+                except Exception:
+                    pass  # Ignore if can't find the message
+
+            # Send the new sticky
+            new_message = await channel.send(message)
+            sticky_messages[channel.id] = new_message.id
+            await asyncio.sleep(60)  # Wait 60 seconds
+
+    bot.loop.create_task(send_sticky())
+
+@bot.command()
+@commands.has_permissions(manage_messages=True)
+async def unsticky(ctx, channel: discord.TextChannel):
+    if channel.id in sticky_messages:
+        try:
+            # Try to fetch and delete the current sticky message
+            sticky_message = await channel.fetch_message(sticky_messages[channel.id])
+            await sticky_message.delete()
+            del sticky_messages[channel.id]
+            await ctx.send(f"✅ Sticky message has been removed from {channel.mention}.")
+        except Exception as e:
+            await ctx.send(f"⚠️ Error: {e}")
+    else:
+        await ctx.send("❌ No sticky message found in that channel.")
 
 
 keep_alive()
