@@ -12,7 +12,6 @@ import html
 import time
 import datetime
 import aiohttp
-from googletrans import Translator
 from discord import app_commands
 from PIL import Image, ImageDraw, ImageFont
 import io
@@ -1882,27 +1881,22 @@ async def on_message(message):
     await bot.process_commands(message)
 
 # ----------------------------------------------------------------------------------------------------
-
-translator = Translator()
-
 @bot.command()
-async def translate(ctx, *, text: str):
-    """Automatically detects the language of the text and translates it to English."""
-    try:
-        detection = translator.detect(text)
-        detected_language = detection.lang
-        translation = translator.translate(text, dest='en')
-        await ctx.send(f"**Detected Language ({detected_language}):** {text}\n**Translated to English:** {translation.text}")
-    except Exception as e:
-        await ctx.send(f"❌ Translation to English failed. Error: {e}")
+async def dice(ctx, sides: int = 6):
+    """Rolls a dice with the specified number of sides (default is 6)."""
+    if sides <= 1:
+        await ctx.send("🎲 The dice must have at least 2 sides!")
+        return
+    roll = random.randint(1, sides)
+    await ctx.send(f"🎲 You rolled a **{roll}** on a {sides}-sided dice!")
 
-@translate.error
-async def translate_error(ctx, error):
-    if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.send("⚠️ Please provide the text you want to translate to English. Example: `!translate Kumusta ka?`")
+@dice.error
+async def dice_error(ctx, error):
+    if isinstance(error, commands.BadArgument):
+        await ctx.send("🎲 Please enter a valid number of sides for the dice.")
     else:
-        print(f"Error in translate command: {error}")
-        await ctx.send("❌ An unexpected error occurred during translation.")
+        print(f"Error in dice command: {error}")
+        await ctx.send("❌ An unexpected error occurred while rolling the dice.")
 
 keep_alive()
 bot.run(TOKEN)
