@@ -29,6 +29,23 @@ intents.members = True
 
 bot = commands.Bot(command_prefix="$", intents=intents)
 
+# Apply rate limit to all commands
+@bot.event
+async def on_ready():
+    print(f'Logged in as {bot.user}')
+
+# Apply the global cooldown
+@bot.command()
+@commands.cooldown(1, 10, commands.BucketType.user)  # 1 command per 10 seconds per user
+async def test(ctx):
+    await ctx.send("This is a test command!")
+
+# Handle cooldown error (optional)
+@test.error
+async def test_error(ctx, error):
+    if isinstance(error, commands.CommandOnCooldown):
+        await ctx.send(f"Please wait {error.retry_after:.2f} seconds before using that command again.")
+
 
 # The ID of the channel to log vanity role grants and removals
 VANITY_LOG_CHANNEL_ID = 1363396246663860356
