@@ -1630,6 +1630,14 @@ async def kick(ctx, member: discord.Member, *, reason="No reason provided"):
     except Exception as e:
         await ctx.send(f"❌ Failed to kick {member.mention}. Error: {e}")
 
+@kick.error
+async def kick_error(ctx, error):
+    if isinstance(error, commands.CheckFailure):
+        await ctx.send("⚠️ You do not have the required role to use the kick command.")
+    else:
+        print(f"Error in kick command: {error}")
+        await ctx.send("❌ An unexpected error occurred while trying to kick.")
+
 # ----------------------------------------------------------------------------
 
 # Your log channel ID
