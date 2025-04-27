@@ -483,6 +483,7 @@ async def support_info(ctx):
             "👢 `$kick @user reason` – Kick a member from the server\n"
             "🔨 `$ban @user reason` – Ban a member from the server\n"
             "🔇 `$timeout @user seconds reason` – Timeout (mute) a user temporarily\n"
+            "📝 **$post command** – Post a message that repeats at specified intervals.\n"
         ),
         inline=False
     )
