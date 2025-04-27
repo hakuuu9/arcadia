@@ -1875,29 +1875,45 @@ async def unsticky(ctx, channel: discord.TextChannel):
 
 # ------------------------------------------------------------------------
 
+
 # Store posted messages by channel
 posted_messages = {}
 
 @bot.command()
-async def post(ctx, channel_id: int, option: str, *, message: str = None, interval: str = None):
+async def post(ctx, *, args: str):
     """
     Post a message with an optional interval or remove a post.
     Usage: 
-    $post <channel id> | <embed/normal> | <message with emoji support> | <interval>
+    $post <channel id or mention> / <embed/normal> / <message with emoji support> / <interval>
     """
+    # Split arguments by '/' and strip any extra spaces
+    args = [arg.strip() for arg in args.split('/')]
+    
+    if len(args) != 4:
+        await ctx.send("❗ Please follow the correct format: `$post <channel id> / <embed/normal> / <message> / <interval>`")
+        return
+    
+    channel_input, option, message, interval = args
+
+    # Try to convert the channel input to a channel object
+    try:
+        if channel_input.startswith('<#') and channel_input.endswith('>'):
+            channel_id = int(channel_input[2:-1])
+        else:
+            channel_id = int(channel_input)
+        
+        channel = bot.get_channel(channel_id)
+    except ValueError:
+        await ctx.send("❗ Invalid channel ID or mention.")
+        return
+
     if not message or not interval:
-        await ctx.send("❗ Please include a message and an interval. Format: `$post <channel id> | <embed/normal> | <message> | <interval>`")
+        await ctx.send("❗ Please include a message and an interval.")
         return
 
     # Check if the option (embed/normal) is valid
     if option not in ['embed', 'normal']:
         await ctx.send("❗ Please specify 'embed' or 'normal' for message type.")
-        return
-
-    # Check if the channel exists
-    channel = bot.get_channel(channel_id)
-    if not channel:
-        await ctx.send(f"❗ Invalid channel ID: {channel_id}. Please check the channel ID and try again.")
         return
 
     # Interval parsing
@@ -1921,6 +1937,9 @@ async def post(ctx, channel_id: int, option: str, *, message: str = None, interv
 
     # Send confirmation
     await ctx.send(f"✅ Your message has been posted in {channel.name} and will be removed in {interval}.")
+
+    # Delete the original $post command message
+    await ctx.message.delete()
 
     # Set a task to remove the post after the interval
     await asyncio.sleep(time_interval.total_seconds())
