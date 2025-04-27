@@ -1519,55 +1519,46 @@ async def confess(ctx, *, message=None):
 
 STICKY_FILE = "sticky_messages.json"
 
+# Create the sticky file if it doesn't exist
 if not os.path.exists(STICKY_FILE):
     with open(STICKY_FILE, "w") as f:
         json.dump({}, f)
 
-# To track timers per channel
-sticky_tasks = {}
+intents = discord.Intents.default()
+intents.messages = True
+intents.guilds = True
+
+bot = commands.Bot(command_prefix="$", intents=intents)
 
 @bot.event
 async def on_ready():
-    print(f"Bot is ready. Logged in as {bot.user}")
+    print(f"✅ Bot is ready. Logged in as {bot.user}")
+    refresh_stickies.start()  # Start the sticky refresher when bot is ready
 
-@bot.event
-async def on_message(message):
-    await bot.process_commands(message)
-
-    if message.author.bot:
-        return
-
+@tasks.loop(seconds=60)
+async def refresh_stickies():
     with open(STICKY_FILE, "r") as f:
         data = json.load(f)
 
-    if str(message.channel.id) not in data:
-        return  # No sticky for this channel
+    for channel_id, info in data.items():
+        channel = bot.get_channel(int(channel_id))
+        if not channel:
+            print(f"⚠️ Warning: Channel {channel_id} not found.")
+            continue
 
-    if message.channel.id in sticky_tasks:
-        sticky_tasks[message.channel.id].cancel()
+        try:
+            old_msg = await channel.fetch_message(info["message_id"])
+            await old_msg.delete()
+            print(f"🗑️ Deleted old sticky in {channel.id}")
+        except Exception as e:
+            print(f"⚠️ Error deleting sticky in {channel.id}: {e}")
 
-    sticky_tasks[message.channel.id] = asyncio.create_task(sticky_timer(message.channel))
-
-async def sticky_timer(channel):
-    await asyncio.sleep(60)  # Wait 60 seconds after last message
-
-    with open(STICKY_FILE, "r") as f:
-        data = json.load(f)
-
-    if str(channel.id) not in data:
-        return
-
-    try:
-        old_msg = await channel.fetch_message(data[str(channel.id)]["message_id"])
-        await old_msg.delete()
-    except Exception as e:
-        print(f"Error deleting old sticky: {e}")
-
-    try:
-        sent = await channel.send(data[str(channel.id)]["message"])
-        data[str(channel.id)]["message_id"] = sent.id
-    except Exception as e:
-        print(f"Error sending new sticky: {e}")
+        try:
+            sent = await channel.send(info["message"])
+            data[channel_id]["message_id"] = sent.id
+            print(f"📌 Sent new sticky in {channel.id} with ID {sent.id}")
+        except Exception as e:
+            print(f"⚠️ Error sending sticky in {channel.id}: {e}")
 
     with open(STICKY_FILE, "w") as f:
         json.dump(data, f, indent=4)
@@ -1613,13 +1604,9 @@ async def unsticky(ctx, channel: discord.TextChannel):
         with open(STICKY_FILE, "w") as f:
             json.dump(data, f, indent=4)
 
-        if channel.id in sticky_tasks:
-            sticky_tasks[channel.id].cancel()
-            del sticky_tasks[channel.id]
-
         await ctx.send(f"❌ Sticky message removed from {channel.mention}")
     else:
-        await ctx.send("No sticky message set in that channel.")
+        await ctx.send("⚠️ No sticky message set in that channel.")
 
 
 # -----------------------------------------------------------------------------
