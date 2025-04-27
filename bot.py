@@ -10,6 +10,7 @@ import re
 import os
 import html
 import time
+from jockie import JockieMusic
 import datetime
 import aiohttp
 from discord import app_commands
@@ -1873,6 +1874,25 @@ async def roll_error(ctx, error):
     else:
         print(f"Error in roll command: {error}")
         await ctx.send("❌ An unexpected error occurred while rolling the dice.")
+
+# -------------------------------------------------------------------------------
+
+# Assuming you have a JockieMusic instance called 'music'
+music = JockieMusic(bot)
+
+@bot.command()
+async def np(ctx):
+    """Now Playing command for the bot."""
+    # Get the current track playing
+    track = music.get_current_track(ctx.guild)
+    
+    if track:
+        # Sending info about the track currently playing
+        await ctx.send(f"🎶 Now Playing: {track.title}\nBy {track.author}")
+    else:
+        # If no music is playing
+        await ctx.send("No music is currently playing in this server. 🎧")
+    
 
 keep_alive()
 bot.run(TOKEN)
