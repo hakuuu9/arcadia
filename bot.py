@@ -21,6 +21,8 @@ from config import TOKEN, GUILD_ID, ROLE_ID, VANITY_LINK, LOG_CHANNEL_ID, VANITY
 from keep_alive import keep_alive
 from datetime import datetime, timedelta
 from pyfiglet import Figlet
+import pymongo
+from pymongo import MongoClient
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -1854,6 +1856,69 @@ async def roll_error(ctx, error):
         await ctx.send("❌ An unexpected error occurred while rolling the dice.")
 
 # -------------------------------------------------------------------------------
+# MongoDB connection string (replace <username>, <password>, and <cluster> with your actual credentials)
+mongodb+srv://hakuuonly:ryukenshin123@cluster0.k2nydsc.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
+
+# Create a MongoClient and access the database
+client = MongoClient(MONGO_URI)
+db = client["arcadia_bot"]  # Replace <database> with the name of your database
+collection = db["confessions"]  # Replace with your collection name
+
+CONFESS_CHANNEL_ID = 1364848318034739220  # Your confession public channel
+CONFESSION_LOG_CHANNEL_ID = 1364839238960549908  # Your log channel
+
+@bot.command()
+async def confess(ctx, *, message=None):
+    if message is None:
+        await ctx.send("❗ Please include a confession message.\nExample: `$confess I love Noir`")
+        return
+
+    confess_channel = bot.get_channel(CONFESS_CHANNEL_ID)
+    log_channel = bot.get_channel(CONFESSION_LOG_CHANNEL_ID)
+
+    # Get confession number by counting documents in MongoDB
+    confession_number = collection.count_documents({}) + 1
+
+    # Insert confession into MongoDB
+    confession_data = {
+        "user_id": ctx.author.id,
+        "confession_number": confession_number,
+        "message": message
+    }
+    collection.insert_one(confession_data)
+
+    # Create public embed
+    public_embed = discord.Embed(
+        title=f"Arcadia Confession #{confession_number}",
+        description=message,
+        color=discord.Color.purple()
+    )
+    public_embed.set_footer(text="Submitted anonymously • Powered by Arcadia with love")
+
+    # Create private log embed
+    log_embed = discord.Embed(
+        title=f"Confession #{confession_number} Logged",
+        description=message,
+        color=discord.Color.red()
+    )
+    log_embed.set_author(name=f"{ctx.author} ({ctx.author.id})", icon_url=ctx.author.display_avatar.url)
+    log_embed.set_footer(text=f"Sent from: {ctx.guild.name if ctx.guild else 'DMs'}")
+
+    if confess_channel:
+        await confess_channel.send(embed=public_embed)
+
+        if isinstance(ctx.channel, discord.TextChannel):
+            await ctx.message.delete()
+
+        try:
+            await ctx.author.send("✅ Your confession has been anonymously posted.")
+        except discord.Forbidden:
+            await ctx.send("✅ Your confession has been posted, but I couldn't DM you.")
+
+    if log_channel:
+        await log_channel.send(embed=log_embed)
+    else:
+        print("⚠️ Log channel not found. Please check CONFESSION_LOG_CHANNEL_ID.")
 
 
 
