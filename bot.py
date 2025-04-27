@@ -1856,13 +1856,13 @@ async def roll_error(ctx, error):
         await ctx.send("❌ An unexpected error occurred while rolling the dice.")
 
 # -------------------------------------------------------------------------------
-# MongoDB connection string (replace <username>, <password>, and <cluster> with your actual credentials)
-mongodb+srv://hakuuonly:ryukenshin123@cluster0.k2nydsc.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
 
-# Create a MongoClient and access the database
+MONGO_URI = "mongodb+srv://hakuuonly:ryukenshin123@cluster0.k2nydsc.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+
 client = MongoClient(MONGO_URI)
-db = client["arcadia_bot"]  # Replace <database> with the name of your database
-collection = db["confessions"]  # Replace with your collection name
+
+db = client["arcadia_bot"]  # your database name
+collection = db["confessions"]  # your collection name
 
 CONFESS_CHANNEL_ID = 1364848318034739220  # Your confession public channel
 CONFESSION_LOG_CHANNEL_ID = 1364839238960549908  # Your log channel
