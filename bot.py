@@ -967,14 +967,30 @@ async def purge_error(ctx, error):
     else:
         await ctx.send(f"⚠️ An error occurred: {error}")
 
+# ------------------------------------------------------------------------------------------
 
-MODLOG_CHANNEL_ID = 1350497918574006282  # Replace with your mod log channel ID
-TALK_CHANNEL_ID = 1363918605678411807  # Channel where warned users are mentioned
-WARNED_ROLE_ID = 1363911975016333402    # "Warned" role that lets users see the warning channel
+# Replace with your mod log channel ID
+MODLOG_CHANNEL_ID = 1350497918574006282
+# Channel where warned users are mentioned
+TALK_CHANNEL_ID = 1363918605678411807
+# "Warned" role that lets users see the warning channel
+WARNED_ROLE_ID = 1363911975016333402
+# The specific role ID that can use the warn command
+ALLOWED_WARN_ROLE_ID = 1347181345922748456  # Replace with the actual role ID
+
+def is_allowed_warn_role():
+    async def predicate(ctx):
+        if ctx.guild:
+            role = ctx.guild.get_role(ALLOWED_WARN_ROLE_ID)
+            if role and role in ctx.author.roles:
+                return True
+        return False
+    return commands.check(predicate)
 
 @bot.command()
-@commands.has_permissions(manage_messages=True)
+@is_allowed_warn_role()
 async def warn(ctx, member: discord.Member, *, reason: str = "No reason provided."):
+    """Warn a member in the server."""
     warning_message = (
         f"⚠️ You have been warned in **{ctx.guild.name}**.\n"
         f"**Reason:** {reason}"
@@ -1012,6 +1028,13 @@ async def warn(ctx, member: discord.Member, *, reason: str = "No reason provided
         embed.set_footer(text=f"Server: {ctx.guild.name}")
         await log_channel.send(embed=embed)
 
+@warn.error
+async def warn_error(ctx, error):
+    if isinstance(error, commands.CheckFailure):
+        await ctx.send("⚠️ You do not have the required role to use the warn command.")
+    else:
+        print(f"Error in warn command: {error}")
+        await ctx.send("❌ An unexpected error occurred while trying to warn.")
 
 
 
