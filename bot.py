@@ -366,87 +366,84 @@ async def rps(ctx, opponent: discord.Member = None):
 async def info_command(ctx):
     pages = [
         discord.Embed(
-            title="📖 Arcadian Bot Command Info - Page 1",
+            title="📖 Arcadian Bot Command Info (Page 1/3)",
             description="Explore all my features, games, utilities, and more!",
             color=discord.Color.purple()
         ).add_field(
-            name="👥 Member Commands",
+            name="👥🎉 Member Commands",
             value=(
-                "🔹 `$ship @user1 @user2` - Ship two users\n"
-                "🔹 `$choose option1, option2` - Randomly choose one\n"
-                "🔹 `$avatar [@user]` - Get user's avatar\n"
-                "🔹 `$8b question` - Magic 8-Ball answers\n"
-                "🔹 `$remind [time] [task]` - Set a reminder\n"
-                "🔹 `$afk [reason]` - Set your AFK status\n"
-                "🔹 `$simpfor @user` – See how hard you're simping for someone\n"
-                "🔹 `$userinfo [@user]` – Display user info\n"
-                "🔹 `$message` – Count a user's messages (overall & per channel)"
-                "🔹 `$autoresponse add/delete/list` – Set auto-replies for keywords\n"
-                "🔹 `$quote` - Reply to a message and turn it into a styled quote image\n"
-                "🔹 `$confess your message` - Send an anonymous confession to a set channel. Also logs the sender privately.\n"
-                "🔹 `$snipe` – Retrieve the last deleted message in a channel\n"
+                "**💘 `$ship @user1 @user2`** — Ship two users\n"
+                "**🎲 `$choose option1, option2`** — Randomly choose one\n"
+                "**🖼️ `$avatar [@user]`** — View a user's avatar\n"
+                "**🎱 `$8b question`** — Magic 8-Ball answers\n"
+                "**⏰ `$remind [time] [task]`** — Set a reminder\n"
+                "**💖 `$simpfor @user`** — How hard are you simping?\n"
+                "**🧑‍💻 `$userinfo [@user]`** — Display user info\n"
+                "**✉️ `$autoresponse add/delete/list`** — Set auto-replies for keywords\n"
+                "**📝 `$quote`** — Turn a message into a styled quote image\n"
+                "**🕊️ `$confess your message`** — Anonymous confession (with private logging)\n"
+                "**👀 `$snipe`** — Retrieve the last deleted message"
             ),
             inline=False
         ).set_thumbnail(url="https://i.imgur.com/JxsCfCe.gif"),
 
         discord.Embed(
-            title="🎮 Arcadian Bot Command Info - Page 2",
+            title="🎮 Arcadian Bot Command Info (Page 2/3)",
             description="Time to play!",
             color=discord.Color.purple()
         ).add_field(
             name="🎮 Fun Commands",
             value=(
-                "🎲 `$rps @user` - Rock-Paper-Scissors\n"
-                "🎯 `$hangman solo` / `duo @user` / `free` - Hangman modes\n"
-                "❌ `$tictactoe @user` - Play Tic Tac Toe\n"
-                "🔤 `$wordchain [word]` - Continue the chain\n"
-                "🧠 `$unscramble` – Word puzzle\n"
-                "🏆 `$unscramblescore` – Leaderboard\n"
-                "🤔 `$spotlie` - Find the lie!\n"
-                "✍️ `$textart <text>` - Generate ASCII art!\n"
+                "**🎲 `$rps @user`** — Rock-Paper-Scissors\n"
+                "**🎯 `$hangman solo/duo/free`** — Hangman modes\n"
+                "**❌ `$tictactoe @user`** — Play Tic Tac Toe\n"
+                "**🔤 `$wordchain [word]`** — Continue the chain\n"
+                "**🧠 `$unscramble`** — Word puzzle\n"
+                "**🏆 `$unscramblescore`** — Leaderboard\n"
+                "**🤔 `$spotlie`** — Find the lie!\n"
+                "**✍️ `$textart <text>`** — Generate ASCII art!\n"
+                "**🎲 `$roll [max number]`** — Roll a random number"
             ),
             inline=False
         ).set_thumbnail(url="https://i.imgur.com/JxsCfCe.gif"),
 
         discord.Embed(
-            title="🛠️ Arcadian Bot Command Info - Page 3",
+            title="🛠️ Arcadian Bot Command Info (Page 3/3)",
             description="Useful tools and utilities.",
             color=discord.Color.purple()
         ).add_field(
             name="🔧 Utility Commands",
             value=(
-                "🤖 `$arcadia [question]` - Ask Arcadia anything"
+                "**🤖 `$arcadia [question]`** — Ask Arcadia anything"
             ),
             inline=False
         ).set_thumbnail(url="https://i.imgur.com/JxsCfCe.gif"),
     ]
 
     current_page = 0
+    total_pages = len(pages)
 
     class PaginatorView(View):
         def __init__(self):
             super().__init__(timeout=300)
             self.value = None
+            self.page = current_page
 
-        @discord.ui.button(label="◀️ Prev", style=discord.ButtonStyle.blurple)
-        async def prev(self, interaction: discord.Interaction, button: Button):
-            nonlocal current_page
+        @discord.ui.button(label="Previous", style=discord.ButtonStyle.secondary)
+        async def previous(self, interaction: discord.Interaction, button: Button):
             if interaction.user != ctx.author:
-                await interaction.response.send_message("Only the command author can use the buttons!", ephemeral=True)
+                await interaction.response.send_message("Only the command user can use this.", ephemeral=True)
                 return
+            self.page = (self.page - 1) % total_pages
+            await interaction.response.edit_message(embed=pages[self.page], view=self)
 
-            current_page = (current_page - 1) % len(pages)
-            await interaction.response.edit_message(embed=pages[current_page], view=self)
-
-        @discord.ui.button(label="Next ▶️", style=discord.ButtonStyle.blurple)
+        @discord.ui.button(label="Next", style=discord.ButtonStyle.secondary)
         async def next(self, interaction: discord.Interaction, button: Button):
-            nonlocal current_page
             if interaction.user != ctx.author:
-                await interaction.response.send_message("Only the command author can use the buttons!", ephemeral=True)
+                await interaction.response.send_message("Only the command user can use this.", ephemeral=True)
                 return
-
-            current_page = (current_page + 1) % len(pages)
-            await interaction.response.edit_message(embed=pages[current_page], view=self)
+            self.page = (self.page + 1) % total_pages
+            await interaction.response.edit_message(embed=pages[self.page], view=self)
 
         async def on_timeout(self):
             for child in self.children:
