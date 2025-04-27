@@ -1467,6 +1467,7 @@ async def snipe(ctx, amount: int = 1):
 
 CONFESS_CHANNEL_ID = 1364848318034739220  # Replace with your public confession channel
 CONFESSION_LOG_CHANNEL_ID = 1364839238960549908  # Replace with your log channel
+CONFESS_JSON_FILE = "confess.json"  # Path to your JSON file
 
 @bot.command()
 async def confess(ctx, *, message=None):
@@ -1477,9 +1478,19 @@ async def confess(ctx, *, message=None):
     confess_channel = bot.get_channel(CONFESS_CHANNEL_ID)
     log_channel = bot.get_channel(CONFESSION_LOG_CHANNEL_ID)
 
+    # Load existing confessions from the JSON file
+    try:
+        with open(CONFESS_JSON_FILE, "r") as f:
+            confessions = json.load(f)
+    except json.JSONDecodeError:
+        confessions = {}  # If the file is empty or corrupted, start with an empty dict.
+
+    # Find the next confession number (the number of keys in the JSON file + 1)
+    confession_number = len(confessions) + 1
+
     # Create public embed (no user mention)
     public_embed = discord.Embed(
-        title="Arcadia Confession",
+        title=f"Arcadia Confession #{confession_number}",
         description=message,
         color=discord.Color.purple()
     )
@@ -1515,47 +1526,15 @@ async def confess(ctx, *, message=None):
     else:
         print("⚠️ Log channel not found. Please check CONFESSION_LOG_CHANNEL_ID.")
 
-# --------------------------------------------------------------------------------------
+    # Store the confession in the JSON file
+    confessions[str(confession_number)] = {
+        "author": str(ctx.author),
+        "message": message
+    }
 
-sticky_messages = {}
-
-@bot.command()
-@commands.has_permissions(manage_messages=True)
-async def sticky(ctx, channel: discord.TextChannel, *, message: str):
-    await ctx.send(f"✅ Sticky message set for {channel.mention}!")
-    
-    async def send_sticky():
-        await bot.wait_until_ready()
-        while True:
-            # Delete the previous sticky if exists
-            if channel.id in sticky_messages:
-                try:
-                    previous_message = await channel.fetch_message(sticky_messages[channel.id])
-                    await previous_message.delete()
-                except Exception:
-                    pass  # Ignore if can't find the message
-
-            # Send the new sticky
-            new_message = await channel.send(message)
-            sticky_messages[channel.id] = new_message.id
-            await asyncio.sleep(60)  # Wait 60 seconds
-
-    bot.loop.create_task(send_sticky())
-
-@bot.command()
-@commands.has_permissions(manage_messages=True)
-async def unsticky(ctx, channel: discord.TextChannel):
-    if channel.id in sticky_messages:
-        try:
-            # Try to fetch and delete the current sticky message
-            sticky_message = await channel.fetch_message(sticky_messages[channel.id])
-            await sticky_message.delete()
-            del sticky_messages[channel.id]
-            await ctx.send(f"✅ Sticky message has been removed from {channel.mention}.")
-        except Exception as e:
-            await ctx.send(f"⚠️ Error: {e}")
-    else:
-        await ctx.send("❌ No sticky message found in that channel.")
+    # Save the updated confessions back to the JSON file
+    with open(CONFESS_JSON_FILE, "w") as f:
+        json.dump(confessions, f, indent=4)
 
 
 # -----------------------------------------------------------------------------
