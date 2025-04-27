@@ -1,8 +1,9 @@
 
-discord.py
+discord.py>=2.0.0
 openai>=1.0.0
 flask
 aiohttp
 pillow
 requests
 pyfiglet
+jockie-music
