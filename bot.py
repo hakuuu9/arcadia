@@ -1875,7 +1875,6 @@ async def unsticky(ctx, channel: discord.TextChannel):
 
 # ------------------------------------------------------------------------
 
-
 # Store posted messages by channel
 posted_messages = {}
 
@@ -1924,7 +1923,7 @@ async def post(ctx, *, args: str):
 
     # Post message as embed or normal
     if option == 'embed':
-        embed = discord.Embed(description=message, color=discord.Color.purple())
+        embed = discord.Embed(description=message, color=discord.Color.from_rgb(0, 0, 0))  # Set embed color to black
         embed.set_footer(text="Posted by Arcadia Bot")
         posted_message = await channel.send(embed=embed)
     else:
@@ -1936,16 +1935,19 @@ async def post(ctx, *, args: str):
     posted_messages[channel.id].append(posted_message)
 
     # Send confirmation
-    await ctx.send(f"✅ Your message has been posted in {channel.name} and will be removed in {interval}.")
+    await ctx.send(f"✅ Your message has been posted in {channel.name} and will be reposted every {interval}.")
 
     # Delete the original $post command message
     await ctx.message.delete()
 
-    # Set a task to remove the post after the interval
-    await asyncio.sleep(time_interval.total_seconds())
-    await posted_message.delete()
-    posted_messages[channel.id].remove(posted_message)
-    await ctx.send(f"✅ The posted message in {channel.name} has been automatically removed after the interval.")
+    # Set a task to resend the post after the interval
+    while True:
+        await asyncio.sleep(time_interval.total_seconds())
+        if option == 'embed':
+            await channel.send(embed=embed)
+        else:
+            await channel.send(message)
+        print(f"✅ Message reposted in {channel.name}.")
 
 def parse_interval(interval):
     """Parse a time interval like '1min', '60sec', '1d' into a timedelta object."""
@@ -1967,6 +1969,7 @@ def parse_interval(interval):
         return timedelta(days=value)
     else:
         return None
+
 
 
 
