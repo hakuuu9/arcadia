@@ -6,4 +6,3 @@ aiohttp
 pillow
 requests
 pyfiglet
-pymongo[srv]
