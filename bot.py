@@ -1893,100 +1893,139 @@ async def unsticky(ctx, channel: discord.TextChannel):
 
 # ------------------------------------------------------------------------
 
-# Store posted messages by channel
+# Store posted messages and tasks
 posted_messages = {}
+post_tasks = {}
 
 @bot.command()
+@commands.has_permissions(manage_messages=True)
 async def post(ctx, *, args: str):
     """
-    Post a message with an optional interval or remove a post.
-    Usage: 
-    $post <channel id or mention> / <embed/normal> / <message with emoji support> / <interval>
+    Post a message that will be automatically reposted after an interval.
+    Usage:
+    $post <channel id or mention> / <embed/normal> / <message> / <interval>
+    Example:
+    $post #1234567890 / embed / Hello Arcadia! / 1min
     """
-    # Split arguments by '/' and strip any extra spaces
+
     args = [arg.strip() for arg in args.split('/')]
     
     if len(args) != 4:
-        await ctx.send("❗ Please follow the correct format: `$post <channel id> / <embed/normal> / <message> / <interval>`")
+        await ctx.send("❗ Please follow the format: `$post <channel id> / <embed/normal> / <message> / <interval>`")
         return
     
     channel_input, option, message, interval = args
 
-    # Try to convert the channel input to a channel object
+    # Parse the channel
     try:
         if channel_input.startswith('<#') and channel_input.endswith('>'):
             channel_id = int(channel_input[2:-1])
         else:
             channel_id = int(channel_input)
-        
         channel = bot.get_channel(channel_id)
+        if channel is None:
+            raise ValueError
     except ValueError:
         await ctx.send("❗ Invalid channel ID or mention.")
         return
 
-    if not message or not interval:
-        await ctx.send("❗ Please include a message and an interval.")
+    if option.lower() not in ['embed', 'normal']:
+        await ctx.send("❗ Please specify 'embed' or 'normal' for the message type.")
         return
 
-    # Check if the option (embed/normal) is valid
-    if option not in ['embed', 'normal']:
-        await ctx.send("❗ Please specify 'embed' or 'normal' for message type.")
-        return
-
-    # Interval parsing
     time_interval = parse_interval(interval)
     if time_interval is None:
         await ctx.send("❗ Invalid interval format. Use '1min', '60sec', '1d', '1hr', etc.")
         return
 
-    # Post message as embed or normal
-    if option == 'embed':
-        embed = discord.Embed(description=message, color=discord.Color.from_rgb(0, 0, 0))  # Set embed color to black
+    # Send first message
+    if option.lower() == 'embed':
+        embed = discord.Embed(description=message, color=discord.Color.from_rgb(0, 0, 0))  # black color
         embed.set_footer(text="Posted by Arcadia Bot")
         posted_message = await channel.send(embed=embed)
     else:
         posted_message = await channel.send(message)
 
-    # Track the posted message
-    if channel.id not in posted_messages:
-        posted_messages[channel.id] = []
-    posted_messages[channel.id].append(posted_message)
+    posted_messages[channel.id] = posted_message
 
-    # Send confirmation
-    await ctx.send(f"✅ Your message has been posted in {channel.name} and will be reposted every {interval}.")
+    await ctx.send(f"✅ Your message has been posted in {channel.mention} and will repost every **{interval}**.")
 
-    # Delete the original $post command message
+    # Delete the original $post command
     await ctx.message.delete()
 
-    # Set a task to resend the post after the interval
-    while True:
-        await asyncio.sleep(time_interval.total_seconds())
-        if option == 'embed':
-            await channel.send(embed=embed)
-        else:
-            await channel.send(message)
-        print(f"✅ Message reposted in {channel.name}.")
+    # Start the repost loop
+    async def repost_loop():
+        while True:
+            await asyncio.sleep(time_interval.total_seconds())
+            try:
+                await posted_messages[channel.id].delete()
+            except Exception as e:
+                print(f"Error deleting old message: {e}")
+
+            if option.lower() == 'embed':
+                embed = discord.Embed(description=message, color=discord.Color.from_rgb(0, 0, 0))
+                embed.set_footer(text="Posted by Arcadia Bot")
+                new_message = await channel.send(embed=embed)
+            else:
+                new_message = await channel.send(message)
+
+            posted_messages[channel.id] = new_message
+            print(f"✅ Message reposted in {channel.name}.")
+
+    task = asyncio.create_task(repost_loop())
+    post_tasks[channel.id] = task
 
 def parse_interval(interval):
-    """Parse a time interval like '1min', '60sec', '1d' into a timedelta object."""
-    interval_pattern = re.compile(r"(\d+)([a-zA-Z]+)")
-    match = interval_pattern.match(interval)
+    """Parse intervals like 1min, 60sec, 1d, 1hr."""
+    pattern = re.compile(r"(\d+)([a-zA-Z]+)")
+    match = pattern.match(interval)
     if not match:
         return None
 
     value = int(match.group(1))
     unit = match.group(2).lower()
 
-    if unit == 'sec' or unit == 'second' or unit == 's':
+    if unit in ['sec', 's', 'second']:
         return timedelta(seconds=value)
-    elif unit == 'min' or unit == 'minute' or unit == 'm':
+    elif unit in ['min', 'm', 'minute']:
         return timedelta(minutes=value)
-    elif unit == 'hour' or unit == 'h':
+    elif unit in ['hr', 'h', 'hour']:
         return timedelta(hours=value)
-    elif unit == 'day' or unit == 'd':
+    elif unit in ['day', 'd']:
         return timedelta(days=value)
     else:
         return None
+
+
+# --------------------------------------------------------------
+
+# Dictionary to store running tasks
+post_tasks = {}
+
+@bot.command()
+async def unpost(ctx, *, channel_input: str):
+    """
+    Stop reposting a message in the given channel.
+    Usage:
+    $unpost <channel id or mention>
+    """
+    try:
+        if channel_input.startswith('<#') and channel_input.endswith('>'):
+            channel_id = int(channel_input[2:-1])
+        else:
+            channel_id = int(channel_input)
+
+        channel = bot.get_channel(channel_id)
+
+        if channel_id in post_tasks:
+            post_tasks[channel_id].cancel()  # Cancel the repeating task
+            del post_tasks[channel_id]       # Remove from tracking
+            await ctx.send(f"🛑 Stopped reposting messages in {channel.mention}.")
+        else:
+            await ctx.send("❗ There's no active post in that channel.")
+    
+    except ValueError:
+        await ctx.send("❗ Invalid channel ID or mention.")
 
 
 
