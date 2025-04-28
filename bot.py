@@ -1903,20 +1903,20 @@ post_tasks = {}
 @commands.has_permissions(manage_messages=True)
 async def post(ctx, *, args: str):
     """
-    Post a message that will be automatically reposted after an interval.
+    Post a message that will automatically repost after an interval.
     Usage:
-    $post <channel id or mention> / <embed/normal> / <message> / <interval>
+    $post <channel id or mention> / <embed/normal> / <interval> / <message>
     Example:
-    $post #1234567890 / embed / Hello\nWorld! / 1min
+    $post #1234567890 / embed / 1min / Hello Arcadia!\nHow are you today?
     """
 
-    args = [arg.strip() for arg in args.split('/', 3)]  # Split only the first 3 slashes
+    args = [arg.strip() for arg in args.split('/', 3)]  # split into 4 parts only
 
     if len(args) != 4:
-        await ctx.send("❗ Please follow the format: `$post <channel id> / <embed/normal> / <message> / <interval>`")
+        await ctx.send("❗ Please follow the format: `$post <channel id> / <embed/normal> / <interval> / <message>`")
         return
 
-    channel_input, option, message, interval = args
+    channel_input, option, interval, message = args
 
     # Parse the channel
     try:
@@ -1935,12 +1935,13 @@ async def post(ctx, *, args: str):
         await ctx.send("❗ Please specify 'embed' or 'normal' for the message type.")
         return
 
+    # Parse interval
     time_interval = parse_interval(interval)
     if time_interval is None:
         await ctx.send("❗ Invalid interval format. Use '1min', '60sec', '1d', '1hr', etc.")
         return
 
-    # Replace literal '\n' with actual newlines
+    # Replace \n with real newlines
     message = message.replace("\\n", "\n")
 
     # Send first message
@@ -1955,7 +1956,6 @@ async def post(ctx, *, args: str):
 
     await ctx.send(f"✅ Your message has been posted in {channel.mention} and will repost every **{interval}**.")
 
-    # Delete the original $post command
     await ctx.message.delete()
 
     # Start the repost loop
@@ -1980,9 +1980,11 @@ async def post(ctx, *, args: str):
     task = asyncio.create_task(repost_loop())
     post_tasks[channel.id] = task
 
-# Helper function for parsing the interval
 def parse_interval(interval):
     """Parse intervals like 1min, 60sec, 1d, 1hr."""
+    import re
+    from datetime import timedelta
+
     pattern = re.compile(r"(\d+)([a-zA-Z]+)")
     match = pattern.match(interval)
     if not match:
