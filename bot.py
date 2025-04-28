@@ -1801,8 +1801,8 @@ async def roll_error(ctx, error):
 
 # -------------------------------------------------------------------------------
 
-CONFESS_CHANNEL_ID = 1364848318034739220  # Replace with your public confession channel
-CONFESSION_LOG_CHANNEL_ID = 1364839238960549908  # Replace with your log channel
+CONFESS_CHANNEL_ID = 1364848318034739220  # Replace with your public confession channel ID
+CONFESSION_LOG_CHANNEL_ID = 1364839238960549908  # Replace with your confession log channel ID
 
 @bot.command()
 async def confess(ctx, *, message=None):
@@ -1813,7 +1813,7 @@ async def confess(ctx, *, message=None):
     confess_channel = bot.get_channel(CONFESS_CHANNEL_ID)
     log_channel = bot.get_channel(CONFESSION_LOG_CHANNEL_ID)
 
-    # Create public embed (no user mention)
+    # Create public confession embed
     public_embed = discord.Embed(
         title="Arcadia Confession",
         description=message,
@@ -1833,18 +1833,15 @@ async def confess(ctx, *, message=None):
     if confess_channel:
         await confess_channel.send(embed=public_embed)
 
-        # If sent in a server channel, delete original message
+        # Delete original message if sent inside a server
         if isinstance(ctx.channel, discord.TextChannel):
             await ctx.message.delete()
 
-        # Acknowledge to user (in DM or public)
-        if isinstance(ctx.channel, discord.DMChannel):
-            await ctx.send("✅ Your confession has been anonymously posted.")
-        else:
-            try:
-                await ctx.author.send("✅ Your confession has been anonymously posted.")
-            except discord.Forbidden:
-                await ctx.send("✅ Your confession has been posted, but I couldn't DM you.")
+        # Try to DM the user silently (no error message if failed)
+        try:
+            await ctx.author.send("✅ Your confession has been anonymously posted.")
+        except discord.Forbidden:
+            pass  # Do nothing if DMs are locked
 
     if log_channel:
         await log_channel.send(embed=log_embed)
