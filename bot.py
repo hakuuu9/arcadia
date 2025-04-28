@@ -1895,28 +1895,31 @@ async def unsticky(ctx, channel: discord.TextChannel):
 
 # ------------------------------------------------------------------------
 
-# Store posted messages and tasks
-posted_messages = {}
-post_tasks = {}
-
 @bot.command()
 @commands.has_permissions(manage_messages=True)
 async def post(ctx, *, args: str):
     """
-    Post a message that will be automatically reposted after an interval.
-    Usage:
-    $post <channel id or mention> / <embed/normal> / <message> / <interval>
-    Example:
-    $post #1234567890 / embed / Hello Arcadia! / 1min
+    Post a message that supports real multi-line input directly.
     """
 
-    args = [arg.strip() for arg in args.split('/')]
-    
-    if len(args) != 4:
+    # Split only the FIRST THREE parts: channel, option, and the rest (message + interval)
+    try:
+        first_split = args.split('/', 2)
+        channel_input = first_split[0].strip()
+        option = first_split[1].strip()
+        message_and_interval = first_split[2].strip()
+    except IndexError:
         await ctx.send("❗ Please follow the format: `$post <channel id> / <embed/normal> / <message> / <interval>`")
         return
-    
-    channel_input, option, message, interval = args
+
+    # Now find the LAST '/' in message_and_interval
+    if '/' not in message_and_interval:
+        await ctx.send("❗ Please make sure your message and interval are separated by `/` at the end.")
+        return
+
+    last_slash = message_and_interval.rfind('/')
+    message = message_and_interval[:last_slash].strip()
+    interval = message_and_interval[last_slash+1:].strip()
 
     # Parse the channel
     try:
@@ -1940,9 +1943,9 @@ async def post(ctx, *, args: str):
         await ctx.send("❗ Invalid interval format. Use '1min', '60sec', '1d', '1hr', etc.")
         return
 
-    # Send first message
+    # Send the message
     if option.lower() == 'embed':
-        embed = discord.Embed(description=message, color=discord.Color.from_rgb(0, 0, 0))  # black color
+        embed = discord.Embed(description=message, color=discord.Color.from_rgb(0, 0, 0))
         embed.set_footer(text="Posted by Arcadia Bot")
         posted_message = await channel.send(embed=embed)
     else:
@@ -1952,10 +1955,8 @@ async def post(ctx, *, args: str):
 
     await ctx.send(f"✅ Your message has been posted in {channel.mention} and will repost every **{interval}**.")
 
-    # Delete the original $post command
     await ctx.message.delete()
 
-    # Start the repost loop
     async def repost_loop():
         while True:
             await asyncio.sleep(time_interval.total_seconds())
@@ -1976,27 +1977,6 @@ async def post(ctx, *, args: str):
 
     task = asyncio.create_task(repost_loop())
     post_tasks[channel.id] = task
-
-def parse_interval(interval):
-    """Parse intervals like 1min, 60sec, 1d, 1hr."""
-    pattern = re.compile(r"(\d+)([a-zA-Z]+)")
-    match = pattern.match(interval)
-    if not match:
-        return None
-
-    value = int(match.group(1))
-    unit = match.group(2).lower()
-
-    if unit in ['sec', 's', 'second']:
-        return timedelta(seconds=value)
-    elif unit in ['min', 'm', 'minute']:
-        return timedelta(minutes=value)
-    elif unit in ['hr', 'h', 'hour']:
-        return timedelta(hours=value)
-    elif unit in ['day', 'd']:
-        return timedelta(days=value)
-    else:
-        return None
 
 
 # --------------------------------------------------------------
