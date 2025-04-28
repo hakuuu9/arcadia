@@ -501,6 +501,8 @@ async def support_info(ctx):
             "🔨 `$ban @user reason` – Ban a member from the server\n"
             "🔇 `$timeout @user seconds reason` – Timeout (mute) a user temporarily\n"
             "📝 **$post command** – Post a message that repeats at specified intervals.\n"
+            "📝 `$post #channel / embed/normal / message / interval` – Post a repeating message\n"
+            "🛑 `$unpost #channel` – Stop the repeating post in a channel\n"
         ),
         inline=False
     )
