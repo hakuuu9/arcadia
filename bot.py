@@ -258,13 +258,20 @@ async def createembed(ctx, *, content: str = None):
 
 
 @bot.command()
-@commands.has_permissions(manage_roles=True)
 async def role(ctx, member: discord.Member = None, *, role_input: str = None):
-    STAFF_ROLE_ID = 1347181345922748456  # 🔒 Replace with your actual staff role ID
+    # Replace with your actual staff role name and ID
+    STAFF_ROLE_NAME = "Moderator"  # Example role name
+    STAFF_ROLE_ID = 1347181345922748456  # Replace with your actual staff role ID
 
-    # Check if the author has the required staff role
-    if STAFF_ROLE_ID not in [role.id for role in ctx.author.roles]:
+    # Check if the author has the correct staff role by name and ID
+    staff_role = discord.utils.get(ctx.guild.roles, name=STAFF_ROLE_NAME)
+    
+    if not staff_role or staff_role.id != STAFF_ROLE_ID:
         await ctx.send("❌ You don't have the required staff role to add or remove roles.")
+        return
+    
+    if STAFF_ROLE_ID not in [role.id for role in ctx.author.roles]:
+        await ctx.send("❌ You don't have permission to use this command.")
         return
 
     if not member or not role_input:
@@ -302,6 +309,7 @@ async def role(ctx, member: discord.Member = None, *, role_input: str = None):
     log_channel = ctx.guild.get_channel(1364839238960549908)  # Replace with your actual log channel ID
     if log_channel:
         await log_channel.send(embed=embed)
+
 
 
 
