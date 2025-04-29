@@ -13,7 +13,7 @@ import time
 import datetime
 import aiohttp
 from discord import app_commands
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
 import io
 import requests
 from collections import defaultdict
@@ -1394,12 +1394,12 @@ async def on_message(message):
 
 # ----------------------------------------------------------------------------
 
+# Function to download image
 async def download_image(url, path):
     async with aiohttp.ClientSession() as session:
-        async with session.get(url) as resp:
-            if resp.status == 200:
-                with open(path, 'wb') as f:
-                    f.write(await resp.read())
+        async with session.get(url) as response:
+            with open(path, "wb") as f:
+                f.write(await response.read())
 
 @bot.command()
 async def quote(ctx):
@@ -1418,13 +1418,19 @@ async def quote(ctx):
     avatar_path = f"/tmp/{author.id}_avatar.png"
     await download_image(avatar_url, avatar_path)
 
-    # Create quote image
-    image = Image.new("RGB", (1000, 500), (0, 0, 0))
+    # Create the base image
+    width, height = 1000, 500
+    image = Image.new("RGBA", (width, height), (0, 0, 0, 255))
     draw = ImageDraw.Draw(image)
 
-    # Add avatar
+    # Add avatar (Full profile image on left)
     avatar = Image.open(avatar_path).convert("RGBA").resize((200, 200))
-    image.paste(avatar, (100, 150))
+    image.paste(avatar, (50, 150), avatar)
+
+    # Blur effect for the background (right part)
+    blur_area = image.crop((250, 0, width, height))
+    blur_area = blur_area.filter(ImageFilter.GaussianBlur(radius=5))  # Apply blur
+    image.paste(blur_area, (250, 0))
 
     # Load fonts
     font_path_bold = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
@@ -1433,12 +1439,13 @@ async def quote(ctx):
     handle_font = ImageFont.truetype(font_path, 30)
     quote_font = ImageFont.truetype(font_path, 40)
 
-    # Add text
-    draw.text((350, 170), quote_text, font=quote_font, fill="white")
-    draw.text((350, 320), author.display_name, font=name_font, fill="white")
-    draw.text((350, 380), f"@{author.name}", font=handle_font, fill="gray")
+    # Add the quote text
+    max_text_width = width - 300  # Ensure the text stays within bounds
+    draw.text((250, 170), quote_text, font=quote_font, fill="white", width=max_text_width)
+    draw.text((250, 320), author.display_name, font=name_font, fill="white")
+    draw.text((250, 380), f"@{author.name}", font=handle_font, fill="gray")
 
-    # Save and send
+    # Save and send the image
     output_path = f"/tmp/quote_{ctx.message.id}.png"
     image.save(output_path)
 
@@ -1447,6 +1454,7 @@ async def quote(ctx):
     # Cleanup
     os.remove(avatar_path)
     os.remove(output_path)
+
 
 # ---------------------------
 
