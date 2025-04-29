@@ -1394,13 +1394,33 @@ async def on_message(message):
 
 # ----------------------------------------------------------------------------
 
-SPOTIFY_GREEN = (30, 215, 96)
-
 async def download_image(url, path):
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as response:
             with open(path, "wb") as f:
                 f.write(await response.read())
+
+def wrap_text(text, font, max_width):
+    words = text.split()
+    lines, current = [], ""
+    for word in words:
+        test = current + word + " "
+        if font.getlength(test) <= max_width:
+            current = test
+        else:
+            lines.append(current.strip())
+            current = word + " "
+    lines.append(current.strip())
+    return lines
+
+def find_best_font_size(text, font_path, max_width, max_height, max_size=46, min_size=20):
+    for size in range(max_size, min_size - 1, -2):
+        font = ImageFont.truetype(font_path, size)
+        lines = wrap_text(text, font, max_width)
+        total_height = len(lines) * (size + 10)
+        if total_height <= max_height:
+            return font, lines
+    return ImageFont.truetype(font_path, min_size), wrap_text(text, ImageFont.truetype(font_path, min_size), max_width)
 
 @bot.command()
 async def quote(ctx):
@@ -1414,67 +1434,50 @@ async def quote(ctx):
     if not quote_text:
         return await ctx.send("The quoted message is empty.")
 
-    avatar_url = ctx.author.display_avatar.url
-    author_avatar_url = author.display_avatar.url
-    avatar_path = f"/tmp/{ctx.author.id}_bg_avatar.png"
-    author_avatar_path = f"/tmp/{author.id}_avatar.png"
+    # Download quoted user's avatar (used for both background and profile)
+    avatar_url = author.display_avatar.url
+    avatar_path = f"/tmp/{author.id}_avatar.png"
     await download_image(avatar_url, avatar_path)
-    await download_image(author_avatar_url, author_avatar_path)
 
-    # Background image (commander's avatar)
+    # Create background from quoted user's avatar
     width, height = 1000, 500
     bg = Image.open(avatar_path).convert("RGB").resize((width, height))
     blur = bg.filter(ImageFilter.GaussianBlur(15))
-
-    # Dark transparent overlay
-    overlay = Image.new("RGBA", blur.size, (0, 0, 0, 160))
+    overlay = Image.new("RGBA", (width, height), (0, 0, 0, 160))
     base = Image.alpha_composite(blur.convert("RGBA"), overlay)
 
     # Fonts
     font_path_bold = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
     font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-    quote_font = ImageFont.truetype(font_path_bold, 46)
     user_font = ImageFont.truetype(font_path, 32)
 
-    # Add author's avatar (left)
-    profile = Image.open(author_avatar_path).convert("RGBA").resize((140, 140))
+    # Profile image (circle, left)
+    profile = Image.open(avatar_path).convert("RGBA").resize((140, 140))
     mask = Image.new("L", (140, 140), 0)
     draw_mask = ImageDraw.Draw(mask)
     draw_mask.ellipse((0, 0, 140, 140), fill=255)
     base.paste(profile, (80, 180), mask)
 
-    # Draw text
+    # Auto-resize quote text
+    max_text_width = 700
+    max_text_height = 300
+    quote_font, wrapped_lines = find_best_font_size(quote_text, font_path_bold, max_text_width, max_text_height)
+
+    # Draw quote and author name
     draw = ImageDraw.Draw(base)
-
-    # Wrap long text
-    def wrap(text, font, max_width):
-        words = text.split()
-        lines, current = [], ""
-        for word in words:
-            test = current + word + " "
-            if font.getlength(test) < max_width:
-                current = test
-            else:
-                lines.append(current)
-                current = word + " "
-        lines.append(current)
-        return lines
-
-    lines = wrap(quote_text, quote_font, 700)
     y_text = 100
-    for line in lines:
-        draw.text((260, y_text), line.strip(), font=quote_font, fill="white")
-        y_text += 55
+    for line in wrapped_lines:
+        draw.text((260, y_text), line, font=quote_font, fill="white")
+        y_text += quote_font.size + 10
 
     draw.text((260, y_text + 10), f"– {author.display_name}", font=user_font, fill="lightgray")
 
-    # Save
+    # Save and send
     output_path = f"/tmp/spotify_quote_{ctx.message.id}.png"
     base.convert("RGB").save(output_path)
     await ctx.send(file=discord.File(output_path))
 
     os.remove(avatar_path)
-    os.remove(author_avatar_path)
     os.remove(output_path)
 
 
