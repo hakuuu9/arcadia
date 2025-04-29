@@ -1418,19 +1418,27 @@ async def quote(ctx):
     avatar_path = f"/tmp/{author.id}_avatar.png"
     await download_image(avatar_url, avatar_path)
 
-    # Create the base image
+    # Create the base image (1000x500)
     width, height = 1000, 500
     image = Image.new("RGBA", (width, height), (0, 0, 0, 255))
     draw = ImageDraw.Draw(image)
 
-    # Add avatar (Full profile image on left)
-    avatar = Image.open(avatar_path).convert("RGBA").resize((200, 200))
-    image.paste(avatar, (50, 150), avatar)
+    # Add the full avatar as the background (cover the whole image)
+    avatar = Image.open(avatar_path).convert("RGBA")
+    avatar_resized = avatar.resize((width, height))  # Resize avatar to cover entire image
+    image.paste(avatar_resized, (0, 0))
 
-    # Blur effect for the background (right part)
-    blur_area = image.crop((250, 0, width, height))
-    blur_area = blur_area.filter(ImageFilter.GaussianBlur(radius=5))  # Apply blur
-    image.paste(blur_area, (250, 0))
+    # Create transparency for the left side where the avatar is
+    left_side = image.crop((0, 0, 250, height))
+    left_side = left_side.convert("RGBA")
+    left_side_with_transparency = Image.new("RGBA", left_side.size)
+    for x in range(left_side.width):
+        for y in range(left_side.height):
+            r, g, b, a = left_side.getpixel((x, y))
+            left_side_with_transparency.putpixel((x, y), (r, g, b, int(a * 0.5)))  # 50% transparency
+
+    # Paste the semi-transparent left side (profile picture)
+    image.paste(left_side_with_transparency, (0, 0), left_side_with_transparency)
 
     # Load fonts
     font_path_bold = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
@@ -1439,8 +1447,8 @@ async def quote(ctx):
     handle_font = ImageFont.truetype(font_path, 30)
     quote_font = ImageFont.truetype(font_path, 40)
 
-    # Add the quote text
-    max_text_width = width - 300  # Ensure the text stays within bounds
+    # Add the quote text on the right side (with some padding)
+    max_text_width = width - 300  # Text width space (taking into account padding and avatar)
     draw.text((250, 170), quote_text, font=quote_font, fill="white", width=max_text_width)
     draw.text((250, 320), author.display_name, font=name_font, fill="white")
     draw.text((250, 380), f"@{author.name}", font=handle_font, fill="gray")
@@ -1454,6 +1462,7 @@ async def quote(ctx):
     # Cleanup
     os.remove(avatar_path)
     os.remove(output_path)
+
 
 
 # ---------------------------
