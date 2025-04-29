@@ -1394,7 +1394,8 @@ async def on_message(message):
 
 # ----------------------------------------------------------------------------
 
-# Function to download image
+SPOTIFY_GREEN = (30, 215, 96)
+
 async def download_image(url, path):
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as response:
@@ -1406,61 +1407,74 @@ async def quote(ctx):
     if not ctx.message.reference:
         return await ctx.send("Please reply to a message to quote it.")
 
-    quoted_message = await ctx.channel.fetch_message(ctx.message.reference.message_id)
-    author = quoted_message.author
-    quote_text = quoted_message.content.strip()
+    quoted = await ctx.channel.fetch_message(ctx.message.reference.message_id)
+    author = quoted.author
+    quote_text = quoted.content.strip()
 
     if not quote_text:
         return await ctx.send("The quoted message is empty.")
 
-    # Download avatar
-    avatar_url = author.display_avatar.url
-    avatar_path = f"/tmp/{author.id}_avatar.png"
+    avatar_url = ctx.author.display_avatar.url
+    author_avatar_url = author.display_avatar.url
+    avatar_path = f"/tmp/{ctx.author.id}_bg_avatar.png"
+    author_avatar_path = f"/tmp/{author.id}_avatar.png"
     await download_image(avatar_url, avatar_path)
+    await download_image(author_avatar_url, author_avatar_path)
 
-    # Create the base image (1000x500)
+    # Background image (commander's avatar)
     width, height = 1000, 500
-    image = Image.new("RGBA", (width, height), (0, 0, 0, 255))
-    draw = ImageDraw.Draw(image)
+    bg = Image.open(avatar_path).convert("RGB").resize((width, height))
+    blur = bg.filter(ImageFilter.GaussianBlur(15))
 
-    # Add the full avatar as the background (cover the whole image)
-    avatar = Image.open(avatar_path).convert("RGBA")
-    avatar_resized = avatar.resize((width, height))  # Resize avatar to cover entire image
-    image.paste(avatar_resized, (0, 0))
+    # Dark transparent overlay
+    overlay = Image.new("RGBA", blur.size, (0, 0, 0, 160))
+    base = Image.alpha_composite(blur.convert("RGBA"), overlay)
 
-    # Create transparency for the left side where the avatar is
-    left_side = image.crop((0, 0, 250, height))
-    left_side = left_side.convert("RGBA")
-    left_side_with_transparency = Image.new("RGBA", left_side.size)
-    for x in range(left_side.width):
-        for y in range(left_side.height):
-            r, g, b, a = left_side.getpixel((x, y))
-            left_side_with_transparency.putpixel((x, y), (r, g, b, int(a * 0.5)))  # 50% transparency
-
-    # Paste the semi-transparent left side (profile picture)
-    image.paste(left_side_with_transparency, (0, 0), left_side_with_transparency)
-
-    # Load fonts
+    # Fonts
     font_path_bold = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
     font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-    name_font = ImageFont.truetype(font_path_bold, 48)
-    handle_font = ImageFont.truetype(font_path, 30)
-    quote_font = ImageFont.truetype(font_path, 40)
+    quote_font = ImageFont.truetype(font_path_bold, 46)
+    user_font = ImageFont.truetype(font_path, 32)
 
-    # Add the quote text on the right side (with some padding)
-    max_text_width = width - 300  # Text width space (taking into account padding and avatar)
-    draw.text((250, 170), quote_text, font=quote_font, fill="white", width=max_text_width)
-    draw.text((250, 320), author.display_name, font=name_font, fill="white")
-    draw.text((250, 380), f"@{author.name}", font=handle_font, fill="gray")
+    # Add author's avatar (left)
+    profile = Image.open(author_avatar_path).convert("RGBA").resize((140, 140))
+    mask = Image.new("L", (140, 140), 0)
+    draw_mask = ImageDraw.Draw(mask)
+    draw_mask.ellipse((0, 0, 140, 140), fill=255)
+    base.paste(profile, (80, 180), mask)
 
-    # Save and send the image
-    output_path = f"/tmp/quote_{ctx.message.id}.png"
-    image.save(output_path)
+    # Draw text
+    draw = ImageDraw.Draw(base)
 
+    # Wrap long text
+    def wrap(text, font, max_width):
+        words = text.split()
+        lines, current = [], ""
+        for word in words:
+            test = current + word + " "
+            if font.getlength(test) < max_width:
+                current = test
+            else:
+                lines.append(current)
+                current = word + " "
+        lines.append(current)
+        return lines
+
+    lines = wrap(quote_text, quote_font, 700)
+    y_text = 100
+    for line in lines:
+        draw.text((260, y_text), line.strip(), font=quote_font, fill="white")
+        y_text += 55
+
+    draw.text((260, y_text + 10), f"– {author.display_name}", font=user_font, fill="lightgray")
+
+    # Save
+    output_path = f"/tmp/spotify_quote_{ctx.message.id}.png"
+    base.convert("RGB").save(output_path)
     await ctx.send(file=discord.File(output_path))
 
-    # Cleanup
     os.remove(avatar_path)
+    os.remove(author_avatar_path)
     os.remove(output_path)
 
 
