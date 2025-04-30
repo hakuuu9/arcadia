@@ -2111,6 +2111,19 @@ async def download_image(url, filepath):
                 with open(filepath, 'wb') as f:
                     f.write(await resp.read())
 
+# Helper function to create a linear gradient
+def create_linear_gradient(color1, color2, width, height):
+    gradient = Image.new("RGB", (width, height), color1)
+    draw = ImageDraw.Draw(gradient)
+    steps = 256
+    for i in range(height):
+        factor = i / height
+        r = int(color1[0] + (color2[0] - color1[0]) * factor)
+        g = int(color1[1] + (color2[1] - color1[1]) * factor)
+        b = int(color1[2] + (color2[2] - color1[2]) * factor)
+        draw.line([(0, i), (width, i)], fill=(r, g, b))
+    return gradient
+
 # Helper function to wrap text
 def draw_wrapped_text(draw, text, font, x, y, width, max_height, line_height, fill="white"):
     wrapped_text = textwrap.fill(text, width=width)
@@ -2137,68 +2150,91 @@ async def profilecard(ctx, member: discord.Member = None):
     else:
         banner_path = None
 
-    # Create the background image
+    # Create the background image with a subtle gradient
     width, height = 1000, 500
-    if banner_path:
-        banner = Image.open(banner_path).resize((width, height))
-        base = banner
-    else:
-        # Use avatar as background if no banner is available
-        bg = Image.open(avatar_path).convert("RGB").resize((width, height))
-        blur = bg.filter(ImageFilter.GaussianBlur(18))
-        overlay = Image.new("RGBA", blur.size, (0, 0, 0, 180))
-        base = Image.alpha_composite(blur.convert("RGBA"), overlay)
-
+    color1 = (40, 40, 40)
+    color2 = (60, 60, 60)
+    base = create_linear_gradient(color1, color2, width, height)
     draw = ImageDraw.Draw(base)
 
+    # Fonts
     font_path_bold = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    font_path_regular = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    name_font = ImageFont.truetype(font_path_bold, 42)
+    username_font = ImageFont.truetype(font_path_regular, 30)
+    info_font = ImageFont.truetype(font_path_regular, 24)
+    role_font = ImageFont.truetype(font_path_regular, 20)
+    footer_font = ImageFont.truetype(font_path_regular, 16)
 
-    # Reduced font sizes
-    name_font = ImageFont.truetype(font_path_bold, 40)
-    username_font = ImageFont.truetype(font_path, 30)
-    info_font = ImageFont.truetype(font_path, 25)
-    role_font = ImageFont.truetype(font_path, 22)
-    footer_font = ImageFont.truetype(font_path, 18)
-
-    # Display avatar (rounded)
-    avatar = Image.open(avatar_path).convert("RGBA").resize((180, 180))
-    mask = Image.new("L", (180, 180), 0)
+    # Avatar with subtle border
+    avatar_size = 160
+    avatar = Image.open(avatar_path).convert("RGBA").resize((avatar_size, avatar_size))
+    mask = Image.new("L", (avatar_size, avatar_size), 0)
     draw_mask = ImageDraw.Draw(mask)
-    draw_mask.ellipse((0, 0, 180, 180), fill=255)
-    base.paste(avatar, (70, 160), mask)
+    draw_mask.ellipse((0, 0, avatar_size, avatar_size), fill=255)
+    base.paste(avatar, (80, 150), mask)
+    border_color = (80, 80, 80)
+    border_width = 3
+    draw.ellipse((80 - border_width, 150 - border_width, 80 + avatar_size + border_width, 150 + avatar_size + border_width), outline=border_color, width=border_width)
 
-    # Name (nickname or display name)
-    draw_wrapped_text(draw, member.display_name, name_font, 280, 140, width - 280, 80, 40)
+    # Name and Username
+    draw_wrapped_text(draw, member.display_name, name_font, 260, 145, width - 280, 70, 35)
+    draw.text((260, 185), f"@{member.name}", font=username_font, fill=(180, 180, 180))
 
-    # Username - Positioned below the name
-    draw.text((280, 180), f"@{member.name}", font=username_font, fill="lightgray")
+    # Subtle divider
+    line_y = 220
+    draw.line([(260, line_y), (width - 50, line_y)], fill=(70, 70, 70), width=1)
 
-    # Account and join dates
+    # Info Text with icons (conceptual - you'd need icon files)
+    info_color = (220, 220, 220)
+    icon_size = 20
+    offset_x = 260
+    offset_y = 240
+    line_spacing = 25
+
     created = member.created_at.strftime("%b %d, %Y")
+    # try:
+    #     created_icon = Image.open("created_icon.png").resize((icon_size, icon_size))
+    #     base.paste(created_icon, (offset_x, offset_y))
+    #     draw.text((offset_x + icon_size + 5, offset_y - 3), f"Created: {created}", font=info_font, fill=info_color)
+    # except FileNotFoundError:
+    draw.text((offset_x, offset_y), f"Created: {created}", font=info_font, fill=info_color)
+    offset_y += line_spacing
+
     joined = member.joined_at.strftime("%b %d, %Y") if member.joined_at else "Unknown"
-    draw.text((280, 225), f"Created: {created}", font=info_font, fill="lightgray")
-    draw.text((280, 255), f"Joined: {joined}", font=info_font, fill="lightgray")
+    # try:
+    #     joined_icon = Image.open("joined_icon.png").resize((icon_size, icon_size))
+    #     base.paste(joined_icon, (offset_x, offset_y))
+    #     draw.text((offset_x + icon_size + 5, offset_y - 3), f"Joined: {joined}", font=info_font, fill=info_color)
+    # except FileNotFoundError:
+    draw.text((offset_x, offset_y), f"Joined: {joined}", font=info_font, fill=info_color)
+    offset_y += line_spacing
 
-    # Roles (top 5, excluding @everyone) - Adjusted y_offset and line_height
-    roles = [r for r in member.roles if r.name != "@everyone"]
-    top_roles = sorted(roles, key=lambda r: r.position, reverse=True)[:5]
-    y_offset = 295
-    line_height = 25
-    for i, role in enumerate(top_roles):
-        if y_offset + line_height * (i + 1) > height - 50:  # Prevent roles from going into the footer
-            break
-        draw.text((280, y_offset + line_height * i), f"• {role.name}", font=role_font, fill=role.color.to_rgb())
-
-    # Server Boost Status
     if member.premium_since:
         boost_date = member.premium_since.strftime("%b %d, %Y")
-        draw.text((280, y_offset + line_height * min(5, len(top_roles))), f"Boosting since: {boost_date}", font=info_font, fill="lightgray")
-        y_offset += line_height
+        # try:
+        #     boost_icon = Image.open("boost_icon.png").resize((icon_size, icon_size))
+        #     base.paste(boost_icon, (offset_x, offset_y))
+        #     draw.text((offset_x + icon_size + 5, offset_y - 3), f"Boosting since: {boost_date}", font=info_font, fill=info_color)
+        # except FileNotFoundError:
+        draw.text((offset_x, offset_y), f"Boosting since: {boost_date}", font=info_font, fill=info_color)
+        offset_y += line_spacing + 5 # Add a little extra space before roles
 
-    # Footer text
-    footer_text = "discord.gg/arcadiasolana"
-    draw.text((width - 370, height - 30), footer_text, font=footer_font, fill=(30, 215, 96))
+    # Roles
+    roles = [r for r in member.roles if r.name != "@everyone"]
+    top_roles = sorted(roles, key=lambda r: r.position, reverse=True)[:5]
+    y_offset_roles = offset_y
+    line_height_roles = 22
+    draw.text((260, y_offset_roles - 5), "Top Roles:", font=font_path_bold, fill=(200, 200, 200))
+    y_offset_roles += 20
+    for i, role in enumerate(top_roles):
+        if y_offset_roles + line_height_roles * (i + 1) > height - 50:
+            break
+        draw.text((280, y_offset_roles + line_height_roles * i), f"• {role.name}", font=role_font, fill=role.color.to_rgb())
+
+    # Footer with a different color
+    footer_color = (0, 180, 70)
+    draw.text((width - 350, height - 30), "discord.gg/arcadiasolana", font=footer_font, fill=footer_color)
 
     # Save the profile card
     output_path = f"/tmp/profilecard_{member.id}.png"
@@ -2209,7 +2245,6 @@ async def profilecard(ctx, member: discord.Member = None):
     os.remove(avatar_path)
     if banner_path:
         os.remove(banner_path)
-
 # ----------------------------------------------------------------
 
 # Define the log channel ID and specific channels to react in
