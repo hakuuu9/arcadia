@@ -2122,6 +2122,7 @@ async def profilecard(ctx, member: discord.Member = None):
     font_path_bold = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
     font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
     name_font = ImageFont.truetype(font_path_bold, 50)
+    username_font = ImageFont.truetype(font_path, 35)
     info_font = ImageFont.truetype(font_path, 30)
     role_font = ImageFont.truetype(font_path, 26)
 
@@ -2132,32 +2133,34 @@ async def profilecard(ctx, member: discord.Member = None):
     draw_mask.ellipse((0, 0, 180, 180), fill=255)
     base.paste(avatar, (70, 160), mask)
 
-    # Username and tag
-    draw.text((280, 170), str(member), font=name_font, fill="white")
+    # Name (nickname or display name)
+    draw.text((280, 150), f"{member.display_name}", font=name_font, fill="white")
+
+    # Username
+    draw.text((280, 205), f"@{member.name}", font=username_font, fill="lightgray")
 
     # Account and join dates
     created = member.created_at.strftime("%b %d, %Y")
     joined = member.joined_at.strftime("%b %d, %Y") if member.joined_at else "Unknown"
-    draw.text((280, 240), f"Created: {created}", font=info_font, fill="lightgray")
-    draw.text((280, 280), f"Joined: {joined}", font=info_font, fill="lightgray")
+    draw.text((280, 260), f"Created: {created}", font=info_font, fill="lightgray")
+    draw.text((280, 300), f"Joined: {joined}", font=info_font, fill="lightgray")
 
     # Roles (top 5, excluding @everyone)
     roles = [r for r in member.roles if r.name != "@everyone"]
     top_roles = sorted(roles, key=lambda r: r.position, reverse=True)[:5]
-    y_offset = 340
+    y_offset = 360
     for role in top_roles:
         draw.text((280, y_offset), f"• {role.name}", font=role_font, fill=role.color.to_rgb())
         y_offset += 30
 
-    # Footer label
-    draw.text((width - 220, height - 40), "Profile Card", font=info_font, fill=(30, 215, 96))
+    # Footer text
+    draw.text((width - 370, height - 40), "discord.gg/arcadiasolana", font=info_font, fill=(30, 215, 96))
 
     output_path = f"/tmp/profilecard_{member.id}.png"
     base.convert("RGB").save(output_path)
     await ctx.send(file=discord.File(output_path))
 
     os.remove(avatar_path)
-
 
 
 keep_alive()
