@@ -2198,8 +2198,9 @@ async def profilecard(ctx, member: discord.Member = None):
 
 # ----------------------------------------------------------------
 
-# Define the log channel ID
+# Define the log channel ID and specific channels to react in
 LOG_REACT_ID = 1364839238960549908  # Replace with your actual log channel ID
+REACT_CHANNEL_IDS = [1357663704883396728, 1365257223747534858]  # Replace with your two target channel IDs
 
 # Store the emoji globally
 auto_react_emoji = None
@@ -2222,19 +2223,16 @@ async def autoreact_loop():
     if not auto_react_emoji:
         return  # Exit if emoji is not set
 
-    for guild in bot.guilds:
-        # Get all text channels where the bot has permission to read messages
-        text_channels = [
-            ch for ch in guild.text_channels if ch.permissions_for(guild.me).read_messages
-        ]
-        if not text_channels:
+    log_channel = bot.get_channel(LOG_REACT_ID)
+
+    for channel_id in REACT_CHANNEL_IDS:
+        channel = bot.get_channel(channel_id)
+        if not channel:
+            if log_channel:
+                await log_channel.send(f"⚠️ Could not find channel with ID {channel_id}.")
             continue
 
-        channel = random.choice(text_channels)
-        log_channel = bot.get_channel(LOG_REACT_ID)
-
         try:
-            # Get recent messages (not from bots)
             messages = [msg async for msg in channel.history(limit=100) if not msg.author.bot]
             if not messages:
                 continue
@@ -2243,13 +2241,14 @@ async def autoreact_loop():
             await message_to_react.add_reaction(auto_react_emoji)
 
             if log_channel:
-                message_link = f"https://discord.com/channels/{guild.id}/{channel.id}/{message_to_react.id}"
+                message_link = f"https://discord.com/channels/{channel.guild.id}/{channel.id}/{message_to_react.id}"
                 await log_channel.send(
-                    f"✅ Auto-reacted with {auto_react_emoji} in {channel.mention} of **{guild.name}**.\n[Jump to message]({message_link})"
+                    f"✅ Auto-reacted with {auto_react_emoji} in {channel.mention} of **{channel.guild.name}**.\n[Jump to message]({message_link})"
                 )
         except Exception as e:
             if log_channel:
                 await log_channel.send(f"⚠️ Error while reacting in {channel.mention}: `{e}`")
+
 
 
 keep_alive()
