@@ -2163,14 +2163,14 @@ async def profilecard(ctx, member: discord.Member = None):
 
     # Draw highest role icon next to name (after name width)
     highest_role = max([r for r in member.roles if r.name != "@everyone"], key=lambda r: r.position, default=None)
-    if highest_role and highest_role.icon:
-        badge_path = f"/tmp/{member.id}_badge.png"
-        await download_image(highest_role.icon.url, badge_path)
-        badge_icon = Image.open(badge_path).convert("RGBA").resize((40, 40))
-        bbox = name_font.getbbox(member.display_name)
-text_width = bbox[2] - bbox[0]
-        base.paste(badge_icon, (name_x + text_width + 10, name_y), badge_icon)
-        os.remove(badge_path)
+   if highest_role and highest_role.icon:
+    badge_path = f"/tmp/{member.id}_badge.png"
+    await download_image(highest_role.icon.url, badge_path)
+    badge_icon = Image.open(badge_path).convert("RGBA").resize((40, 40))
+    text_width = name_font.getbbox(member.display_name)[2] - name_font.getbbox(member.display_name)[0]
+    base.paste(badge_icon, (name_x + text_width + 10, name_y), badge_icon)
+    os.remove(badge_path)
+
 
     # Username
     draw.text((name_x, name_y + 45), f"@{member.name}", font=username_font, fill="lightgray")
