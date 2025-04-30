@@ -2103,154 +2103,106 @@ async def on_message(message):
 
 # ----------------------------------------------------------------------------
 
+# Helper function to download image
 async def download_image(url, filepath):
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as resp:
-                if resp.status == 200:
-                    with open(filepath, 'wb') as f:
-                        f.write(await resp.read())
-                    return True
-                else:
-                    print(f"Error downloading image from {url}: Status {resp.status}")
-                    return False
-    except aiohttp.ClientError as e:
-        print(f"Error downloading image from {url}: {e}")
-        return False
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            if resp.status == 200:
+                with open(filepath, 'wb') as f:
+                    f.write(await resp.read())
 
-def create_linear_gradient(color1, color2, width, height):
-    gradient = Image.new("RGB", (width, height), color1)
-    draw = ImageDraw.Draw(gradient)
-    steps = 256
-    for i in range(height):
-        factor = i / height
-        r = int(color1[0] + (color2[0] - color1[0]) * factor)
-        g = int(color1[1] + (color2[1] - color1[1]) * factor)
-        b = int(color1[2] + (color2[2] - color1[2]) * factor)
-        draw.line([(0, i), (width, i)], fill=(r, g, b))
-    return gradient
-
-def draw_wrapped_text(draw, text, font, x, y, width, max_height, line_height, fill="white"):
+# Helper function to wrap text
+def draw_wrapped_text(draw, text, font, x, y, width, max_height, line_height):
     wrapped_text = textwrap.fill(text, width=width)
     y_offset = y
     for line in wrapped_text.split('\n'):
         if y_offset + line_height > max_height:
             break
-        draw.text((x, y_offset), line, font=font, fill=fill)
+        draw.text((x, y_offset), line, font=font, fill="white")
         y_offset += line_height
 
 @bot.command()
 async def profilecard(ctx, member: discord.Member = None):
     member = member or ctx.author
 
+    # Get the user's avatar and banner
     avatar_url = member.display_avatar.url
     avatar_path = f"/tmp/{member.id}_avatar.png"
-    avatar_downloaded = await download_image(avatar_url, avatar_path)
+    await download_image(avatar_url, avatar_path)
 
     banner_url = member.banner.url if member.banner else None
-    banner_path = f"/tmp/{member.id}_banner.png" if banner_url else None
-    banner_downloaded = await download_image(banner_url, banner_path) if banner_url else True
-
-    if not avatar_downloaded:
-        return await ctx.send("Failed to download avatar.")
-
-    width, height = 1000, 500
-    if banner_path and banner_downloaded:
-        try:
-            banner = Image.open(banner_path).resize((width, height))
-            base = banner
-        except Exception as e:
-            print(f"Error opening banner: {e}")
-            base = create_linear_gradient((40, 40, 40), (60, 60, 60), width, height)
+    if banner_url:
+        banner_path = f"/tmp/{member.id}_banner.png"
+        await download_image(banner_url, banner_path)
     else:
-        try:
-            bg = Image.open(avatar_path).convert("RGB").resize((width, height))
-            blur = bg.filter(ImageFilter.GaussianBlur(18))
-            overlay = Image.new("RGBA", blur.size, (0, 0, 0, 180))
-            base = Image.alpha_composite(blur.convert("RGBA"), overlay)
-        except Exception as e:
-            print(f"Error opening avatar for background: {e}")
-            base = create_linear_gradient((40, 40, 40), (60, 60, 60), width, height)
+        banner_path = None
+
+    # Create the background image
+    width, height = 1000, 500
+    if banner_path:
+        banner = Image.open(banner_path).resize((width, height))
+        base = banner
+    else:
+        # Use avatar as background if no banner is available
+        bg = Image.open(avatar_path).convert("RGB").resize((width, height))
+        blur = bg.filter(ImageFilter.GaussianBlur(18))
+        overlay = Image.new("RGBA", blur.size, (0, 0, 0, 180))
+        base = Image.alpha_composite(blur.convert("RGBA"), overlay)
 
     draw = ImageDraw.Draw(base)
 
     font_path_bold = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-    font_path_regular = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-    try:
-        name_font = ImageFont.truetype(font_path_bold, 42)
-        username_font = ImageFont.truetype(font_path_regular, 30)
-        info_font = ImageFont.truetype(font_path_regular, 24)
-        role_font = ImageFont.truetype(font_path_regular, 20)
-        footer_font = ImageFont.truetype(font_path_regular, 16)
-    except IOError:
-        await ctx.send("Error: Could not load fonts. Please ensure they are available.")
-        return
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 
-    avatar_size = 160
-    try:
-        avatar = Image.open(avatar_path).convert("RGBA").resize((avatar_size, avatar_size))
-        mask = Image.new("L", (avatar_size, avatar_size), 0)
-        draw_mask = ImageDraw.Draw(mask)
-        draw_mask.ellipse((0, 0, avatar_size, avatar_size), fill=255)
-        base.paste(avatar, (80, 150), mask)
-        border_color = (80, 80, 80)
-        border_width = 3
-        draw.ellipse((80 - border_width, 150 - border_width, 80 + avatar_size + border_width, 150 + avatar_size + border_width), outline=border_color, width=border_width)
-    except Exception as e:
-        print(f"Error processing avatar: {e}")
-        return await ctx.send("Error processing user's avatar.")
+    # Reduced font sizes
+    name_font = ImageFont.truetype(font_path_bold, 40)
+    username_font = ImageFont.truetype(font_path, 30)
+    info_font = ImageFont.truetype(font_path, 25)
+    role_font = ImageFont.truetype(font_path, 22)
+    footer_font = ImageFont.truetype(font_path, 18)
 
-    draw_wrapped_text(draw, member.display_name, name_font, 260, 145, width - 280, 70, 35)
-    draw.text((260, 185), f"@{member.name}", font=username_font, fill=(180, 180, 180))
+    # Display avatar (rounded)
+    avatar = Image.open(avatar_path).convert("RGBA").resize((180, 180))
+    mask = Image.new("L", (180, 180), 0)
+    draw_mask = ImageDraw.Draw(mask)
+    draw_mask.ellipse((0, 0, 180, 180), fill=255)
+    base.paste(avatar, (70, 160), mask)
 
-    line_y = 220
-    draw.line([(260, line_y), (width - 50, line_y)], fill=(70, 70, 70), width=1)
+    # Name (nickname or display name)
+    draw_wrapped_text(draw, f"{member.display_name}", name_font, 280, 140, width - 280, 100, 45)
 
-    info_color = (220, 220, 220)
-    offset_x = 260
-    offset_y = 240
-    line_spacing = 25
+    # Username - Positioned below the name
+    draw.text((280, 190), f"@{member.name}", font=username_font, fill="lightgray")
 
+    # Account and join dates
     created = member.created_at.strftime("%b %d, %Y")
-    draw.text((offset_x, offset_y), f"Created: {created}", font=info_font, fill=info_color)
-    offset_y += line_spacing
-
     joined = member.joined_at.strftime("%b %d, %Y") if member.joined_at else "Unknown"
-    draw.text((offset_x, offset_y), f"Joined: {joined}", font=info_font, fill=info_color)
-    offset_y += line_spacing
+    draw.text((280, 235), f"Created: {created}", font=info_font, fill="lightgray")
+    draw.text((280, 265), f"Joined: {joined}", font=info_font, fill="lightgray")
 
-    if member.premium_since:
-        boost_date = member.premium_since.strftime("%b %d, %Y")
-        draw.text((offset_x, offset_y), f"Boosting since: {boost_date}", font=info_font, fill=info_color)
-        offset_y += line_spacing + 5
-
+    # Roles (top 5, excluding @everyone) - Adjusted y_offset and line_height
     roles = [r for r in member.roles if r.name != "@everyone"]
     top_roles = sorted(roles, key=lambda r: r.position, reverse=True)[:5]
-    y_offset_roles = offset_y
-    line_height_roles = 22
-    draw.text((260, y_offset_roles - 5), "Top Roles:", font=font_path_bold, fill=(200, 200, 200))
-    y_offset_roles += 20
+    y_offset = 310
+    line_height = 25
     for i, role in enumerate(top_roles):
-        if y_offset_roles + line_height_roles * (i + 1) > height - 50:
+        if y_offset + line_height * (i + 1) > height - 50:  # Prevent roles from going into the footer
             break
-        draw.text((280, y_offset_roles + line_height_roles * i), f"• {role.name}", font=role_font, fill=role.color.to_rgb())
+        draw.text((280, y_offset + line_height * i), f"• {role.name}", font=role_font, fill=role.color.to_rgb())
 
-    footer_color = (0, 180, 70)
-    draw.text((width - 350, height - 30), "discord.gg/arcadiasolana", font=footer_font, fill=footer_color)
+    # Footer text
+    footer_text = "discord.gg/arcadiasolana"
+    draw.text((width - 370, height - 30), footer_text, font=footer_font, fill=(30, 215, 96))
 
+    # Save the profile card
     output_path = f"/tmp/profilecard_{member.id}.png"
-    try:
-        base.convert("RGB").save(output_path)
-        await ctx.send(file=discord.File(output_path))
-    except Exception as e:
-        await ctx.send(f"Error saving or sending profile card: {e}")
-    finally:
-        try:
-            os.remove(avatar_path)
-            if banner_path:
-                os.remove(banner_path)
-        except OSError as e:
-            print(f"Error cleaning up temporary files: {e}")
+    base.convert("RGB").save(output_path)
+    await ctx.send(file=discord.File(output_path))
+
+    # Clean up the temporary files
+    os.remove(avatar_path)
+    if banner_path:
+        os.remove(banner_path)
             
 # ----------------------------------------------------------------
 
