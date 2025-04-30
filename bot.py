@@ -2197,36 +2197,15 @@ async def profilecard(ctx, member: discord.Member = None):
     draw.text((280, username_y + 40), f"Created: {created}", font=info_font, fill="lightgray")
     draw.text((280, username_y + 70), f"Joined: {joined}", font=info_font, fill="lightgray")
 
-    # Roles (all roles, formatted in columns)
+    # Roles (top 5, excluding @everyone)
     roles = [r for r in member.roles if r.name != "@everyone"]
-    columns = 3  # Set the number of columns
-    max_roles_per_column = len(roles) // columns + (len(roles) % columns > 0)
-    column_width = width // columns
-    y_offset = username_y + 120  # Adjust this to give more space between the avatar and roles
-
-    # Calculate the vertical spacing
-    total_roles = len(roles)
-    rows = (total_roles // columns) + (1 if total_roles % columns > 0 else 0)
-    vertical_spacing = (height - y_offset - 50) // rows  # Make sure there's enough space between roles
-
-    # Loop through the roles and distribute them into columns
-    for i, role in enumerate(roles):
-        column = i % columns
-        row = i // columns
-
-        # Align the first column with the Name, username, etc.
-        if column == 0:
-            x_position = name_x  # Align with name_x for the first column
-        else:
-            x_position = column * column_width + 20  # Adjust for other columns
-
-        y_position = y_offset + (row * vertical_spacing)
-
-        if y_position + 25 > height - 50:
-            break  # Stop if there's no space left
-
-        # Draw the role name
-        draw.text((x_position, y_position), f"• {role.name}", font=role_font, fill=role.color.to_rgb())
+    top_roles = sorted(roles, key=lambda r: r.position, reverse=True)[:5]
+    y_offset = username_y + 110
+    line_height = 25
+    for i, role in enumerate(top_roles):
+        if y_offset + line_height * (i + 1) > height - 50:
+            break
+        draw.text((280, y_offset + line_height * i), f"• {role.name}", font=role_font, fill=role.color.to_rgb())
 
     # Footer
     footer_text = "discord.gg/arcadiasolana"
@@ -2241,6 +2220,7 @@ async def profilecard(ctx, member: discord.Member = None):
     os.remove(avatar_path)
     if banner_path:
         os.remove(banner_path)
+
 # ----------------------------------------------------------------
 
 # Define the log channel ID and specific channels to react in
