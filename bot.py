@@ -2197,15 +2197,27 @@ async def profilecard(ctx, member: discord.Member = None):
     draw.text((280, username_y + 40), f"Created: {created}", font=info_font, fill="lightgray")
     draw.text((280, username_y + 70), f"Joined: {joined}", font=info_font, fill="lightgray")
 
-    # Roles (top 5, excluding @everyone)
+    # Roles (all roles, formatted in columns)
     roles = [r for r in member.roles if r.name != "@everyone"]
-    top_roles = sorted(roles, key=lambda r: r.position, reverse=True)[:5]
+    columns = 3  # Set the number of columns
+    max_roles_per_column = len(roles) // columns + (len(roles) % columns > 0)
+    column_width = width // columns
     y_offset = username_y + 110
-    line_height = 25
-    for i, role in enumerate(top_roles):
-        if y_offset + line_height * (i + 1) > height - 50:
-            break
-        draw.text((280, y_offset + line_height * i), f"• {role.name}", font=role_font, fill=role.color.to_rgb())
+
+    # Loop through the roles and distribute them into columns
+    for i, role in enumerate(roles):
+        column = i % columns
+        row = i // columns
+
+        # Prevent overlapping by adjusting y_offset for each role
+        x_position = column * column_width + 20
+        y_position = y_offset + (row * 25)
+
+        if y_position + 25 > height - 50:
+            break  # Stop if there's no space left
+
+        # Draw the role name
+        draw.text((x_position, y_position), f"• {role.name}", font=role_font, fill=role.color.to_rgb())
 
     # Footer
     footer_text = "discord.gg/arcadiasolana"
