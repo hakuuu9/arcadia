@@ -2217,7 +2217,7 @@ async def setreact(ctx, emoji: str):
     auto_react_emoji = emoji
     await ctx.send(f"✅ Auto-react emoji set to {emoji}")
 
-@tasks.loop(minutes=5)
+@tasks.loop(minutes=10)
 async def autoreact_loop():
     global auto_react_emoji
     if not auto_react_emoji:
