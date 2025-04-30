@@ -2204,6 +2204,11 @@ async def profilecard(ctx, member: discord.Member = None):
     column_width = width // columns
     y_offset = username_y + 120  # Adjust this to give more space between the avatar and roles
 
+    # Calculate the vertical spacing
+    total_roles = len(roles)
+    rows = (total_roles // columns) + (1 if total_roles % columns > 0 else 0)
+    vertical_spacing = (height - y_offset - 50) // rows  # Make sure there's enough space between roles
+
     # Loop through the roles and distribute them into columns
     for i, role in enumerate(roles):
         column = i % columns
@@ -2215,7 +2220,7 @@ async def profilecard(ctx, member: discord.Member = None):
         else:
             x_position = column * column_width + 20  # Adjust for other columns
 
-        y_position = y_offset + (row * 25)
+        y_position = y_offset + (row * vertical_spacing)
 
         if y_position + 25 > height - 50:
             break  # Stop if there's no space left
