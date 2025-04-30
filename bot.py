@@ -2203,11 +2203,13 @@ async def randomreact(ctx, emoji: discord.Emoji):
     
     # This will keep track of the last reaction time
     while True:
-        # Get all messages in the channel
-        messages = await channel.history(limit=100).flatten()  # Adjust limit as needed
+        # Get all messages in the channel (retrieve up to the last 100 messages)
+        messages = await channel.history(limit=100).flatten()
+        
         if messages:
-            # Pick a random message from a random member
+            # Pick a random message from a random member (not the bot)
             random_message = random.choice([msg for msg in messages if msg.author != bot.user])
+            
             try:
                 # React to the message with the provided emoji
                 await random_message.add_reaction(emoji)
@@ -2217,6 +2219,7 @@ async def randomreact(ctx, emoji: discord.Emoji):
         
         # Wait for 1 minute before reacting again
         await asyncio.sleep(60)
+
 
 
 
