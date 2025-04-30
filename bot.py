@@ -2192,6 +2192,31 @@ async def profilecard(ctx, member: discord.Member = None):
     if banner_path:
         os.remove(banner_path)
 
+# ----------------------------------------------------------------
+
+@bot.command()
+async def randomreact(ctx, emoji: discord.Emoji):
+    """The bot will randomly react to a message every 1 minute with the provided emoji."""
+    
+    # Get the channel
+    channel = ctx.channel
+    
+    # This will keep track of the last reaction time
+    while True:
+        # Get all messages in the channel
+        messages = await channel.history(limit=100).flatten()  # Adjust limit as needed
+        if messages:
+            # Pick a random message from a random member
+            random_message = random.choice([msg for msg in messages if msg.author != bot.user])
+            try:
+                # React to the message with the provided emoji
+                await random_message.add_reaction(emoji)
+                print(f"Reacted to message from {random_message.author}")
+            except discord.errors.Forbidden:
+                print(f"Couldn't react to message from {random_message.author} due to permissions.")
+        
+        # Wait for 1 minute before reacting again
+        await asyncio.sleep(60)
 
 
 
