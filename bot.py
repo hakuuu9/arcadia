@@ -2112,13 +2112,13 @@ async def download_image(url, filepath):
                     f.write(await resp.read())
 
 # Helper function to wrap text
-def draw_wrapped_text(draw, text, font, x, y, width, max_height, line_height):
+def draw_wrapped_text(draw, text, font, x, y, width, max_height, line_height, fill="white"):
     wrapped_text = textwrap.fill(text, width=width)
     y_offset = y
     for line in wrapped_text.split('\n'):
         if y_offset + line_height > max_height:
             break
-        draw.text((x, y_offset), line, font=font, fill="white")
+        draw.text((x, y_offset), line, font=font, fill=fill)
         y_offset += line_height
 
 @bot.command()
@@ -2168,27 +2168,33 @@ async def profilecard(ctx, member: discord.Member = None):
     draw_mask.ellipse((0, 0, 180, 180), fill=255)
     base.paste(avatar, (70, 160), mask)
 
-    # Name (nickname or display name) - Reduced max_height and line_height
-    draw_wrapped_text(draw, f"{member.display_name}", name_font, 280, 140, width - 280, 100, 45)
+    # Name (nickname or display name)
+    draw_wrapped_text(draw, member.display_name, name_font, 280, 140, width - 280, 80, 40)
 
-    # Username
-    draw.text((280, 190), f"@{member.name}", font=username_font, fill="lightgray")
+    # Username - Positioned below the name
+    draw.text((280, 180), f"@{member.name}", font=username_font, fill="lightgray")
 
     # Account and join dates
     created = member.created_at.strftime("%b %d, %Y")
     joined = member.joined_at.strftime("%b %d, %Y") if member.joined_at else "Unknown"
-    draw.text((280, 235), f"Created: {created}", font=info_font, fill="lightgray")
-    draw.text((280, 265), f"Joined: {joined}", font=info_font, fill="lightgray")
+    draw.text((280, 225), f"Created: {created}", font=info_font, fill="lightgray")
+    draw.text((280, 255), f"Joined: {joined}", font=info_font, fill="lightgray")
 
     # Roles (top 5, excluding @everyone) - Adjusted y_offset and line_height
     roles = [r for r in member.roles if r.name != "@everyone"]
     top_roles = sorted(roles, key=lambda r: r.position, reverse=True)[:5]
-    y_offset = 310
+    y_offset = 295
     line_height = 25
     for i, role in enumerate(top_roles):
         if y_offset + line_height * (i + 1) > height - 50:  # Prevent roles from going into the footer
             break
         draw.text((280, y_offset + line_height * i), f"• {role.name}", font=role_font, fill=role.color.to_rgb())
+
+    # Server Boost Status
+    if member.premium_since:
+        boost_date = member.premium_since.strftime("%b %d, %Y")
+        draw.text((280, y_offset + line_height * min(5, len(top_roles))), f"Boosting since: {boost_date}", font=info_font, fill="lightgray")
+        y_offset += line_height
 
     # Footer text
     footer_text = "discord.gg/arcadiasolana"
