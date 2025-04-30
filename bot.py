@@ -12,6 +12,7 @@ import html
 import time
 import datetime
 import textwrap
+from textwrap import shorten
 import aiohttp
 from discord import app_commands
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
@@ -2103,9 +2104,16 @@ async def on_message(message):
 
 # ----------------------------------------------------------------------------
 
-# Helper function to wrap text
-def draw_wrapped_text(draw, text, font, x, y, width, max_height, line_height):
-    wrapped_text = textwrap.fill(text, width=width)
+# Helper function to download images
+async def download_image(url, path):
+    async with bot.http._HTTPClient__session.get(url) as resp:
+        if resp.status == 200:
+            with open(path, 'wb') as f:
+                f.write(await resp.read())
+
+# Helper function to wrap text within width/height bounds
+def draw_wrapped_text(draw, text, font, x, y, max_width, max_height, line_height):
+    wrapped_text = textwrap.fill(text, width=18)  # Rough width wrap
     y_offset = y
     for line in wrapped_text.split('\n'):
         if y_offset + line_height > max_height:
@@ -2117,7 +2125,6 @@ def draw_wrapped_text(draw, text, font, x, y, width, max_height, line_height):
 async def profilecard(ctx, member: discord.Member = None):
     member = member or ctx.author
 
-    # Get the user's avatar and banner
     avatar_url = member.display_avatar.url
     avatar_path = f"/tmp/{member.id}_avatar.png"
     await download_image(avatar_url, avatar_path)
@@ -2129,13 +2136,11 @@ async def profilecard(ctx, member: discord.Member = None):
     else:
         banner_path = None
 
-    # Create the background image
     width, height = 1000, 500
     if banner_path:
         banner = Image.open(banner_path).resize((width, height))
         base = banner
     else:
-        # Use avatar as background if no banner is available
         bg = Image.open(avatar_path).convert("RGB").resize((width, height))
         blur = bg.filter(ImageFilter.GaussianBlur(18))
         overlay = Image.new("RGBA", blur.size, (0, 0, 0, 180))
@@ -2145,10 +2150,11 @@ async def profilecard(ctx, member: discord.Member = None):
 
     font_path_bold = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
     font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-    name_font = ImageFont.truetype(font_path_bold, 50)
-    username_font = ImageFont.truetype(font_path, 35)
-    info_font = ImageFont.truetype(font_path, 30)
-    role_font = ImageFont.truetype(font_path, 26)
+    name_font = ImageFont.truetype(font_path_bold, 42)
+    username_font = ImageFont.truetype(font_path, 30)
+    info_font = ImageFont.truetype(font_path, 26)
+    role_font = ImageFont.truetype(font_path, 22)
+    footer_font = ImageFont.truetype(font_path, 18)
 
     # Display avatar (rounded)
     avatar = Image.open(avatar_path).convert("RGBA").resize((180, 180))
@@ -2157,37 +2163,35 @@ async def profilecard(ctx, member: discord.Member = None):
     draw_mask.ellipse((0, 0, 180, 180), fill=255)
     base.paste(avatar, (70, 160), mask)
 
-    # Name (nickname or display name)
-    draw_wrapped_text(draw, f"{member.display_name}", name_font, 280, 150, width - 280, height - 150, 60)
+    # Display name (wrapped)
+    draw_wrapped_text(draw, shorten(member.display_name, width=18, placeholder="..."), name_font, 280, 150, width - 280, height - 150, 50)
 
     # Username
     draw.text((280, 205), f"@{member.name}", font=username_font, fill="lightgray")
 
-    # Account and join dates
+    # Dates
     created = member.created_at.strftime("%b %d, %Y")
     joined = member.joined_at.strftime("%b %d, %Y") if member.joined_at else "Unknown"
     draw.text((280, 260), f"Created: {created}", font=info_font, fill="lightgray")
     draw.text((280, 300), f"Joined: {joined}", font=info_font, fill="lightgray")
 
-    # Roles (top 5, excluding @everyone)
+    # Roles (top 5)
     roles = [r for r in member.roles if r.name != "@everyone"]
     top_roles = sorted(roles, key=lambda r: r.position, reverse=True)[:5]
     y_offset = 360
     for role in top_roles:
-        draw.text((280, y_offset), f"• {role.name}", font=role_font, fill=role.color.to_rgb())
+        role_name = shorten(role.name, width=30, placeholder="...")
+        draw.text((280, y_offset), f"• {role_name}", font=role_font, fill=role.color.to_rgb())
         y_offset += 30
 
-    # Footer text
-    footer_text = "discord.gg/arcadiasolana"
-    footer_font = ImageFont.truetype(font_path, 20)
-    draw.text((width - 370, height - 40), footer_text, font=footer_font, fill=(30, 215, 96))
+    # Footer
+    draw.text((width - 370, height - 40), "discord.gg/arcadiasolana", font=footer_font, fill=(30, 215, 96))
 
-    # Save the profile card
+    # Save and send
     output_path = f"/tmp/profilecard_{member.id}.png"
     base.convert("RGB").save(output_path)
     await ctx.send(file=discord.File(output_path))
 
-    # Clean up the temporary files
     os.remove(avatar_path)
     if banner_path:
         os.remove(banner_path)
