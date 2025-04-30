@@ -2167,7 +2167,8 @@ async def profilecard(ctx, member: discord.Member = None):
         badge_path = f"/tmp/{member.id}_badge.png"
         await download_image(highest_role.icon.url, badge_path)
         badge_icon = Image.open(badge_path).convert("RGBA").resize((40, 40))
-        text_width = name_font.getsize(member.display_name)[0]
+        bbox = name_font.getbbox(member.display_name)
+text_width = bbox[2] - bbox[0]
         base.paste(badge_icon, (name_x + text_width + 10, name_y), badge_icon)
         os.remove(badge_path)
 
