@@ -2202,6 +2202,7 @@ async def profilecard(ctx, member: discord.Member = None):
     column_width = (width - role_x) // max_columns
     col = 0
 
+    # Loop to draw roles
     for i, role in enumerate(roles):
         if col == max_columns:
             col = 0
@@ -2224,6 +2225,7 @@ async def profilecard(ctx, member: discord.Member = None):
     os.remove(avatar_path)
     if banner_path:
         os.remove(banner_path)
+
 
             
 # ----------------------------------------------------------------
