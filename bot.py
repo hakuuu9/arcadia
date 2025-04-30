@@ -2105,9 +2105,13 @@ async def on_message(message):
 
 @bot.command()
 async def profilecard(ctx, member: discord.Member = None):
+    import discord
+    from PIL import Image, ImageDraw, ImageFont, ImageFilter
+    import aiohttp
+    import os
+
     member = member or ctx.author
 
-    # Helper function to download image
     async def download_image(url, filepath):
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
@@ -2115,7 +2119,6 @@ async def profilecard(ctx, member: discord.Member = None):
                     with open(filepath, 'wb') as f:
                         f.write(await resp.read())
 
-    # Get the user's avatar and banner
     avatar_url = member.display_avatar.url
     avatar_path = f"/tmp/{member.id}_avatar.png"
     await download_image(avatar_url, avatar_path)
@@ -2127,11 +2130,9 @@ async def profilecard(ctx, member: discord.Member = None):
     else:
         banner_path = None
 
-    # Create the background image
     width, height = 1000, 500
     if banner_path:
-        banner = Image.open(banner_path).resize((width, height))
-        base = banner.convert("RGBA")
+        base = Image.open(banner_path).resize((width, height)).convert("RGBA")
     else:
         bg = Image.open(avatar_path).convert("RGB").resize((width, height))
         blur = bg.filter(ImageFilter.GaussianBlur(18))
@@ -2148,85 +2149,82 @@ async def profilecard(ctx, member: discord.Member = None):
     info_font = ImageFont.truetype(font_path, 25)
     footer_font = ImageFont.truetype(font_path, 18)
 
-    # Display avatar (rounded)
+    # Avatar
     avatar = Image.open(avatar_path).convert("RGBA").resize((180, 180))
     mask = Image.new("L", (180, 180), 0)
-    draw_mask = ImageDraw.Draw(mask)
-    draw_mask.ellipse((0, 0, 180, 180), fill=255)
+    ImageDraw.Draw(mask).ellipse((0, 0, 180, 180), fill=255)
     base.paste(avatar, (70, 160), mask)
 
-    # Name and username
     name_x = 280
     name_y = 140
+
+    # Draw display name
     draw.text((name_x, name_y), f"{member.display_name}", font=name_font, fill="white")
 
-    username_y = name_y + 45
-    draw.text((name_x, username_y), f"@{member.name}", font=username_font, fill="lightgray")
-
-    # Account and join dates
-    created = member.created_at.strftime("%b %d, %Y")
-    joined = member.joined_at.strftime("%b %d, %Y") if member.joined_at else "Unknown"
-    draw.text((name_x, username_y + 45), f"Created: {created}", font=info_font, fill="lightgray")
-    draw.text((name_x, username_y + 75), f"Joined: {joined}", font=info_font, fill="lightgray")
-
-    # Display highest role icon as badge (if exists)
+    # Draw highest role icon next to name (after name width)
     highest_role = max([r for r in member.roles if r.name != "@everyone"], key=lambda r: r.position, default=None)
     if highest_role and highest_role.icon:
         badge_path = f"/tmp/{member.id}_badge.png"
         await download_image(highest_role.icon.url, badge_path)
-        badge_icon = Image.open(badge_path).convert("RGBA").resize((50, 50))
-        base.paste(badge_icon, (name_x - 60, name_y - 5), badge_icon)
+        badge_icon = Image.open(badge_path).convert("RGBA").resize((40, 40))
+        text_width = name_font.getsize(member.display_name)[0]
+        base.paste(badge_icon, (name_x + text_width + 10, name_y), badge_icon)
         os.remove(badge_path)
 
-    # Display roles in up to 5 columns
+    # Username
+    draw.text((name_x, name_y + 45), f"@{member.name}", font=username_font, fill="lightgray")
+
+    # Dates
+    created = member.created_at.strftime("%b %d, %Y")
+    joined = member.joined_at.strftime("%b %d, %Y") if member.joined_at else "Unknown"
+    draw.text((name_x, name_y + 90), f"Created: {created}", font=info_font, fill="lightgray")
+    draw.text((name_x, name_y + 120), f"Joined: {joined}", font=info_font, fill="lightgray")
+
+    # Roles
     roles = [r for r in member.roles if r.name != "@everyone"]
     sorted_roles = sorted(roles, key=lambda r: r.position, reverse=True)
 
-    max_roles_display_area = height - 80 - (username_y + 110)
     base_font_size = 22
-    base_columns = 2
-    max_columns = 5
-    line_height = base_font_size + 10
-    column_spacing = 140
+    line_height = base_font_size + 8
+    min_line_height = 28
+    max_display_area = height - 80 - (name_y + 170)
 
-    # Estimate needed rows and adjust columns/font size
-    for columns in range(base_columns, max_columns + 1):
-        total_rows = (len(sorted_roles) + columns - 1) // columns
-        if total_rows * line_height <= max_roles_display_area:
-            break
+    if len(sorted_roles) <= 6:
+        columns = 2
+    elif len(sorted_roles) <= 15:
+        columns = 3
     else:
-        columns = max_columns
-        total_rows = (len(sorted_roles) + columns - 1) // columns
-        scaled_font_size = max(14, int(base_font_size * (max_roles_display_area / (total_rows * line_height))))
-        base_font_size = scaled_font_size
-        line_height = base_font_size + 6
+        columns = 5
+
+    total_rows = (len(sorted_roles) + columns - 1) // columns
+    if total_rows * line_height > max_display_area:
+        line_height = max(min_line_height, max_display_area // total_rows)
+        base_font_size = line_height - 6
 
     role_font = ImageFont.truetype(font_path, base_font_size)
+    column_spacing = 140
+    start_y = name_y + 170
 
-    # Draw roles
-    y_offset = username_y + 110
     for i, role in enumerate(sorted_roles):
         col = i % columns
         row = i // columns
         x_pos = name_x + col * column_spacing
-        y_pos = y_offset + row * line_height
+        y_pos = start_y + row * line_height
         if y_pos > height - 50:
             break
         draw.text((x_pos, y_pos), f"• {role.name}", font=role_font, fill=role.color.to_rgb())
 
-    # Footer text
-    footer_text = "discord.gg/arcadiasolana"
-    draw.text((width - 370, height - 30), footer_text, font=footer_font, fill=(30, 215, 96))
+    # Footer
+    draw.text((width - 370, height - 30), "discord.gg/arcadiasolana", font=footer_font, fill=(30, 215, 96))
 
-    # Save the profile card
     output_path = f"/tmp/profilecard_{member.id}.png"
     base.convert("RGB").save(output_path)
     await ctx.send(file=discord.File(output_path))
 
-    # Cleanup
     os.remove(avatar_path)
     if banner_path:
         os.remove(banner_path)
+
 
             
 # ----------------------------------------------------------------
