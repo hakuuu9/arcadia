@@ -2103,125 +2103,60 @@ async def on_message(message):
 # ----------------------------------------------------------------------------
 
 @bot.command()
-async def profilecard(ctx, user: discord.Member = None):
-    user = user or ctx.author
-    avatar_url = user.display_avatar.url
-    path = f"/tmp/{user.id}_pfp.png"
+async def profilecard(ctx, member: discord.Member = None):
+    member = member or ctx.author
 
-    async with aiohttp.ClientSession() as session:
-        async with session.get(avatar_url) as resp:
-            with open(path, "wb") as f:
-                f.write(await resp.read())
-
-    img = Image.new("RGB", (600, 300), "#1db954")
-    draw = ImageDraw.Draw(img)
-
-    # Add avatar
-    pfp = Image.open(path).convert("RGBA").resize((150, 150))
-    mask = Image.new("L", pfp.size, 0)
-    ImageDraw.Draw(mask).ellipse((0, 0, 150, 150), fill=255)
-    img.paste(pfp, (40, 75), mask)
-
-    # Fonts
-    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-    name_font = ImageFont.truetype(font_path, 36)
-    tag_font = ImageFont.truetype(font_path, 24)
-
-    draw.text((210, 100), f"{user.display_name}", font=name_font, fill="white")
-    draw.text((210, 150), f"@{user.name}", font=tag_font, fill="lightgray")
-
-    output = f"/tmp/profile_{user.id}.png"
-    img.save(output)
-    await ctx.send(file=discord.File(output))
-
-    os.remove(path)
-    os.remove(output)
-
-# -------------------------------------------------------------------------------
-
-@bot.command()
-async def spotifyvibe(ctx):
-    if not ctx.message.reference:
-        return await ctx.send("Please reply to a message to quote it.")
-
-    quoted = await ctx.channel.fetch_message(ctx.message.reference.message_id)
-    author = quoted.author
-    quote_text = quoted.content.strip()
-
-    if not quote_text:
-        return await ctx.send("The quoted message is empty.")
-
-    avatar_url = ctx.author.display_avatar.url
-    author_avatar_url = author.display_avatar.url
-    avatar_path = f"/tmp/{ctx.author.id}_bg_avatar.png"
-    author_avatar_path = f"/tmp/{author.id}_avatar.png"
-
+    avatar_url = member.display_avatar.url
+    avatar_path = f"/tmp/{member.id}_avatar.png"
     await download_image(avatar_url, avatar_path)
-    await download_image(author_avatar_url, author_avatar_path)
 
+    # Create background from avatar
     width, height = 1000, 500
     bg = Image.open(avatar_path).convert("RGB").resize((width, height))
     blur = bg.filter(ImageFilter.GaussianBlur(18))
-
-    overlay = Image.new("RGBA", blur.size, (0, 0, 0, 190))
+    overlay = Image.new("RGBA", blur.size, (0, 0, 0, 180))
     base = Image.alpha_composite(blur.convert("RGBA"), overlay)
+
+    draw = ImageDraw.Draw(base)
 
     font_path_bold = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
     font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-    draw = ImageDraw.Draw(base)
+    name_font = ImageFont.truetype(font_path_bold, 50)
+    info_font = ImageFont.truetype(font_path, 30)
+    role_font = ImageFont.truetype(font_path, 26)
 
-    # Add author's avatar
-    profile = Image.open(author_avatar_path).convert("RGBA").resize((140, 140))
-    mask = Image.new("L", (140, 140), 0)
+    # Display avatar (rounded)
+    avatar = Image.open(avatar_path).convert("RGBA").resize((180, 180))
+    mask = Image.new("L", (180, 180), 0)
     draw_mask = ImageDraw.Draw(mask)
-    draw_mask.ellipse((0, 0, 140, 140), fill=255)
-    base.paste(profile, (80, 180), mask)
+    draw_mask.ellipse((0, 0, 180, 180), fill=255)
+    base.paste(avatar, (70, 160), mask)
 
-    # Font scaling based on text length
-    if len(quote_text) < 120:
-        quote_font = ImageFont.truetype(font_path_bold, 46)
-    elif len(quote_text) < 200:
-        quote_font = ImageFont.truetype(font_path_bold, 38)
-    else:
-        quote_font = ImageFont.truetype(font_path_bold, 30)
-    user_font = ImageFont.truetype(font_path, 30)
-    label_font = ImageFont.truetype(font_path_bold, 22)
+    # Username and tag
+    draw.text((280, 170), str(member), font=name_font, fill="white")
 
-    # Word wrap
-    def wrap(text, font, max_width):
-        words = text.split()
-        lines, current = [], ""
-        for word in words:
-            test = current + word + " "
-            if font.getlength(test) < max_width:
-                current = test
-            else:
-                lines.append(current)
-                current = word + " "
-        lines.append(current)
-        return lines
+    # Account and join dates
+    created = member.created_at.strftime("%b %d, %Y")
+    joined = member.joined_at.strftime("%b %d, %Y") if member.joined_at else "Unknown"
+    draw.text((280, 240), f"Created: {created}", font=info_font, fill="lightgray")
+    draw.text((280, 280), f"Joined: {joined}", font=info_font, fill="lightgray")
 
-    lines = wrap(quote_text, quote_font, 700)
-    y_text = 100
-    for line in lines:
-        # Soft glow effect
-        for offset in [(1,1), (-1,-1), (1,-1), (-1,1)]:
-            draw.text((260 + offset[0], y_text + offset[1]), line.strip(), font=quote_font, fill=(0,0,0,180))
-        draw.text((260, y_text), line.strip(), font=quote_font, fill="white")
-        y_text += quote_font.size + 10
+    # Roles (top 5, excluding @everyone)
+    roles = [r for r in member.roles if r.name != "@everyone"]
+    top_roles = sorted(roles, key=lambda r: r.position, reverse=True)[:5]
+    y_offset = 340
+    for role in top_roles:
+        draw.text((280, y_offset), f"• {role.name}", font=role_font, fill=role.color.to_rgb())
+        y_offset += 30
 
-    draw.text((260, y_text + 5), f"– {author.display_name}", font=user_font, fill="lightgray")
+    # Footer label
+    draw.text((width - 220, height - 40), "Profile Card", font=info_font, fill=(30, 215, 96))
 
-    # Spotify label
-    draw.text((width - 200, height - 40), "Spotify Vibe", font=label_font, fill=(30, 215, 96))
-
-    output_path = f"/tmp/spotifyvibe_{ctx.message.id}.png"
+    output_path = f"/tmp/profilecard_{member.id}.png"
     base.convert("RGB").save(output_path)
     await ctx.send(file=discord.File(output_path))
 
     os.remove(avatar_path)
-    os.remove(author_avatar_path)
-    os.remove(output_path)
 
 
 
