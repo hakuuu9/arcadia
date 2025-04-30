@@ -2198,6 +2198,7 @@ async def profilecard(ctx, member: discord.Member = None):
 
 # ----------------------------------------------------------------
 
+# Define the log channel ID
 LOG_REACT_ID = 1364839238960549908  # Replace with your actual log channel ID
 
 # Store the emoji globally
@@ -2242,13 +2243,13 @@ async def autoreact_loop():
             await message_to_react.add_reaction(auto_react_emoji)
 
             if log_channel:
+                message_link = f"https://discord.com/channels/{guild.id}/{channel.id}/{message_to_react.id}"
                 await log_channel.send(
-                    f"✅ Auto-reacted in #{channel.name} of **{guild.name}** with {auto_react_emoji}."
+                    f"✅ Auto-reacted with {auto_react_emoji} in {channel.mention} of **{guild.name}**.\n[Jump to message]({message_link})"
                 )
         except Exception as e:
             if log_channel:
-                await log_channel.send(f"⚠️ Error while reacting in {channel.name}: {e}")
-
+                await log_channel.send(f"⚠️ Error while reacting in {channel.mention}: `{e}`")
 
 
 keep_alive()
