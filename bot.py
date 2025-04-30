@@ -2125,7 +2125,7 @@ def draw_wrapped_text(draw, text, font, x, y, width, max_height, line_height):
 async def profilecard(ctx, member: discord.Member = None):
     member = member or ctx.author
 
-    # Get the user's avatar and banner
+    # Get avatar and banner
     avatar_url = member.display_avatar.url
     avatar_path = f"/tmp/{member.id}_avatar.png"
     await download_image(avatar_url, avatar_path)
@@ -2137,13 +2137,12 @@ async def profilecard(ctx, member: discord.Member = None):
     else:
         banner_path = None
 
-    # Create the background image
+    # Create the background
     width, height = 1000, 500
     if banner_path:
         banner = Image.open(banner_path).resize((width, height))
         base = banner
     else:
-        # Use avatar as background if no banner is available
         bg = Image.open(avatar_path).convert("RGB").resize((width, height))
         blur = bg.filter(ImageFilter.GaussianBlur(18))
         overlay = Image.new("RGBA", blur.size, (0, 0, 0, 180))
@@ -2154,12 +2153,12 @@ async def profilecard(ctx, member: discord.Member = None):
     font_path_bold = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
     font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 
-    # Reduced font sizes
     name_font = ImageFont.truetype(font_path_bold, 40)
     username_font = ImageFont.truetype(font_path, 30)
     info_font = ImageFont.truetype(font_path, 25)
     role_font = ImageFont.truetype(font_path, 22)
     footer_font = ImageFont.truetype(font_path, 18)
+    badge_font = ImageFont.truetype(font_path, 30)
 
     # Display avatar (rounded)
     avatar = Image.open(avatar_path).convert("RGBA").resize((180, 180))
@@ -2168,63 +2167,60 @@ async def profilecard(ctx, member: discord.Member = None):
     draw_mask.ellipse((0, 0, 180, 180), fill=255)
     base.paste(avatar, (70, 160), mask)
 
-    # Name (nickname or display name)
-    name_x = 280
-    name_y = 140
-    bbox = name_font.getbbox(member.display_name)
-    text_width = bbox[2] - bbox[0]
-    draw_wrapped_text(draw, f"{member.display_name}", name_font, name_x, name_y, width - 280, 100, 45)
+    # Name and username
+    name_text = f"{member.display_name}"
+    name_x, name_y = 280, 140
+    draw.text((name_x, name_y), name_text, font=name_font, fill="white")
 
-    # Username - Positioned below the name
-    draw.text((name_x, name_y + 60), f"@{member.name}", font=username_font, fill="lightgray")
+    name_bbox = draw.textbbox((name_x, name_y), name_text, font=name_font)
+    username_y = name_bbox[3] + 5
+    draw.text((name_x, username_y), f"@{member.name}", font=username_font, fill="lightgray")
+
+    # Highest role icon badge (excluding @everyone)
+    roles_with_icons = [r for r in member.roles if r.icon and r != ctx.guild.default_role]
+    top_role = max(roles_with_icons, key=lambda r: r.position, default=None)
+
+    if top_role:
+        role_icon_url = top_role.icon.url
+        role_icon_path = f"/tmp/{member.id}_roleicon.png"
+        await download_image(role_icon_url, role_icon_path)
+
+        badge_icon = Image.open(role_icon_path).convert("RGBA").resize((40, 40))
+        badge_x = name_bbox[2] + 15
+        base.paste(badge_icon, (badge_x, name_y), badge_icon)
+
+        os.remove(role_icon_path)
 
     # Account and join dates
     created = member.created_at.strftime("%b %d, %Y")
     joined = member.joined_at.strftime("%b %d, %Y") if member.joined_at else "Unknown"
-    draw.text((name_x, name_y + 100), f"Created: {created}", font=info_font, fill="lightgray")
-    draw.text((name_x, name_y + 130), f"Joined: {joined}", font=info_font, fill="lightgray")
+    draw.text((280, username_y + 40), f"Created: {created}", font=info_font, fill="lightgray")
+    draw.text((280, username_y + 70), f"Joined: {joined}", font=info_font, fill="lightgray")
 
-    # Badge: highest role icon
-    highest_role = member.top_role
-    if highest_role and highest_role.icon:
-        badge_path = f"/tmp/{member.id}_badge.png"
-        await download_image(highest_role.icon.url, badge_path)
-        badge_icon = Image.open(badge_path).convert("RGBA").resize((40, 40))
-        base.paste(badge_icon, (name_x + text_width + 10, name_y), badge_icon)
-        os.remove(badge_path)
-
-    # Roles (all roles, 5 columns)
+    # Roles (top 5, excluding @everyone)
     roles = [r for r in member.roles if r.name != "@everyone"]
-    max_columns = 5
-    role_x = name_x
-    role_y = name_y + 170
+    top_roles = sorted(roles, key=lambda r: r.position, reverse=True)[:5]
+    y_offset = username_y + 110
     line_height = 25
-    column_width = (width - role_x) // max_columns
-    col = 0
+    for i, role in enumerate(top_roles):
+        if y_offset + line_height * (i + 1) > height - 50:
+            break
+        draw.text((280, y_offset + line_height * i), f"• {role.name}", font=role_font, fill=role.color.to_rgb())
 
-    # Loop to draw roles
-    for i, role in enumerate(roles):
-        if col == max_columns:
-            col = 0
-            role_y += line_height
-            role_x = name_x
-
-        draw.text((role_x + col * column_width, role_y), f"• {role.name}", font=role_font, fill=role.color.to_rgb())
-        col += 1
-
-    # Footer text
+    # Footer
     footer_text = "discord.gg/arcadiasolana"
     draw.text((width - 370, height - 30), footer_text, font=footer_font, fill=(30, 215, 96))
 
-    # Save the profile card
+    # Save & send
     output_path = f"/tmp/profilecard_{member.id}.png"
     base.convert("RGB").save(output_path)
     await ctx.send(file=discord.File(output_path))
 
-    # Clean up the temporary files
+    # Clean up
     os.remove(avatar_path)
     if banner_path:
         os.remove(banner_path)
+
 
 
             
