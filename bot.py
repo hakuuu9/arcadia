@@ -2204,7 +2204,7 @@ async def randomreact(ctx, emoji: discord.Emoji):
     # This will keep track of the last reaction time
     while True:
         # Get all messages in the channel (retrieve up to the last 100 messages)
-        messages = await channel.history(limit=100).flatten()
+        messages = [message async for message in channel.history(limit=100)]
         
         if messages:
             # Pick a random message from a random member (not the bot)
@@ -2219,8 +2219,6 @@ async def randomreact(ctx, emoji: discord.Emoji):
         
         # Wait for 1 minute before reacting again
         await asyncio.sleep(60)
-
-
 
 
 keep_alive()
