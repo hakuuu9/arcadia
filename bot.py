@@ -2194,43 +2194,57 @@ async def profilecard(ctx, member: discord.Member = None):
 
 # ----------------------------------------------------------------
 
-# Define the channel ID for the log
-LOG_REACT_ID = 1364839238960549908  # Replace with the actual ID of your log channel
+LOG_REACT_ID = 1364839238960549908  # Replace with your actual log channel ID
+
+# Store the emoji globally
+auto_react_emoji = None
 
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user}')
+    autoreact_loop.start()
 
 @bot.command()
-async def randomreact(ctx, emoji: discord.Emoji):
-    """Reacts to a random message in the current channel with the specified emoji."""
-    if not ctx.guild:
-        return await ctx.send("This command only works in a server.")
+async def setreact(ctx, emoji: str):
+    """Set the emoji to be used for auto-reaction."""
+    global auto_react_emoji
+    auto_react_emoji = emoji
+    await ctx.send(f"✅ Auto-react emoji set to {emoji}")
 
-    channel = ctx.channel
-    log_channel = bot.get_channel(LOG_REACT_ID)
-    if not log_channel:
-        await ctx.send("⚠️ Log channel not found. Please check the channel ID.")
+@tasks.loop(minutes=1)
+async def autoreact_loop():
+    global auto_react_emoji
+    if not auto_react_emoji:
+        return  # Exit if emoji is not set
 
-    # Retrieve the last 100 messages using an asynchronous list comprehension
-    messages = [msg async for msg in channel.history(limit=100)]
+    for guild in bot.guilds:
+        # Get all text channels where the bot has permission to read messages
+        text_channels = [
+            ch for ch in guild.text_channels if ch.permissions_for(guild.me).read_messages
+        ]
+        if not text_channels:
+            continue
 
-    if not messages:
-        return await ctx.send("⚠️ No messages found to react to in this channel.")
+        channel = random.choice(text_channels)
+        log_channel = bot.get_channel(LOG_REACT_ID)
 
-    message_to_react = random.choice(messages)
+        try:
+            # Get recent messages (not from bots)
+            messages = [msg async for msg in channel.history(limit=100) if not msg.author.bot]
+            if not messages:
+                continue
 
-    try:
-        await message_to_react.add_reaction(emoji)
-        await ctx.send(f"✅ Reacted to a random message in this channel with {emoji}.")
-        if log_channel:
-            await log_channel.send(f"✅ Reacted to a message in {channel.name} with {emoji} from {ctx.author.display_name}")
-    except discord.errors.NotFound:
-        await ctx.send(f"⚠️ The message I tried to react to was not found.")
-    except discord.errors.Forbidden:
-        await ctx.send(f"⚠️ I do not have permission to add reactions in this channel.")
-    except Exception as e:
-        await ctx.send(f"⚠️ An error occurred while trying to react: {e}")
+            message_to_react = random.choice(messages)
+            await message_to_react.add_reaction(auto_react_emoji)
+
+            if log_channel:
+                await log_channel.send(
+                    f"✅ Auto-reacted in #{channel.name} of **{guild.name}** with {auto_react_emoji}."
+                )
+        except Exception as e:
+            if log_channel:
+                await log_channel.send(f"⚠️ Error while reacting in {channel.name}: {e}")
+
 
 
 keep_alive()
