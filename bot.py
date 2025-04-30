@@ -2194,31 +2194,44 @@ async def profilecard(ctx, member: discord.Member = None):
 
 # ----------------------------------------------------------------
 
+# Define the channel ID and reaction emoji
+LOG_REACT_ID = 1364839238960549908  # Replace with your log channel ID
+REACTION_EMOJI = "<:arcadia:123456789012345678>"  # Replace with your server's emoji ID
+
+@bot.event
+async def on_ready():
+    print(f'Logged in as {bot.user}')
+
 @bot.command()
-async def randomreact(ctx, emoji: discord.Emoji):
-    """The bot will randomly react to a message every 1 minute with the provided emoji."""
-    
-    # Get the channel
+async def randomreact(ctx):
+    # Ensure the bot has permission to read message history and send messages in the channel
+    if not ctx.guild:
+        return await ctx.send("This command only works in a server.")
+
+    # Get the channel where the reactions will happen
     channel = ctx.channel
-    
-    # This will keep track of the last reaction time
-    while True:
-        # Get all messages in the channel (retrieve up to the last 100 messages)
-        messages = [message async for message in channel.history(limit=100)]
-        
-        if messages:
-            # Pick a random message from a random member (not the bot)
-            random_message = random.choice([msg for msg in messages if msg.author != bot.user])
-            
-            try:
-                # React to the message with the provided emoji
-                await random_message.add_reaction(emoji)
-                print(f"Reacted to message from {random_message.author}")
-            except discord.errors.Forbidden:
-                print(f"Couldn't react to message from {random_message.author} due to permissions.")
-        
-        # Wait for 1 minute before reacting again
-        await asyncio.sleep(60)
+    # Get the log channel
+    log_channel = bot.get_channel(LOG_REACT_ID)
+    if not log_channel:
+        return await ctx.send("Log channel not found. Please check the channel ID.")
+
+    # Retrieve the last 100 messages from the channel
+    messages = await channel.history(limit=100).flatten()
+
+    # Choose a random message from the fetched messages
+    if not messages:
+        return await ctx.send("No messages found to react to.")
+
+    message = random.choice(messages)
+
+    # Add a reaction to the selected message
+    await message.add_reaction(REACTION_EMOJI)
+
+    # Log the action to the log channel
+    await log_channel.send(f"Reacted to a message in {channel.name} with {REACTION_EMOJI} from {ctx.author.display_name}")
+
+    await ctx.send(f"Reacted to a random message in {channel.name}.")
+
 
 
 keep_alive()
