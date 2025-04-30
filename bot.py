@@ -2202,15 +2202,19 @@ async def profilecard(ctx, member: discord.Member = None):
     columns = 3  # Set the number of columns
     max_roles_per_column = len(roles) // columns + (len(roles) % columns > 0)
     column_width = width // columns
-    y_offset = username_y + 110
+    y_offset = username_y + 120  # Adjust this to give more space between the avatar and roles
 
     # Loop through the roles and distribute them into columns
     for i, role in enumerate(roles):
         column = i % columns
         row = i // columns
 
-        # Prevent overlapping by adjusting y_offset for each role
-        x_position = column * column_width + 20
+        # Align the first column with the Name, username, etc.
+        if column == 0:
+            x_position = name_x  # Align with name_x for the first column
+        else:
+            x_position = column * column_width + 20  # Adjust for other columns
+
         y_position = y_offset + (row * 25)
 
         if y_position + 25 > height - 50:
@@ -2232,10 +2236,6 @@ async def profilecard(ctx, member: discord.Member = None):
     os.remove(avatar_path)
     if banner_path:
         os.remove(banner_path)
-
-
-
-            
 # ----------------------------------------------------------------
 
 # Define the log channel ID and specific channels to react in
