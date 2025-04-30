@@ -2194,44 +2194,42 @@ async def profilecard(ctx, member: discord.Member = None):
 
 # ----------------------------------------------------------------
 
-# Define the channel ID and reaction emoji
+# Define the channel ID for the log
 LOG_REACT_ID = 1364839238960549908  # Replace with your log channel ID
-REACTION_EMOJI = "<:arcadia:123456789012345678>"  # Replace with your server's emoji ID
 
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user}')
 
 @bot.command()
-async def randomreact(ctx):
-    # Ensure the bot has permission to read message history and send messages in the channel
+async def randomreact(ctx, emoji: discord.Emoji):
+    """Reacts to a random message in the current channel with the specified emoji."""
     if not ctx.guild:
         return await ctx.send("This command only works in a server.")
 
-    # Get the channel where the reactions will happen
     channel = ctx.channel
-    # Get the log channel
     log_channel = bot.get_channel(LOG_REACT_ID)
     if not log_channel:
-        return await ctx.send("Log channel not found. Please check the channel ID.")
+        await ctx.send("⚠️ Log channel not found. Please check the channel ID.")
 
-    # Retrieve the last 100 messages from the channel
     messages = await channel.history(limit=100).flatten()
 
-    # Choose a random message from the fetched messages
     if not messages:
-        return await ctx.send("No messages found to react to.")
+        return await ctx.send("⚠️ No messages found to react to in this channel.")
 
-    message = random.choice(messages)
+    message_to_react = random.choice(messages)
 
-    # Add a reaction to the selected message
-    await message.add_reaction(REACTION_EMOJI)
-
-    # Log the action to the log channel
-    await log_channel.send(f"Reacted to a message in {channel.name} with {REACTION_EMOJI} from {ctx.author.display_name}")
-
-    await ctx.send(f"Reacted to a random message in {channel.name}.")
-
+    try:
+        await message_to_react.add_reaction(emoji)
+        await ctx.send(f"✅ Reacted to a random message in this channel with {emoji}.")
+        if log_channel:
+            await log_channel.send(f"✅ Reacted to a message in {channel.name} with {emoji} from {ctx.author.display_name}")
+    except discord.errors.NotFound:
+        await ctx.send(f"⚠️ The message I tried to react to was not found.")
+    except discord.errors.Forbidden:
+        await ctx.send(f"⚠️ I do not have permission to add reactions in this channel.")
+    except Exception as e:
+        await ctx.send(f"⚠️ An error occurred while trying to react: {e}")
 
 
 keep_alive()
