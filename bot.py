@@ -2195,7 +2195,7 @@ async def profilecard(ctx, member: discord.Member = None):
 # ----------------------------------------------------------------
 
 # Define the channel ID for the log
-LOG_REACT_ID = 1364839238960549908  # Replace with your log channel ID
+LOG_REACT_ID = 1364839238960549908  # Replace with the actual ID of your log channel
 
 @bot.event
 async def on_ready():
@@ -2212,7 +2212,8 @@ async def randomreact(ctx, emoji: discord.Emoji):
     if not log_channel:
         await ctx.send("⚠️ Log channel not found. Please check the channel ID.")
 
-    messages = await channel.history(limit=100).flatten()
+    # Retrieve the last 100 messages using an asynchronous list comprehension
+    messages = [msg async for msg in channel.history(limit=100)]
 
     if not messages:
         return await ctx.send("⚠️ No messages found to react to in this channel.")
