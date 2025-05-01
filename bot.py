@@ -119,66 +119,172 @@ async def on_presence_update(before, after):
 
 # ---------------------------------------------------------------------------
 
+async def download_image(url, filepath):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            if resp.status == 200:
+                with open(filepath, 'wb') as f:
+                    f.write(await resp.read())
+                return True
+            else:
+                return False
+
+def generate_ship_name(name1, name2):
+    name1 = name1.lower()
+    name2 = name2.lower()
+
+    def get_vowels_start(name):
+        for i, char in enumerate(name):
+            if char in 'aeiou':
+                return i
+        return len(name)
+
+    def get_consonants_start(name):
+        for i, char in enumerate(name):
+            if char not in 'aeiou':
+                return i
+        return len(name)
+
+    vowel_start1 = get_vowels_start(name1)
+    consonant_start1 = get_consonants_start(name1)
+    vowel_start2 = get_vowels_start(name2)
+    consonant_start2 = get_consonants_start(name2)
+
+    part1_options = [name1[:vowel_start1], name1[:consonant_start1 + 1], name1[:len(name1)//2 + 1]]
+    part2_options = [name2[vowel_start2:], name2[consonant_start2:], name2[len(name2)//2:]]
+
+    part1 = random.choice(part1_options)
+    part2 = random.choice(part2_options)
+
+    return part1.capitalize() + part2.capitalize()
+
 @bot.command()
-async def ship(ctx, user1: discord.Member = None, user2: discord.Member = None):
-    if not user1 or not user2:
-        await ctx.send("Usage: `$ship @user1 @user2`")
-        return
+async def ship(ctx, user1: discord.Member, user2: discord.Member):
+    """Ships two users together, showing their avatars, a heart, compatibility, and a ship name."""
 
-    # Compatibility %
-    compatibility = random.randint(1, 100)
+    avatar_path1 = f"/tmp/{user1.id}_avatar.png"
+    avatar_path2 = f"/tmp/{user2.id}_avatar.png"
 
-    # Couple nickname logic
-    couple_name = None
-    if compatibility >= 50:
-        couple_name = (user1.name[:len(user1.name)//2] + user2.name[len(user2.name)//2:]).capitalize()
+    downloaded1 = await download_image(user1.display_avatar.url, avatar_path1)
+    downloaded2 = await download_image(user2.display_avatar.url, avatar_path2)
 
-    # Prepare profile pictures
-    def circle_crop(im):
-        mask = Image.new("L", im.size, 0)
-        draw = ImageDraw.Draw(mask)
-        draw.ellipse((0, 0) + im.size, fill=255)
-        im.putalpha(mask)
-        return im
+    if not downloaded1 or not downloaded2:
+        return await ctx.send("Failed to download one or both avatars.")
 
-    async def get_avatar(url):
-        response = requests.get(url)
-        avatar = Image.open(io.BytesIO(response.content)).resize((150, 150))
-        return circle_crop(avatar.convert("RGBA"))
+    width = 400
+    height = 200
+    image = Image.new("RGB", (width, height), (255, 255, 255))
+    draw = ImageDraw.Draw(image)
 
-    avatar1 = await get_avatar(user1.display_avatar.url)
-    avatar2 = await get_avatar(user2.display_avatar.url)
-   heart_url = "https://cdn-icons-png.flaticon.com/512/833/833472.png"
-heart_response = requests.get(heart_url, stream=True)
-heart = Image.open(heart_response.raw).resize((80, 80)).convert("RGBA")
+    avatar1 = Image.open(avatar_path1).resize((150, 150))
+    avatar2 = Image.open(avatar_path2).resize((150, 150))
 
+    image.paste(avatar1, (25, 25))
+    image.paste(avatar2, (width - 175, 25))
 
-    # Combine all images into one
-    ship_img = Image.new("RGBA", (380, 150), (255, 255, 255, 0))
-    ship_img.paste(avatar1, (0, 0), avatar1)
-    ship_img.paste(heart, (150, 35), heart)
-    ship_img.paste(avatar2, (230, 0), avatar2)
+    # Draw heart
+    heart_size = 50
+    heart_x = width // 2 - heart_size // 2
+    heart_y = height // 2 - heart_size // 2
+    # Simple red heart (you can get a better heart image if you want)
+    draw.polygon([(heart_x + heart_size // 2, heart_y + heart_size // 4),
+                  (heart_x + heart_size, heart_y + heart_size // 2),
+                  (heart_x + heart_size // 2, heart_y + heart_size),
+                  (heart_x, heart_y + heart_size // 2)], fill="red")
 
-    # Convert to Discord file
-    with io.BytesIO() as image_binary:
-        ship_img.save(image_binary, 'PNG')
-        image_binary.seek(0)
-        file = discord.File(fp=image_binary, filename="ship.png")
+    # Calculate compatibility
+    compatibility = random.randint(0, 100)
+    compatibility_text = f"Compatibility: {compatibility}%"
 
-    # Embed
-    embed = discord.Embed(
-        title="💘 Ship Result!",
-        description=(
-            f"{user1.mention} + {user2.mention}\n\n"
-            f"**Compatibility:** {compatibility}%\n" +
-            (f"**Couple Nickname:** `{couple_name}`" if couple_name else "*This ship might need more time to sail...*")
-        ),
-        color=discord.Color.pink()
-    )
-    embed.set_image(url="attachment://ship.png")
-    embed.set_footer(text=f"Requested by {ctx.author}", icon_url=ctx.author.display_avatar.url)
+    # Generate ship name
+    ship_name = generate_ship_name(user1.display_name, user2.display_name)
+    ship_name_text = f"Ship Name: {ship_name}"
 
-    await ctx.send(file=file, embed=embed)
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"  # Adjust path if needed
+    try:
+        font = ImageFont.truetype(font_path, 20)
+    except IOError:
+        font = ImageFont.load_default()
+
+    text_y = 160
+    draw.text((25, text_y), user1.display_name, font=font, fill="black")
+    draw.text((width - 175, text_y), user2.display_name, font=font, fill="black")
+    draw.text((width // 2 - draw.textlength(compatibility_text, font=font) // 2, height - 30), compatibility_text, font=font, fill="purple")
+    draw.text((width // 2 - draw.textlength(ship_name_text, font=font) // 2, height - 60), ship_name_text, font=font, fill="green")
+
+    output_path = f"/tmp/ship_{user1.id}_{user2.id}.png"
+    image.save(output_path)
+    await ctx.send(file=discord.File(output_path))
+
+    os.remove(avatar_path1)
+    os.remove(avatar_path2)
+
+def generate_ship_name(name1, name2):
+    name1_parts = [name1[:len(name1)//2], name1[len(name1)//2:]]
+    name2_parts = [name2[:len(name2)//2], name2[len(name2)//2:]]
+    return random.choice(name1_parts).capitalize() + random.choice(name2_parts).capitalize()
+
+@bot.command()
+async def ship(ctx, user1: discord.Member, user2: discord.Member):
+    """Ships two users together, showing their avatars, a heart, compatibility, and a ship name."""
+
+    avatar_path1 = f"/tmp/{user1.id}_avatar.png"
+    avatar_path2 = f"/tmp/{user2.id}_avatar.png"
+
+    downloaded1 = await download_image(user1.display_avatar.url, avatar_path1)
+    downloaded2 = await download_image(user2.display_avatar.url, avatar_path2)
+
+    if not downloaded1 or not downloaded2:
+        return await ctx.send("Failed to download one or both avatars.")
+
+    width = 400
+    height = 200
+    image = Image.new("RGB", (width, height), (255, 255, 255))
+    draw = ImageDraw.Draw(image)
+
+    avatar1 = Image.open(avatar_path1).resize((150, 150))
+    avatar2 = Image.open(avatar_path2).resize((150, 150))
+
+    image.paste(avatar1, (25, 25))
+    image.paste(avatar2, (width - 175, 25))
+
+    # Draw heart
+    heart_size = 50
+    heart_x = width // 2 - heart_size // 2
+    heart_y = height // 2 - heart_size // 2
+    # Simple red heart
+    draw.polygon([(heart_x + heart_size // 2, heart_y),
+                  (heart_x + heart_size, heart_y + heart_size // 2),
+                  (heart_x + heart_size // 2, heart_y + heart_size),
+                  (heart_x, heart_y + heart_size // 2)], fill="red")
+
+    # Calculate compatibility
+    compatibility = random.randint(0, 100)
+    compatibility_text = f"Compatibility: {compatibility}%"
+
+    # Generate ship name
+    ship_name = generate_ship_name(user1.display_name, user2.display_name)
+    ship_name_text = f"Ship Name: {ship_name}"
+
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"  # Adjust path if needed
+    try:
+        font = ImageFont.truetype(font_path, 20)
+    except IOError:
+        font = ImageFont.load_default()
+
+    text_y = 160
+    draw.text((25, text_y), user1.display_name, font=font, fill="black")
+    draw.text((width - 175, text_y), user2.display_name, font=font, fill="black")
+    draw.text((width // 2 - draw.textlength(compatibility_text, font=font) // 2, height - 30), compatibility_text, font=font, fill="purple")
+    draw.text((width // 2 - draw.textlength(ship_name_text, font=font) // 2, height - 60), ship_name_text, font=font, fill="green")
+
+    output_path = f"/tmp/ship_{user1.id}_{user2.id}.png"
+    image.save(output_path)
+    await ctx.send(file=discord.File(output_path))
+
+    os.remove(avatar_path1)
+    os.remove(avatar_path2)
+    
 # --------------------------------------------------------------------
 
 @bot.command()
