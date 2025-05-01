@@ -14,7 +14,7 @@ import datetime
 import textwrap
 import aiohttp
 from discord import app_commands
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
+from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageOps
 import io
 import requests
 from collections import defaultdict
@@ -117,20 +117,66 @@ async def on_presence_update(before, after):
     except Exception as e:
         print(f"[Error - Vanity Role Handler]: {e}")
 
+# ---------------------------------------------------------------------------
 
 @bot.command()
 async def ship(ctx, user1: discord.Member = None, user2: discord.Member = None):
     if not user1 or not user2:
         await ctx.send("Usage: `$ship @user1 @user2`")
         return
-    percent = random.randint(0, 100)
-    hearts = "❤️" * (percent // 20) or "💔"
-    nicknames = ["Sweethearts", "Power Couple", "Tortolitos", "Lovebirds"]
-    message = f"**{user1.display_name}** + **{user2.display_name}** = **{percent}%** {hearts}"
-    if percent >= 50:
-        nickname = random.choice(nicknames)
-        message += f"\nThey are definitely **{nickname}**!"
-    await ctx.send(message)
+
+    # Compatibility %
+    compatibility = random.randint(1, 100)
+
+    # Couple nickname logic
+    couple_name = None
+    if compatibility >= 50:
+        couple_name = (user1.name[:len(user1.name)//2] + user2.name[len(user2.name)//2:]).capitalize()
+
+    # Prepare profile pictures
+    def circle_crop(im):
+        mask = Image.new("L", im.size, 0)
+        draw = ImageDraw.Draw(mask)
+        draw.ellipse((0, 0) + im.size, fill=255)
+        im.putalpha(mask)
+        return im
+
+    async def get_avatar(url):
+        response = requests.get(url)
+        avatar = Image.open(io.BytesIO(response.content)).resize((150, 150))
+        return circle_crop(avatar.convert("RGBA"))
+
+    avatar1 = await get_avatar(user1.display_avatar.url)
+    avatar2 = await get_avatar(user2.display_avatar.url)
+    heart = Image.open(requests.get("https://i.imgur.com/v4Cg6AQ.png", stream=True).raw).resize((80, 80)).convert("RGBA")
+
+    # Combine all images into one
+    ship_img = Image.new("RGBA", (380, 150), (255, 255, 255, 0))
+    ship_img.paste(avatar1, (0, 0), avatar1)
+    ship_img.paste(heart, (150, 35), heart)
+    ship_img.paste(avatar2, (230, 0), avatar2)
+
+    # Convert to Discord file
+    with io.BytesIO() as image_binary:
+        ship_img.save(image_binary, 'PNG')
+        image_binary.seek(0)
+        file = discord.File(fp=image_binary, filename="ship.png")
+
+    # Embed
+    embed = discord.Embed(
+        title="💘 Ship Result!",
+        description=(
+            f"{user1.mention} + {user2.mention}\n\n"
+            f"**Compatibility:** {compatibility}%\n" +
+            (f"**Couple Nickname:** `{couple_name}`" if couple_name else "*This ship might need more time to sail...*")
+        ),
+        color=discord.Color.pink()
+    )
+    embed.set_image(url="attachment://ship.png")
+    embed.set_footer(text=f"Requested by {ctx.author}", icon_url=ctx.author.display_avatar.url)
+
+    await ctx.send(file=file, embed=embed)
+# --------------------------------------------------------------------
 
 @bot.command()
 async def choose(ctx, *, options: str = None):
