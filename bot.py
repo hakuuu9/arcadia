@@ -290,31 +290,29 @@ async def role(ctx, member: discord.Member = None, *, role_input: str = None):
         await ctx.send("❌ Couldn't find that role.")
         return
 
-    # Emojis
     granted_emoji = "<a:GC_Fire:1348482027447386116>"
     revoked_emoji = "<a:calcifer:1348189333542404106>"
 
-    # Embed setup
     embed = discord.Embed(
         color=discord.Color.blurple(),
         timestamp=discord.utils.utcnow()
     )
-    embed.set_image(url="https://i.imgur.com/JxsCfCe.gif")
+    embed.set_thumbnail(url="https://i.imgur.com/JxsCfCe.gif")
     embed.set_footer(text=f"Requested by {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
 
     if role in member.roles:
         await member.remove_roles(role)
         embed.title = f"{revoked_emoji} Role Revoked"
         embed.description = (
-            f"The **{role.name}** role has been revoked from {member.mention}.\n"
-            f"Access associated with this role has been removed."
+            f"The role **{role.name}** has been revoked from {member.mention}.\n"
+            f"All permissions associated with this role have been removed."
         )
     else:
         await member.add_roles(role)
         embed.title = f"{granted_emoji} Role Granted"
         embed.description = (
-            f"{member.mention} has been assigned the **{role.name}** role.\n"
-            f"Privileges and access are now granted accordingly."
+            f"{member.mention} has been granted the **{role.name}** role.\n"
+            f"Relevant permissions are now active."
         )
 
     await ctx.send(embed=embed)
