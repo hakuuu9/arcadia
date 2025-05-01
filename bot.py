@@ -119,11 +119,6 @@ async def on_presence_update(before, after):
 
 # ---------------------------------------------------------------------------
 
-# Initialize bot
-intents = discord.Intents.default()
-intents.message_content = True
-bot = commands.Bot(command_prefix='$', intents=intents)
-
 # Couple names list
 couple_names = ["Soulmates", "Lovebirds", "PeanutButterAndJelly", "PowerCouple", "TwilightLove", "CutiePatooties"]
 
@@ -153,7 +148,7 @@ async def ship(ctx, user1: discord.User, user2: discord.User):
     if couple_name:
         embed.add_field(name="Couple Name", value=f"{couple_name}", inline=False)
 
-    embed.set_footer(text="Powered by YourBotName")
+    embed.set_footer(text="Powered by ARCADIA")
 
     # Send the embed
     await ctx.send(embed=embed)
