@@ -148,7 +148,10 @@ async def ship(ctx, user1: discord.Member = None, user2: discord.Member = None):
 
     avatar1 = await get_avatar(user1.display_avatar.url)
     avatar2 = await get_avatar(user2.display_avatar.url)
-    heart = Image.open(requests.get("https://i.imgur.com/v4Cg6AQ.png", stream=True).raw).resize((80, 80)).convert("RGBA")
+   heart_url = "https://cdn-icons-png.flaticon.com/512/833/833472.png"
+heart_response = requests.get(heart_url, stream=True)
+heart = Image.open(heart_response.raw).resize((80, 80)).convert("RGBA")
+
 
     # Combine all images into one
     ship_img = Image.new("RGBA", (380, 150), (255, 255, 255, 0))
