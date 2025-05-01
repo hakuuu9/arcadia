@@ -260,17 +260,15 @@ async def createembed(ctx, *, content: str = None):
 
 @bot.command()
 async def role(ctx, member: discord.Member = None, *, role_input: str = None):
-    # Replace with your actual staff role name and ID
-    STAFF_ROLE_NAME = "Moderator"  # Example role name
-    STAFF_ROLE_ID = 1347181345922748456  # Replace with your actual staff role ID
+    STAFF_ROLE_NAME = "Moderator"
+    STAFF_ROLE_ID = 1347181345922748456
+    LOG_CHANNEL_ID = 1364839238960549908
 
-    # Check if the author has the correct staff role by name and ID
     staff_role = discord.utils.get(ctx.guild.roles, name=STAFF_ROLE_NAME)
-    
+
     if not staff_role or staff_role.id != STAFF_ROLE_ID:
-        await ctx.send("❌ You don't have the required staff role to add or remove roles.")
+        await ctx.send("❌ You don't have the required staff role.")
         return
-    
     if STAFF_ROLE_ID not in [role.id for role in ctx.author.roles]:
         await ctx.send("❌ You don't have permission to use this command.")
         return
@@ -292,25 +290,38 @@ async def role(ctx, member: discord.Member = None, *, role_input: str = None):
         await ctx.send("❌ Couldn't find that role.")
         return
 
-    embed = discord.Embed(color=discord.Color.blurple())
-    embed.set_thumbnail(url="https://i.imgur.com/JxsCfCe.gif")
-    embed.set_footer(text=f"Requested by {ctx.author}", icon_url=ctx.author.display_avatar.url)
+    # Emojis
+    granted_emoji = "<a:GC_Fire:1348482027447386116>"
+    revoked_emoji = "<a:calcifer:1348189333542404106>"
+
+    # Embed setup
+    embed = discord.Embed(
+        color=discord.Color.blurple(),
+        timestamp=discord.utils.utcnow()
+    )
+    embed.set_image(url="https://i.imgur.com/JxsCfCe.gif")
+    embed.set_footer(text=f"Requested by {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
 
     if role in member.roles:
         await member.remove_roles(role)
-        embed.title = "🔻 Role Removed"
-        embed.description = f"{member.mention} is no longer **{role.name}**."
+        embed.title = f"{revoked_emoji} Role Revoked"
+        embed.description = (
+            f"The **{role.name}** role has been revoked from {member.mention}.\n"
+            f"Access associated with this role has been removed."
+        )
     else:
         await member.add_roles(role)
-        embed.title = "🎖️ Role Granted"
-        embed.description = f"{member.mention} has been promoted to **{role.name}**."
+        embed.title = f"{granted_emoji} Role Granted"
+        embed.description = (
+            f"{member.mention} has been assigned the **{role.name}** role.\n"
+            f"Privileges and access are now granted accordingly."
+        )
 
     await ctx.send(embed=embed)
 
-    log_channel = ctx.guild.get_channel(1364839238960549908)  # Replace with your actual log channel ID
+    log_channel = ctx.guild.get_channel(LOG_CHANNEL_ID)
     if log_channel:
         await log_channel.send(embed=embed)
-
 
 
 
