@@ -138,9 +138,9 @@ async def ship(ctx, user1: discord.User, user2: discord.User):
     else:
         couple_name = None
 
-    # Create the progress bar
-    progress = discord.ui.ProgressBar(min_value=0, max_value=100, current_value=compatibility)
-    
+    # Create a simple text progress bar
+    progress_bar = "█" * (compatibility // 10) + "-" * (10 - (compatibility // 10))
+
     # Create the embed
     embed = discord.Embed(
         title="Ship Compatibility",
@@ -148,7 +148,7 @@ async def ship(ctx, user1: discord.User, user2: discord.User):
         color=discord.Color.random()
     )
 
-    embed.add_field(name="Compatibility", value=f"{compatibility}%", inline=False)
+    embed.add_field(name="Compatibility", value=f"{compatibility}%\n{progress_bar}", inline=False)
     
     if couple_name:
         embed.add_field(name="Couple Name", value=f"{couple_name}", inline=False)
@@ -157,6 +157,7 @@ async def ship(ctx, user1: discord.User, user2: discord.User):
 
     # Send the embed
     await ctx.send(embed=embed)
+
 
 # --------------------------------------------------------------------
 
