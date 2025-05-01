@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands, tasks
-from discord.ui import Button, View, ProgressBar
+from discord.ui import Button, View
 import random
 from openai import OpenAI
 import math
