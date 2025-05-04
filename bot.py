@@ -2273,4 +2273,4 @@ async def autoreact_loop():
 
 
 keep_alive()
-bot.run(TOKEN)
+bot.run(os.environ["TOKEN"])
