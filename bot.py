@@ -117,44 +117,7 @@ async def on_presence_update(before, after):
     except Exception as e:
         print(f"[Error - Vanity Role Handler]: {e}")
 
-# ---------------------------------------------------------------------------
-
-# Couple names list
-couple_names = ["Soulmates", "Lovebirds", "PeanutButterAndJelly", "PowerCouple", "TwilightLove", "CutiePatooties"]
-
-@bot.command()
-async def ship(ctx, user1: discord.User, user2: discord.User):
-    # Generate a random compatibility percentage
-    compatibility = random.randint(0, 100)
-
-    # Pick a couple name if compatibility is 50% or higher
-    if compatibility >= 50:
-        couple_name = random.choice(couple_names)
-    else:
-        couple_name = None
-
-    # Create a simple text progress bar
-    progress_bar = "█" * (compatibility // 10) + "-" * (10 - (compatibility // 10))
-
-    # Create the embed
-    embed = discord.Embed(
-        title="Ship Compatibility",
-        description=f"{user1.mention} ❤️ {user2.mention}",
-        color=discord.Color.random()
-    )
-
-    embed.add_field(name="Compatibility", value=f"{compatibility}%\n{progress_bar}", inline=False)
-    
-    if couple_name:
-        embed.add_field(name="Couple Name", value=f"{couple_name}", inline=False)
-
-    embed.set_footer(text="Powered by ARCADIA")
-
-    # Send the embed
-    await ctx.send(embed=embed)
-
-
-# --------------------------------------------------------------------
+# ----------------------------------------------------------------------
 
 @bot.command()
 async def choose(ctx, *, options: str = None):
