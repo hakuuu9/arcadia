@@ -1,3 +1,5 @@
+import os
+
 TOKEN = os.environ["TOKEN"]
 GUILD_ID = 1259666579214569552
 VANITY_IMAGE_URL = "https://cdn.discordapp.com/attachments/1364905044239187989/1365858385605562408/Your_paragraph_text_20250427_091202_0000.jpg"
