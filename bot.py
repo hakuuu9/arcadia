@@ -1826,6 +1826,50 @@ async def now_playing(ctx):
     
     await ctx.send("❌ You are not currently playing any music on Spotify.")
 
+# -----------------------------------------------------------------------------------
+
+# AFK Command
+@bot.command(name="afk")
+async def afk(ctx, *, reason=None):
+    # Set the AFK status for the user
+    if reason:
+        afk_message = f"AFK: {reason}"
+    else:
+        afk_message = "AFK"
+    
+    # Change the user's nickname to show they are AFK (if the user has permission to change their own nickname)
+    try:
+        await ctx.author.edit(nick=f"[AFK] {ctx.author.name}")
+    except discord.Forbidden:
+        await ctx.send("❌ I don't have permission to change your nickname.")
+    
+    # Send a message notifying the user that they are now AFK
+    await ctx.send(f"{ctx.author.mention} is now AFK! Reason: {reason or 'No reason specified.'}")
+
+# Event: When someone pings an AFK user
+@bot.event
+async def on_message(message):
+    if message.author.bot:
+        return
+
+    # Check if the user mentioned someone and that person is AFK (based on their nickname)
+    for user in message.mentions:
+        if user.nick and user.nick.startswith("[AFK]"):
+            afk_reason = user.nick[5:]  # Extract the reason from the nickname (everything after '[AFK] ')
+            await message.channel.send(f"{user.mention} is currently AFK. Reason: {afk_reason}")
+            break  # Only reply once for the first mention
+
+    # Process other commands
+    await bot.process_commands(message)
+
+    # Remove the AFK status when a user sends a message
+    if message.author.nick and message.author.nick.startswith("[AFK]"):
+        try:
+            # Remove the [AFK] prefix from the nickname
+            await message.author.edit(nick=message.author.name)
+            await message.channel.send(f"{message.author.mention} is no longer AFK!")
+        except discord.Forbidden:
+            await message.channel.send("❌ I don't have permission to change your nickname.")
 
 
 keep_alive()
