@@ -1455,26 +1455,46 @@ async def timeout_error(ctx, error):
 
 # -----------------------------------------------------------------------------
 
-# The User ID of the Owo Hunt Bot (replace with the actual ID)
+# The User ID of the OwO Hunt Bot
 OWO_HUNT_BOT_ID = 408785106942164992
 
-# The ID of your "huntbots only" channel (replace with the actual Channel ID)
+# The ID of your "huntbots only" channel
 HUNTBOTS_CHANNEL_ID = 1346508582031724615
 
-# The text to look for within the embed when the hunt is NOT ready
-HUNT_NOT_READY_EMBED_TEXT = "Use the command"
+# Common phrases when hunt is not ready
+HUNT_NOT_READY_KEYWORDS = [
+    "HUNTBOT is currently hunting!",
+    "To obtain more essence",
+    "still busy",
+    "you are hunting",
+    "you're already hunting",
+    "hunt is not ready"
+]
+
+# Function to check if text contains any of the keywords
+def contains_not_ready(text):
+    if not text:
+        return False
+    return any(keyword in text.lower() for keyword in HUNT_NOT_READY_KEYWORDS)
 
 @bot.event
 async def on_message(message):
     if message.author.id == OWO_HUNT_BOT_ID and message.channel.id == HUNTBOTS_CHANNEL_ID:
         if message.embeds:
             for embed in message.embeds:
+                # Optional debug log (uncomment for testing)
+                # import json
+                # print("Embed data:", json.dumps(embed.to_dict(), indent=2))
+
                 # Check embed title
-                if embed.title and HUNT_NOT_READY_EMBED_TEXT in embed.title:
+                if contains_not_ready(embed.title):
                     try:
                         await message.delete()
                         if message.reference and message.reference.resolved and not message.reference.resolved.author.bot:
-                            await message.reference.resolved.reply(" охота message from Owo Bot (not ready) has been automatically deleted to keep chat clean.", mention_author=False)
+                            await message.reference.resolved.reply(
+                                " охота message from Owo Bot (not ready) has been automatically deleted to keep chat clean.",
+                                mention_author=False
+                            )
                         return
                     except discord.Forbidden as e:
                         print(f"Error deleting message (embed title) in #{message.channel.name}: {e}")
@@ -1485,11 +1505,14 @@ async def on_message(message):
                     return
 
                 # Check embed description
-                if embed.description and HUNT_NOT_READY_EMBED_TEXT in embed.description:
+                if contains_not_ready(embed.description):
                     try:
                         await message.delete()
                         if message.reference and message.reference.resolved and not message.reference.resolved.author.bot:
-                            await message.reference.resolved.reply(" охота message from Owo Bot (not ready) has been automatically deleted to keep chat clean.", mention_author=False)
+                            await message.reference.resolved.reply(
+                                " охота message from Owo Bot (not ready) has been automatically deleted to keep chat clean.",
+                                mention_author=False
+                            )
                         return
                     except discord.Forbidden as e:
                         print(f"Error deleting message (embed description) in #{message.channel.name}: {e}")
@@ -1502,11 +1525,14 @@ async def on_message(message):
                 # Check embed fields
                 if embed.fields:
                     for field in embed.fields:
-                        if HUNT_NOT_READY_EMBED_TEXT in field.name or HUNT_NOT_READY_EMBED_TEXT in field.value:
+                        if contains_not_ready(field.name) or contains_not_ready(field.value):
                             try:
                                 await message.delete()
                                 if message.reference and message.reference.resolved and not message.reference.resolved.author.bot:
-                                    await message.reference.resolved.reply(" охота message from Owo Bot (not ready) has been automatically deleted to keep chat clean.", mention_author=False)
+                                    await message.reference.resolved.reply(
+                                        " охота message from Owo Bot (not ready) has been automatically deleted to keep chat clean.",
+                                        mention_author=False
+                                    )
                                 return
                             except discord.Forbidden as e:
                                 print(f"Error deleting message (embed field) in #{message.channel.name}: {e}")
@@ -1516,8 +1542,9 @@ async def on_message(message):
                                 print(f"Error deleting message (embed field) in #{message.channel.name}: {e}")
                             return
 
-    # This is important to process other bot commands and events
+    # Always allow other bot commands to run
     await bot.process_commands(message)
+
 
 # ----------------------------------------------------------------------------------------------------
 
