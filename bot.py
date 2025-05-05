@@ -7,6 +7,7 @@ import asyncio
 import json
 import re
 import os
+import logging
 import html
 import time
 import datetime
@@ -1455,6 +1456,9 @@ async def timeout_error(ctx, error):
 
 # -----------------------------------------------------------------------------
 
+# Setup logging to file (optional)
+logging.basicConfig(filename='bot_logs.txt', level=logging.DEBUG, format='%(asctime)s - %(message)s')
+
 # The User ID of the Owo Hunt Bot (replace with the actual ID)
 OWO_HUNT_BOT_ID = 408785106942164992  # Replace with the actual OwO Bot ID
 
@@ -1464,83 +1468,91 @@ HUNTBOTS_CHANNEL_ID = 1346508582031724615  # Replace with the actual channel ID
 # The text to look for within the embed when the hunt is NOT ready
 HUNT_NOT_READY_EMBED_TEXT = "HUNTBOT is currently hunting!"  # Replace with the actual text you want to detect
 
+# Your log channel ID (replace with the actual ID)
+LOG_CHANNEL_ID = 1364839238960549908  # Replace with your log channel's ID
+
+
 @bot.event
 async def on_message(message):
-    # Debug log for any incoming message
-    print(f"[DEBUG] Message from {message.author.id} in #{message.channel.name}")
+    # Log incoming message info to file (optional)
+    logging.debug(f"Message from {message.author.id} in #{message.channel.name}")
     
-    # Check if the message has embeds
     if message.embeds:
-        print("[DEBUG] Message contains embeds")
+        logging.debug("Message contains embeds")
         
-        # Iterate through all embeds
         for embed in message.embeds:
-            # Debug logs to print out embed details
-            print("[DEBUG] Embed Title:", repr(embed.title))
-            print("[DEBUG] Embed Description:", repr(embed.description))
+            logging.debug(f"Embed Title: {repr(embed.title)}")
+            logging.debug(f"Embed Description: {repr(embed.description)}")
             for field in embed.fields:
-                print("[DEBUG] Field name:", repr(field.name))
-                print("[DEBUG] Field value:", repr(field.value))
+                logging.debug(f"Field name: {repr(field.name)}")
+                logging.debug(f"Field value: {repr(field.value)}")
 
-            # Check if this is the huntbot message and it's in the right channel
             if message.author.id == OWO_HUNT_BOT_ID and message.channel.id == HUNTBOTS_CHANNEL_ID:
-                # Check if embed title contains the "HUNT_NOT_READY_EMBED_TEXT"
                 if embed.title and HUNT_NOT_READY_EMBED_TEXT in embed.title:
                     try:
                         await message.delete()
-                        print(f"[DEBUG] Deleted message from {message.author.id} in #{message.channel.name} (embed title)")
+                        logging.debug(f"Deleted message from {message.author.id} in #{message.channel.name} (embed title)")
 
-                        # Reply to the original message if applicable
+                        # Send a log message to the log channel in Discord
+                        log_channel = bot.get_channel(LOG_CHANNEL_ID)
+                        if log_channel:
+                            await log_channel.send(f"Deleted message from {message.author} in #{message.channel.name} (embed title)")
+
                         if message.reference and message.reference.resolved and not message.reference.resolved.author.bot:
                             await message.reference.resolved.reply(" охота message from Owo Bot (not ready) has been automatically deleted to keep chat clean.", mention_author=False)
                         return
                     except discord.Forbidden as e:
-                        print(f"[ERROR] Forbidden error deleting message in #{message.channel.name}: {e}")
+                        logging.error(f"Forbidden error deleting message in #{message.channel.name}: {e}")
                     except discord.NotFound as e:
-                        print(f"[ERROR] Message to delete not found in #{message.channel.name}: {e}")
+                        logging.error(f"Message to delete not found in #{message.channel.name}: {e}")
                     except discord.HTTPException as e:
-                        print(f"[ERROR] HTTP exception deleting message in #{message.channel.name}: {e}")
+                        logging.error(f"HTTP exception deleting message in #{message.channel.name}: {e}")
                     return
 
-                # Check if embed description contains the "HUNT_NOT_READY_EMBED_TEXT"
                 if embed.description and HUNT_NOT_READY_EMBED_TEXT in embed.description:
                     try:
                         await message.delete()
-                        print(f"[DEBUG] Deleted message from {message.author.id} in #{message.channel.name} (embed description)")
+                        logging.debug(f"Deleted message from {message.author.id} in #{message.channel.name} (embed description)")
 
-                        # Reply to the original message if applicable
+                        # Send a log message to the log channel in Discord
+                        log_channel = bot.get_channel(LOG_CHANNEL_ID)
+                        if log_channel:
+                            await log_channel.send(f"Deleted message from {message.author} in #{message.channel.name} (embed description)")
+
                         if message.reference and message.reference.resolved and not message.reference.resolved.author.bot:
                             await message.reference.resolved.reply(" охота message from Owo Bot (not ready) has been automatically deleted to keep chat clean.", mention_author=False)
                         return
                     except discord.Forbidden as e:
-                        print(f"[ERROR] Forbidden error deleting message in #{message.channel.name}: {e}")
+                        logging.error(f"Forbidden error deleting message in #{message.channel.name}: {e}")
                     except discord.NotFound as e:
-                        print(f"[ERROR] Message to delete not found in #{message.channel.name}: {e}")
+                        logging.error(f"Message to delete not found in #{message.channel.name}: {e}")
                     except discord.HTTPException as e:
-                        print(f"[ERROR] HTTP exception deleting message in #{message.channel.name}: {e}")
+                        logging.error(f"HTTP exception deleting message in #{message.channel.name}: {e}")
                     return
 
-                # Check if embed fields contain the "HUNT_NOT_READY_EMBED_TEXT"
                 if embed.fields:
                     for field in embed.fields:
                         if HUNT_NOT_READY_EMBED_TEXT in field.name or HUNT_NOT_READY_EMBED_TEXT in field.value:
                             try:
                                 await message.delete()
-                                print(f"[DEBUG] Deleted message from {message.author.id} in #{message.channel.name} (embed field)")
+                                logging.debug(f"Deleted message from {message.author.id} in #{message.channel.name} (embed field)")
 
-                                # Reply to the original message if applicable
+                                # Send a log message to the log channel in Discord
+                                log_channel = bot.get_channel(LOG_CHANNEL_ID)
+                                if log_channel:
+                                    await log_channel.send(f"Deleted message from {message.author} in #{message.channel.name} (embed field)")
+
                                 if message.reference and message.reference.resolved and not message.reference.resolved.author.bot:
                                     await message.reference.resolved.reply(" охота message from Owo Bot (not ready) has been automatically deleted to keep chat clean.", mention_author=False)
                                 return
                             except discord.Forbidden as e:
-                                print(f"[ERROR] Forbidden error deleting message in #{message.channel.name}: {e}")
+                                logging.error(f"Forbidden error deleting message in #{message.channel.name}: {e}")
                             except discord.NotFound as e:
-                                print(f"[ERROR] Message to delete not found in #{message.channel.name}: {e}")
+                                logging.error(f"Message to delete not found in #{message.channel.name}: {e}")
                             except discord.HTTPException as e:
-                                print(f"[ERROR] HTTP exception deleting message in #{message.channel.name}: {e}")
+                                logging.error(f"HTTP exception deleting message in #{message.channel.name}: {e}")
                             return
 
-    # This ensures other bot commands work
     await bot.process_commands(message)
 
 # ----------------------------------------------------------------------------------------------------
