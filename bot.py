@@ -1852,20 +1852,20 @@ async def on_message(message):
     if message.author.bot:
         return
 
-    # Check if the user mentioned someone and that person is AFK (based on their nickname)
+    # Check if the user mentioned someone and that person has [AFK] in their nickname
     for user in message.mentions:
-        if user.nick and user.nick.startswith("[AFK]"):
-            afk_reason = user.nick[5:]  # Extract the reason from the nickname (everything after '[AFK] ')
-            await message.channel.send(f"{user.mention} is currently AFK. Reason: {afk_reason}")
+        if '[AFK]' in user.nick:  # Check if the user's nickname has [AFK]
+            reason = user.nick.replace('[AFK] ', '')  # Remove [AFK] from nickname to get the reason
+            await message.channel.send(f"{user.mention} is currently AFK. Reason: {reason or 'No reason specified.'}")
             break  # Only reply once for the first mention
 
     # Process other commands
     await bot.process_commands(message)
 
-    # Remove the AFK status when a user sends a message, but not if they just ran the $afk command
-    if message.author.nick and message.author.nick.startswith("[AFK]") and message.author != message.guild.me:
+    # Check if the user who sent the message was AFK
+    if '[AFK]' in message.author.nick:
         try:
-            # Remove the [AFK] prefix from the nickname
+            # Remove the [AFK] prefix from the nickname (i.e., reset to original name)
             await message.author.edit(nick=message.author.name)
             await message.channel.send(f"{message.author.mention} is no longer AFK!")
         except discord.Forbidden:
