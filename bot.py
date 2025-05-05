@@ -1560,43 +1560,6 @@ async def on_message(message):
 
 # ----------------------------------------------------------------------------------------------------
 
-@bot.command()
-async def roll(ctx, sides: int = 6, target: int = None):
-    """Rolls a dice with the specified number of sides (default is 6)
-    and optionally checks if you rolled a specific target number.
-    Example: !roll
-             !roll 20
-             !roll 6 3 (rolls a 6-sided die and checks if you rolled a 3)
-    """
-    if sides <= 1:
-        await ctx.send("🎲 The dice must have at least 2 sides!")
-        return
-
-    roll = random.randint(1, sides)
-    result_message = f"🎲 You rolled a **{roll}** on a {sides}-sided dice!"
-
-    if target is not None:
-        if 1 <= target <= sides:
-            if roll == target:
-                result_message += f" 🎉 You win! You rolled your target number: **{target}**!"
-            else:
-                result_message += f" 😞 You didn't win. Your target was **{target}**."
-        else:
-            await ctx.send(f"🎯 Your target number must be between 1 and {sides}!")
-            return
-
-    await ctx.send(result_message)
-
-@roll.error
-async def roll_error(ctx, error):
-    if isinstance(error, commands.BadArgument):
-        await ctx.send("🎲 Please enter a valid number of sides and an optional target number (both should be integers).")
-    else:
-        print(f"Error in roll command: {error}")
-        await ctx.send("❌ An unexpected error occurred while rolling the dice.")
-
-# -------------------------------------------------------------------------------
-
 CONFESS_CHANNEL_ID = 1364848318034739220  # Replace with your public confession channel ID
 CONFESSION_LOG_CHANNEL_ID = 1364839238960549908  # Replace with your confession log channel ID
 
