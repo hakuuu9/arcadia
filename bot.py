@@ -393,17 +393,13 @@ async def info_command(ctx):
         ).add_field(
             name="👥🎉 Member Commands",
             value=(
-                "**💘 `$ship @user1 @user2`** — Ship two users\n"
                 "**🎲 `$choose option1, option2`** — Randomly choose one\n"
                 "**🖼️ `$avatar [@user]`** — View a user's avatar\n"
                 "**🎱 `$8b question`** — Magic 8-Ball answers\n"
                 "**⏰ `$remind [time] [task]`** — Set a reminder\n"
-                "**💖 `$simpfor @user`** — How hard are you simping?\n"
                 "**🧑‍💻 `$userinfo [@user]`** — Display user info\n"
                 "**✉️ `$autoresponse add/delete/list`** — Set auto-replies for keywords\n"
-                "**📝 `$quote`** — Turn a message into a styled quote image\n"
                 "**🕊️ `$confess your message`** — Anonymous confession (with private logging)\n"
-                "**👀 `$snipe`** — Retrieve the last deleted message"
             ),
             inline=False
         ).set_thumbnail(url="https://i.imgur.com/JxsCfCe.gif"),
@@ -418,12 +414,6 @@ async def info_command(ctx):
                 "**🎲 `$rps @user`** — Rock-Paper-Scissors\n"
                 "**🎯 `$hangman solo/duo/free`** — Hangman modes\n"
                 "**❌ `$tictactoe @user`** — Play Tic Tac Toe\n"
-                "**🔤 `$wordchain [word]`** — Continue the chain\n"
-                "**🧠 `$unscramble`** — Word puzzle\n"
-                "**🏆 `$unscramblescore`** — Leaderboard\n"
-                "**🤔 `$spotlie`** — Find the lie!\n"
-                "**✍️ `$textart <text>`** — Generate ASCII art!\n"
-                "**🎲 `$roll [max number]`** — Roll a random number"
             ),
             inline=False
         ).set_thumbnail(url="https://i.imgur.com/JxsCfCe.gif"),
@@ -435,7 +425,7 @@ async def info_command(ctx):
         ).add_field(
             name="🔧 Utility Commands",
             value=(
-                "**🤖 `$arcadia [question]`** — Ask Arcadia anything"
+                "**👀 `$snipe`** — Retrieve the last deleted message"
             ),
             inline=False
         ).set_thumbnail(url="https://i.imgur.com/JxsCfCe.gif"),
@@ -504,7 +494,6 @@ async def support_info(ctx):
             "👢 `$kick @user reason` – Kick a member from the server\n"
             "🔨 `$ban @user reason` – Ban a member from the server\n"
             "🔇 `$timeout @user seconds reason` – Timeout (mute) a user temporarily\n"
-            "📝 **$post command** – Post a message that repeats at specified intervals.\n"
             "📝 `$post #channel / embed/normal / message / interval` – Post a repeating message\n"
             "🛑 `$unpost #channel` – Stop the repeating post in a channel\n"
         ),
