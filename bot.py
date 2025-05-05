@@ -1828,6 +1828,28 @@ async def now_playing(ctx):
 
 # -----------------------------------------------------------------------------------
 
+# SMS Command to send a message to any user by their user ID
+@bot.command(name="sms")
+async def sms_user(ctx, user_id: int, *, message: str):
+    # Try to fetch the user using their ID
+    try:
+        user = await bot.fetch_user(user_id)
+    except discord.NotFound:
+        await ctx.send("❌ User not found.")
+        return
+    except discord.HTTPException:
+        await ctx.send("❌ Could not fetch the user.")
+        return
+
+    try:
+        # Send the DM to the user
+        await user.send(message)
+        await ctx.send(f"✅ Message successfully sent to {user.mention}!")
+    except discord.Forbidden:
+        await ctx.send(f"❌ I can't send a DM to {user.mention}. They might have DMs disabled.")
+    except discord.HTTPException:
+        await ctx.send("❌ There was an issue while sending the message.")
+
 
 keep_alive()
 bot.run(TOKEN)
