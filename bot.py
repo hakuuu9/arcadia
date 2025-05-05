@@ -1702,6 +1702,70 @@ async def autoreact_loop():
             if log_channel:
                 await log_channel.send(f"⚠️ Error while reacting in {channel.mention}: `{e}`")
 
+# ---------------------------------------------------------------------------------------------------
+
+LOG_DM_CHANNEL_ID = 1364839238960549908  # <- your log channel ID
+
+@bot.command(name="dm")
+@commands.has_permissions(administrator=True)
+async def dm(ctx, target: str, *, message: str):
+    log_channel = ctx.guild.get_channel(LOG_DM_CHANNEL_ID)
+    if not log_channel:
+        await ctx.send("❌ Log channel not found.")
+        return
+
+    # Try resolving as a user
+    member = None
+    try:
+        if target.startswith("<@") and target.endswith(">"):
+            user_id = int(target.strip("<@!>"))
+            member = await ctx.guild.fetch_member(user_id)
+        else:
+            user_id = int(target)
+            member = await ctx.guild.fetch_member(user_id)
+    except:
+        pass
+
+    # Try resolving as a role
+    role = None
+    if not member:
+        if target.startswith("<@&") and target.endswith(">"):
+            try:
+                role_id = int(target.strip("<@&>"))
+                role = ctx.guild.get_role(role_id)
+            except:
+                pass
+        else:
+            role = discord.utils.find(lambda r: r.name.lower() == target.lower(), ctx.guild.roles)
+
+    if member:
+        try:
+            await member.send(message)
+            await ctx.send(f"📩 Message sent to {member.mention}")
+            await log_channel.send(f"✅ DM sent to {member.mention} by {ctx.author.mention}\n**Message:** {message}")
+        except discord.Forbidden:
+            await ctx.send(f"❌ Couldn't DM {member.mention}.")
+            await log_channel.send(f"❌ Failed to DM {member.mention} (DMs closed?) by {ctx.author.mention}")
+    elif role:
+        sent = 0
+        failed = 0
+        await ctx.send(f"⏳ Sending message to role `{role.name}`...")
+        for member in role.members:
+            if member.bot:
+                continue
+            try:
+                await member.send(message)
+                sent += 1
+                await log_channel.send(f"✅ DM sent to {member.mention} (role: {role.name})")
+            except discord.Forbidden:
+                failed += 1
+                await log_channel.send(f"❌ Failed to DM {member.mention} (role: {role.name})")
+        await ctx.send(f"✅ DM sent to {sent} users. ❌ Failed for {failed} users.")
+        await log_channel.send(f"📊 Finished sending DMs to role `{role.name}` — ✅ {sent}, ❌ {failed}")
+    else:
+        await ctx.send("❌ Could not find user or role. Use a valid mention, name, or ID.")
+
+
 
 
 keep_alive()
