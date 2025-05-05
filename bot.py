@@ -1836,41 +1836,62 @@ async def afk(ctx, *, reason=None):
         afk_message = f"AFK: {reason}"
     else:
         afk_message = "AFK"
-    
+
     # Change the user's nickname to show they are AFK (if the user has permission to change their own nickname)
     try:
         await ctx.author.edit(nick=f"[AFK] {ctx.author.name}")
     except discord.Forbidden:
         await ctx.send("❌ I don't have permission to change your nickname.")
-    
+
     # Send a message notifying the user that they are now AFK
     await ctx.send(f"{ctx.author.mention} is now AFK! Reason: {reason or 'No reason specified.'}")
 
-# Event: When someone pings an AFK user
+# Store AFK users in a set for efficient checking
+afk_users = set()
+
+# Event: When someone sends a message
 @bot.event
 async def on_message(message):
     if message.author.bot:
         return
 
-    # Check if the user mentioned someone and that person has [AFK] in their nickname
+    # Check if the user mentioned someone and that person is in the AFK set
     for user in message.mentions:
-        if '[AFK]' in user.nick:  # Check if the user's nickname has [AFK]
-            reason = user.nick.replace('[AFK] ', '')  # Remove [AFK] from nickname to get the reason
-            await message.channel.send(f"{user.mention} is currently AFK. Reason: {reason or 'No reason specified.'}")
+        if user.id in afk_users:
+            # Find the original nickname if it was changed
+            original_nick = user.name
+            if user.nick and user.nick.startswith('[AFK] '):
+                original_nick = user.nick.replace('[AFK] ', '')
+            await message.channel.send(f"{user.mention} is currently AFK. Reason: {original_nick or 'No reason specified.'}")
             break  # Only reply once for the first mention
 
     # Process other commands
     await bot.process_commands(message)
 
-    # Check if the user who sent the message was AFK
-    if '[AFK]' in message.author.nick:
+    # Check if the user who sent the message is AFK and sent a non-command message
+    if message.author.id in afk_users and not message.content.startswith(bot.command_prefix):
         try:
-            # Remove the [AFK] prefix from the nickname (i.e., reset to original name)
-            await message.author.edit(nick=message.author.name)
+            # Remove the user from the AFK set
+            afk_users.discard(message.author.id)
+            # Attempt to reset the nickname
+            if message.guild:  # Ensure we are in a guild
+                await message.author.edit(nick=message.author.name)
             await message.channel.send(f"{message.author.mention} is no longer AFK!")
         except discord.Forbidden:
             await message.channel.send("❌ I don't have permission to change your nickname.")
 
+@bot.command(name="back")
+async def back(ctx):
+    if ctx.author.id in afk_users:
+        try:
+            afk_users.discard(ctx.author.id)
+            if ctx.guild:
+                await ctx.author.edit(nick=ctx.author.name)
+            await ctx.send(f"{ctx.author.mention} is no longer AFK!")
+        except discord.Forbidden:
+            await ctx.send("❌ I don't have permission to change your nickname.")
+    else:
+        await ctx.send(f"{ctx.author.mention} You are not currently AFK.")
 
 keep_alive()
 bot.run(TOKEN)
