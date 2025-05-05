@@ -1776,19 +1776,20 @@ async def random_vc(ctx):
         await ctx.send("❌ You must be connected to a voice channel to use this command.")
         return
 
+    # Include channels with no members (empty channels)
     voice_channels = [
         ch for ch in ctx.guild.voice_channels
-        if ch.members and ch.id not in EXCLUDED_VC_IDS and ch != ctx.author.voice.channel
-        and not ch.permissions_for(ctx.guild.me).connect  # Exclude channels the bot can't connect to
-        and ch.user_limit == 0  # Exclude channels with user limits (if any are set)
-        and ch.category and ch.category.permissions_for(ctx.guild.me).read_messages  # Check if the bot can read the channel
+        if ch.id not in EXCLUDED_VC_IDS and ch != ctx.author.voice.channel
     ]
-
+    
     if not voice_channels:
-        await ctx.send("⚠️ No available voice channels found to join (excluding private or locked ones).")
+        await ctx.send("⚠️ No available voice channels found to join (excluding private ones).")
         return
 
     target_channel = random.choice(voice_channels)
+
+    # Debug: Show the available channels
+    print(f"Available voice channels: {[ch.name for ch in voice_channels]}")
 
     try:
         await ctx.author.move_to(target_channel)
