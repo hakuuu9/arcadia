@@ -1828,27 +1828,26 @@ async def now_playing(ctx):
 
 # -----------------------------------------------------------------------------------
 
-# SMS Command to send a message to any user by their user ID
 @bot.command(name="sms")
-async def sms_user(ctx, user_id: int, *, message: str):
-    # Try to fetch the user using their ID
+async def sms(ctx, user_id: int, *, message: str):
     try:
-        user = await bot.fetch_user(user_id)
-    except discord.NotFound:
-        await ctx.send("❌ User not found.")
-        return
-    except discord.HTTPException:
-        await ctx.send("❌ Could not fetch the user.")
-        return
+        # Check if the user is in the server
+        user = discord.utils.get(ctx.guild.members, id=user_id)
+        
+        if user:
+            # If the user is in the server, send them a DM
+            await user.send(message)
+            await ctx.send(f"✅ Message sent to {user.name}!")
+        else:
+            # If the user is not in the server, attempt to DM using the provided user ID
+            user = await bot.fetch_user(user_id)
+            await user.send(message)
+            await ctx.send(f"✅ Message sent to {user.name} (outside the server)!")
 
-    try:
-        # Send the DM to the user
-        await user.send(message)
-        await ctx.send(f"✅ Message successfully sent to {user.mention}!")
-    except discord.Forbidden:
-        await ctx.send(f"❌ I can't send a DM to {user.mention}. They might have DMs disabled.")
-    except discord.HTTPException:
-        await ctx.send("❌ There was an issue while sending the message.")
+    except discord.DiscordException as e:
+        await ctx.send(f"❌ Failed to send the message: {e}")
+    except Exception as e:
+        await ctx.send(f"❌ An error occurred: {e}")
 
 
 keep_alive()
