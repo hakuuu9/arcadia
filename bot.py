@@ -7,7 +7,6 @@ import asyncio
 import json
 import re
 import os
-import logging
 import html
 import time
 import datetime
