@@ -425,6 +425,7 @@ async def info_command(ctx):
             value=(
                 "**👀 `$snipe`** — Retrieve the last deleted message\n"
                 "**🔀 `$randomvc`** — Join a random public voice channel (excluding private ones)\n"
+                "**🎧 `$np`** — Display the currently playing song from Spotify\n"  
             ),
             inline=False
         ).set_thumbnail(url="https://i.imgur.com/JxsCfCe.gif"),
