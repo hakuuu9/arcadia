@@ -497,6 +497,7 @@ async def support_info(ctx):
             "📝 `$post #channel / embed/normal / message / interval` – Post a repeating message\n"
             "🛑 `$unpost #channel` – Stop the repeating post in a channel\n"
             "📤 `$dm @user | message` or `$dm @role | message` – Send DMs to a user or all members with a role (with delay and logs)\n"
+            "**📩 `$sms [user_id] [message]`** — DM a user even if they're outside the server\n"
         ),
         inline=False
     )
