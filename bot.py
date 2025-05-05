@@ -1714,7 +1714,6 @@ async def dm(ctx, target: str, *, message: str):
         await ctx.send("❌ Log channel not found.")
         return
 
-    # Try resolving as a user
     member = None
     try:
         if target.startswith("<@") and target.endswith(">"):
@@ -1726,7 +1725,6 @@ async def dm(ctx, target: str, *, message: str):
     except:
         pass
 
-    # Try resolving as a role
     role = None
     if not member:
         if target.startswith("<@&") and target.endswith(">"):
@@ -1749,7 +1747,8 @@ async def dm(ctx, target: str, *, message: str):
     elif role:
         sent = 0
         failed = 0
-        await ctx.send(f"⏳ Sending message to role `{role.name}`...")
+        await ctx.send(f"⏳ Sending message to `{role.name}`... This may take a while.")
+
         for member in role.members:
             if member.bot:
                 continue
@@ -1760,11 +1759,12 @@ async def dm(ctx, target: str, *, message: str):
             except discord.Forbidden:
                 failed += 1
                 await log_channel.send(f"❌ Failed to DM {member.mention} (role: {role.name})")
-        await ctx.send(f"✅ DM sent to {sent} users. ❌ Failed for {failed} users.")
-        await log_channel.send(f"📊 Finished sending DMs to role `{role.name}` — ✅ {sent}, ❌ {failed}")
+            await asyncio.sleep(1.5)  # Delay to prevent rate limits
+
+        await ctx.send(f"✅ Done! Sent to {sent} users. ❌ Failed for {failed}.")
+        await log_channel.send(f"📊 Finished DM to role `{role.name}` — ✅ {sent}, ❌ {failed}")
     else:
         await ctx.send("❌ Could not find user or role. Use a valid mention, name, or ID.")
-
 
 
 
