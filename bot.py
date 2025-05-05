@@ -397,7 +397,6 @@ async def info_command(ctx):
                 "**🎱 `$8b question`** — Magic 8-Ball answers\n"
                 "**⏰ `$remind [time] [task]`** — Set a reminder\n"
                 "**🧑‍💻 `$userinfo [@user]`** — Display user info\n"
-                "**✉️ `$autoresponse add/delete/list`** — Set auto-replies for keywords\n"
                 "**🕊️ `$confess your message`** — Anonymous confession (with private logging)\n"
             ),
             inline=False
@@ -495,6 +494,7 @@ async def support_info(ctx):
             "🔇 `$timeout @user seconds reason` – Timeout (mute) a user temporarily\n"
             "📝 `$post #channel / embed/normal / message / interval` – Post a repeating message\n"
             "🛑 `$unpost #channel` – Stop the repeating post in a channel\n"
+            "📤 `$dm @user | message` or `$dm @role | message` – Send DMs to a user or all members with a role (with delay and logs)\n"
         ),
         inline=False
     )
