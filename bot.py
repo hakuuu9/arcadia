@@ -477,27 +477,37 @@ async def support_info(ctx):
         color=discord.Color.red()
     )
 
-    embed.set_thumbnail(url="https://i.imgur.com/JxsCfCe.gif")  # Optional: same GIF for consistency
+    embed.set_thumbnail(url="https://i.imgur.com/JxsCfCe.gif")
 
     embed.add_field(
-        name="🧰 Moderation & Support Tools",
+        name="🧰 Moderation & Support Tools (1/2)",
         value=(
-            "📩 `$createembed #channel | title | description | #hexcolor` – Post a styled embed\n"
-            "🎭 `$role @member @role` – Add/remove a role from a member\n"
-            "📊 `$serverinfo` – Show server stats and info\n"
-            "🧹 `$purge [amount]` – Delete messages in a channel\n"
-            "⚠️ `$warn @user reason` – Warn a user & log it\n"
-            "📌 `$inrole` – Show members with a certain role\n"
-            "📊 `$arclb` – $arclb #channel | [title] | [description] | [hex color (optional)] | [GIF URL (optional)]\n"
-            "📊 `$sticky #channel your message` - Set a sticky message that reposts when users chat.\n"
-            "📊 `$unsticky #channel` - Remove a sticky message from a channel.\n"
-            "👢 `$kick @user reason` – Kick a member from the server\n"
-            "🔨 `$ban @user reason` – Ban a member from the server\n"
-            "🔇 `$timeout @user seconds reason` – Timeout (mute) a user temporarily\n"
-            "📝 `$post #channel / embed/normal / message / interval` – Post a repeating message\n"
-            "🛑 `$unpost #channel` – Stop the repeating post in a channel\n"
-            "📤 `$dm @user | message` or `$dm @role | message` – Send DMs to a user or all members with a role (with delay and logs)\n"
-            "**📩 `$sms [user_id] [message]`** — DM a user even if they're outside the server\n"
+            "📩 `$createembed #channel | title | description | #hexcolor`\n"
+            "🎭 `$role @member @role`\n"
+            "📊 `$serverinfo`\n"
+            "🧹 `$purge [amount]`\n"
+            "⚠️ `$warn @user reason`\n"
+            "📌 `$inrole`\n"
+            "📊 `$arclb`\n"
+            "📊 `$sticky #channel your message`\n"
+            "📊 `$unsticky #channel`\n"
+            "👢 `$kick @user reason`\n"
+            "🔨 `$ban @user reason`\n"
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name="🧰 Moderation & Support Tools (2/2)",
+        value=(
+            "🔇 `$timeout @user seconds reason`\n"
+            "📝 `$post #channel / embed/normal / message / interval`\n"
+            "🛑 `$unpost #channel`\n"
+            "📤 `$dm @user | message`\n"
+            "📤 `$dm @role | message`\n"
+            "📩 `$sms [user_id] [message]`\n"
+            "🎵 `$np` – Show currently playing song\n"
+            "🎲 `$randomvc` – Move you to a random public voice channel\n"
         ),
         inline=False
     )
