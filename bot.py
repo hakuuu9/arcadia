@@ -2,7 +2,6 @@ import discord
 from discord.ext import commands, tasks
 from discord.ui import Button, View
 import random
-from openai import OpenAI
 import math
 import asyncio
 import json
@@ -21,7 +20,6 @@ from collections import defaultdict
 from config import TOKEN, GUILD_ID, ROLE_ID, VANITY_LINK, LOG_CHANNEL_ID, VANITY_IMAGE_URL
 from keep_alive import keep_alive
 from datetime import datetime, timedelta
-from pyfiglet import Figlet
 
 intents = discord.Intents.default()
 intents.message_content = True
