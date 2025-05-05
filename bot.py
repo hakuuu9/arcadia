@@ -1781,10 +1781,13 @@ async def random_vc(ctx):
     voice_channels = [
         ch for ch in ctx.guild.voice_channels
         if ch.id not in EXCLUDED_VC_IDS and ch != ctx.author.voice.channel
+        and ch.permissions_for(ctx.guild.me).connect  # Check if the bot can connect
+        and ch.permissions_for(ctx.guild.me).speak  # Check if the bot can speak
+        and (ch.user_limit == 0 or len(ch.members) < ch.user_limit)  # Check if user limit is not exceeded
     ]
     
     if not voice_channels:
-        await ctx.send("⚠️ No available voice channels found to join (excluding private ones).")
+        await ctx.send("⚠️ No available voice channels found to join (excluding private, locked, or full ones).")
         return
 
     target_channel = random.choice(voice_channels)
@@ -1799,7 +1802,6 @@ async def random_vc(ctx):
         await ctx.send("❌ I don't have permission to move you.")
     except discord.HTTPException:
         await ctx.send("⚠️ Something went wrong while moving you.")
-
 # -------------------------------------------------------------------------------
 
 @bot.command(name="np")
