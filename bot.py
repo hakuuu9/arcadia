@@ -1462,7 +1462,7 @@ OWO_HUNT_BOT_ID = 408785106942164992
 HUNTBOTS_CHANNEL_ID = 1346508582031724615
 
 # The text to look for within the embed when the hunt is NOT ready
-HUNT_NOT_READY_EMBED_TEXT = "HUNTBOT is currently hunting!"
+HUNT_NOT_READY_EMBED_TEXT = "Use the command"
 
 @bot.event
 async def on_message(message):
