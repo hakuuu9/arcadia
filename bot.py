@@ -914,44 +914,7 @@ async def inrole(ctx, *, role_input: str):
 
     await ctx.send(embed=create_embed(0), view=PaginationView())
 
-
-# Your OpenRouter API key and base URL
-OPENROUTER_API_KEY = "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"
-client = OpenAI(
-    api_key=OPENROUTER_API_KEY,
-    base_url="https://openrouter.ai/api/v1"
-)
-
-# Fancy embed GIF (replace with any hosted GIF URL)
-HEADER_GIF_URL = "https://i.imgur.com/JxsCfCe.gif"
-
-@bot.command()
-async def arcadia(ctx, *, question: str):
-    """Ask AI a question using OpenRouter."""
-
-    thinking = await ctx.send("**Thinking...**")
-
-    try:
-        response = client.chat.completions.create(
-            model="mistralai/mistral-7b-instruct",  # You can change to any available OpenRouter model
-            messages=[{"role": "user", "content": question}]
-        )
-
-        answer = response.choices[0].message.content.strip()
-
-        embed = discord.Embed(
-            title="Arcadia Assistant",
-            description=answer,
-            color=discord.Color.blurple()
-        )
-        embed.set_image(url=HEADER_GIF_URL)
-        embed.set_footer(text=f"Question by {ctx.author.name}")
-
-        await thinking.delete()
-        await ctx.send(embed=embed)
-
-    except Exception as e:
-        await thinking.edit(content=f"**Something went wrong:** `{e}`")
+# --------------------------------------------------------------------------------------------------
 
 @bot.command(name="arclb")
 @commands.has_permissions(manage_messages=True)
