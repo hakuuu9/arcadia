@@ -1862,8 +1862,8 @@ async def on_message(message):
     # Process other commands
     await bot.process_commands(message)
 
-    # Remove the AFK status when a user sends a message
-    if message.author.nick and message.author.nick.startswith("[AFK]"):
+    # Remove the AFK status when a user sends a message, but not if they just ran the $afk command
+    if message.author.nick and message.author.nick.startswith("[AFK]") and message.author != message.guild.me:
         try:
             # Remove the [AFK] prefix from the nickname
             await message.author.edit(nick=message.author.name)
