@@ -924,32 +924,7 @@ async def spotlie(ctx):
     )
     await ctx.send(embed=result_embed)
 
-@bot.command(name="simpfor")
-async def simpfor(ctx, member: discord.Member):
-    if member.id == ctx.author.id:
-        return await ctx.send("💀 You can't simp for yourself... or can you?")
-
-    percent = random.randint(0, 100)
-
-    if percent >= 90:
-        level = "🫡 Down BAD. No recovery."
-    elif percent >= 70:
-        level = "💖 You’re simping hard!"
-    elif percent >= 50:
-        level = "😳 You got a little crush, huh?"
-    elif percent >= 30:
-        level = "🙂 Just a little admiration."
-    elif percent >= 10:
-        level = "😌 Meh. They're alright."
-    else:
-        level = "🚫 You're immune to the simp flu."
-
-    embed = discord.Embed(
-        title="💘 Simp Meter Activated",
-        description=f"**{ctx.author.mention}** is **{percent}%** simping for **{member.mention}**.\n\n{level}",
-        color=discord.Color.pink()
-    )
-    await ctx.send(embed=embed)
+# -------------------------------------------------------------------------------------
 
 @bot.command()
 async def serverinfo(ctx):
