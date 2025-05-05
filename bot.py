@@ -1766,6 +1766,38 @@ async def dm(ctx, target: str, *, message: str):
     else:
         await ctx.send("❌ Could not find user or role. Use a valid mention, name, or ID.")
 
+# --------------------------------------------------------------------------------------
+
+EXCLUDED_VC_IDS = [1359117693546139731, 1351065423327531079, 1361743840918245416, 1359930327048654858, 1360687436841357495, 1360687666357735626, 1360688112744927382, 1360688267846090762, 1365046089220358244]  # Replace with your private VC channel IDs
+
+@bot.command(name="randomvc")
+async def random_vc(ctx):
+    if not ctx.author.voice:
+        await ctx.send("❌ You must be connected to a voice channel to use this command.")
+        return
+
+    voice_channels = [
+        ch for ch in ctx.guild.voice_channels
+        if ch.members and ch.id not in EXCLUDED_VC_IDS and ch != ctx.author.voice.channel
+        and not ch.permissions_for(ctx.guild.me).connect  # Exclude channels the bot can't connect to
+        and ch.user_limit == 0  # Exclude channels with user limits (if any are set)
+        and ch.category and ch.category.permissions_for(ctx.guild.me).read_messages  # Check if the bot can read the channel
+    ]
+
+    if not voice_channels:
+        await ctx.send("⚠️ No available voice channels found to join (excluding private or locked ones).")
+        return
+
+    target_channel = random.choice(voice_channels)
+
+    try:
+        await ctx.author.move_to(target_channel)
+        await ctx.send(f"🔀 Moved you to `{target_channel.name}`!")
+    except discord.Forbidden:
+        await ctx.send("❌ I don't have permission to move you.")
+    except discord.HTTPException:
+        await ctx.send("⚠️ Something went wrong while moving you.")
+
 
 
 keep_alive()
