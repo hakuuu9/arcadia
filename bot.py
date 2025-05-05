@@ -1466,7 +1466,7 @@ OWO_HUNT_BOT_ID = 408785106942164992  # Replace with the actual OwO Bot ID
 HUNTBOTS_CHANNEL_ID = 1346508582031724615  # Replace with the actual channel ID
 
 # The text to look for within the embed when the hunt is NOT ready
-HUNT_NOT_READY_EMBED_TEXT = "HUNTBOT is currently hunting!"  # Replace with the actual text you want to detect
+HUNT_NOT_READY_EMBED_TEXT = "To obtain more essence, use"  # Replace with the actual text you want to detect
 
 # Your log channel ID (replace with the actual ID)
 LOG_CHANNEL_ID = 1364839238960549908  # Replace with your log channel's ID
