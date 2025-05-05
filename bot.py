@@ -1494,19 +1494,6 @@ async def timeout_error(ctx, error):
 
 # -----------------------------------------------------------------------------
 
-
-@bot.command()
-async def textart(ctx, *, text):
-    """Generates ASCII art from the given text."""
-    f = Figlet(font='standard')  # You can change the font here (try 'slant', 'bulbhead', etc.)
-    ascii_art = f.renderText(text)
-    if len(ascii_art) > 2000:  # Discord message limit
-        await ctx.send("⚠️ The generated ASCII art is too long for a Discord message. Try a shorter text.")
-    else:
-        await ctx.send(f"```\n{ascii_art}\n```")
-
-# -----------------------------------------------------------------------
-
 # The User ID of the Owo Hunt Bot (replace with the actual ID)
 OWO_HUNT_BOT_ID = 408785106942164992
 
