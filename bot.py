@@ -1801,6 +1801,29 @@ async def random_vc(ctx):
     except discord.HTTPException:
         await ctx.send("⚠️ Something went wrong while moving you.")
 
+# -------------------------------------------------------------------------------
+
+@bot.command(name="np")
+async def now_playing(ctx):
+    # Check if the author has Spotify activity (it will show in the presence of the user)
+    for activity in ctx.author.activities:
+        if isinstance(activity, discord.Spotify):
+            track_name = activity.title
+            artist_name = ", ".join(activity.artists)
+            album_name = activity.album
+            album_cover_url = activity.album_cover_url
+
+            embed = discord.Embed(
+                title="🎶 Now Playing",
+                description=f"**{track_name}**\nby {artist_name}\nAlbum: {album_name}",
+                color=discord.Color.green()
+            )
+            embed.set_thumbnail(url=album_cover_url)
+            await ctx.send(embed=embed)
+            return
+    
+    await ctx.send("❌ You are not currently playing any music on Spotify.")
+
 
 
 keep_alive()
