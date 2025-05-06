@@ -1277,23 +1277,40 @@ sticky_messages = {}
 async def sticky(ctx, channel: discord.TextChannel, *, message: str):
     await ctx.send(f"✅ Sticky message set for {channel.mention}!")
     
-    async def send_sticky():
+    # Define a helper function to send the sticky message
+    async def send_sticky(channel, message):
         await bot.wait_until_ready()
-        while True:
-            # Delete the previous sticky if exists
+
+        # Re-send the sticky message every time a member sends a message
+        async def on_message(message):
+            # Ignore the bot's own messages
+            if message.author == bot.user:
+                return
+
+            # Delete the previous sticky if it exists
             if channel.id in sticky_messages:
                 try:
                     previous_message = await channel.fetch_message(sticky_messages[channel.id])
                     await previous_message.delete()
                 except Exception:
-                    pass  # Ignore if can't find the message
+                    pass  # Ignore if the message can't be found or deleted
 
-            # Send the new sticky
-            new_message = await channel.send(message)
+            # Send the new sticky message
+            # If the message is an embed
+            if isinstance(message, discord.Embed):
+                new_message = await channel.send(embed=message)
+            else:
+                # Support server emojis in the text message
+                new_message = await channel.send(message)
+
+            # Store the new sticky message ID
             sticky_messages[channel.id] = new_message.id
-            await asyncio.sleep(60)  # Wait 60 seconds
 
-    bot.loop.create_task(send_sticky())
+        # Add the on_message listener to the bot
+        bot.add_listener(on_message)
+
+    # Start the sticky message task
+    bot.loop.create_task(send_sticky(channel, message))
 
 @bot.command()
 @commands.has_permissions(manage_messages=True)
