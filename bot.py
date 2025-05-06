@@ -1817,9 +1817,13 @@ async def message(ctx, channel: discord.TextChannel, *, content: str):
 
     if image_url and is_valid_image_url(image_url):
         if text_part:  # If there is text, send both text and image
-            await channel.send(content=text_part, embed=None, files=[discord.File(image_url)])
-        else:  # If no text, just send the image URL
-            await channel.send(content=text_part or None, embed=None, file=image_url)
+            embed = discord.Embed(description=text_part)
+            embed.set_image(url=image_url)
+            await channel.send(embed=embed)
+        else:  # If no text, just send the image as embed
+            embed = discord.Embed()
+            embed.set_image(url=image_url)
+            await channel.send(embed=embed)
     elif image_url and not is_valid_image_url(image_url):
         await ctx.send("🚫 Invalid image URL. Make sure it's a direct link ending in .jpg, .png, etc.")
     else:
