@@ -1803,29 +1803,5 @@ async def sms(ctx, user_id: int, *, message: str):
 
 # ---------------------------------------------------------------------------------\
 
-def is_valid_image_url(url):
-    # Accept .png, .jpg, .jpeg, .gif, .webp with optional query strings
-    return re.match(r'^https?:\/\/.*\.(png|jpg|jpeg|gif|webp)(\?.*)?$', url, re.IGNORECASE)
-
-@bot.command(name="message")
-async def message(ctx, channel: discord.TextChannel, *, content: str):
-    # Split content into text and image URL
-    if '/' in content:
-        text_part, image_url = map(str.strip, content.split('/', 1))
-    else:
-        text_part, image_url = content.strip(), None
-
-    if image_url and is_valid_image_url(image_url):
-        if text_part:  # If there is text, send both text and image
-            await channel.send(content=text_part, file=discord.File(image_url))
-        else:  # If no text, just send the image
-            await channel.send(content=text_part or None, file=discord.File(image_url))  
-    elif image_url and not is_valid_image_url(image_url):
-        await ctx.send("🚫 Invalid image URL. Make sure it's a direct link ending in .jpg, .png, etc.")
-    else:
-        await channel.send(content=text_part)
-
-    await ctx.message.add_reaction("✅")
-
 keep_alive()
 bot.run(TOKEN)
