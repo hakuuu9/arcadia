@@ -1865,6 +1865,31 @@ async def sms(ctx, user_id: int, *, message: str):
     except Exception as e:
         await ctx.send(f"❌ An error occurred: {e}")
 
+# ---------------------------------------------------------------------------------
+
+@bot.command(name="message")
+async def message(ctx, channel: discord.TextChannel, *, content: str = None):
+    # Check if an image was attached
+    image = None
+    if ctx.message.attachments:
+        image = ctx.message.attachments[0]
+
+    # Create the message to send
+    if image and not content:
+        # Just image
+        await channel.send(file=await image.to_file())
+    elif image and content:
+        # Text + image
+        await channel.send(content, file=await image.to_file())
+    elif content:
+        # Just text
+        await channel.send(content)
+    else:
+        await ctx.send("Please provide a message or attach an image.")
+
+    await ctx.message.add_reaction("✅")  # optional success reaction
+
+
 
 keep_alive()
 bot.run(TOKEN)
