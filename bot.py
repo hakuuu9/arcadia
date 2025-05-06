@@ -1809,7 +1809,7 @@ def is_valid_image_url(url):
 
 @bot.command(name="message")
 async def message(ctx, channel: discord.TextChannel, *, content: str):
-    # Split content into text and image
+    # Split content into text and image URL
     if '/' in content:
         text_part, image_url = map(str.strip, content.split('/', 1))
     else:
@@ -1817,13 +1817,9 @@ async def message(ctx, channel: discord.TextChannel, *, content: str):
 
     if image_url and is_valid_image_url(image_url):
         if text_part:  # If there is text, send both text and image
-            embed = discord.Embed(description=text_part)
-            embed.set_image(url=image_url)
-            await channel.send(embed=embed)
-        else:  # If no text, just send the image as embed
-            embed = discord.Embed()
-            embed.set_image(url=image_url)
-            await channel.send(embed=embed)
+            await channel.send(content=text_part, file=discord.File(image_url))
+        else:  # If no text, just send the image
+            await channel.send(content=text_part or None, file=discord.File(image_url))  
     elif image_url and not is_valid_image_url(image_url):
         await ctx.send("🚫 Invalid image URL. Make sure it's a direct link ending in .jpg, .png, etc.")
     else:
