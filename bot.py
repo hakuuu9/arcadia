@@ -1523,7 +1523,6 @@ async def on_message(message):
     if message.author.bot:
         return
 
-    # Convert message to lowercase for case-insensitive matching
     content = message.content.lower()
 
     # Emojis by ID
@@ -1531,16 +1530,22 @@ async def on_message(message):
     arcadia2 = bot.get_emoji(1366767618123370497)
     solana1 = bot.get_emoji(1366765591305912360)
     solana2 = bot.get_emoji(1366765657177325608)
+    heaven1 = bot.get_emoji(1369139903182671964)  # Replace with actual ID
+    heaven2 = bot.get_emoji(1369152680169308281)  # Replace with actual ID
 
-    # React based on keywords
+    # React to keywords
     if "arcadia" in content:
         if arcadia1: await message.add_reaction(arcadia1)
         if arcadia2: await message.add_reaction(arcadia2)
     if "solana" in content:
         if solana1: await message.add_reaction(solana1)
         if solana2: await message.add_reaction(solana2)
+    if "heaven" in content:
+        if heaven1: await message.add_reaction(heaven1)
+        if heaven2: await message.add_reaction(heaven2)
 
-    await bot.process_commands(message)  # Important for commands to still work
+    await bot.process_commands(message)
+
 
 # ----------------------------------------------------------------------------
 
