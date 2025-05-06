@@ -1804,29 +1804,30 @@ async def sms(ctx, user_id: int, *, message: str):
 # ---------------------------------------------------------------------------------\
 
 def is_valid_image_url(url):
-    # Accept .png, .jpg, .jpeg, .gif, .webp with optional query strings
+    # Accept common image URLs with optional query strings
     return re.match(r'^https?:\/\/.*\.(png|jpg|jpeg|gif|webp)(\?.*)?$', url, re.IGNORECASE)
 
 @bot.command(name="message")
 async def message(ctx, channel: discord.TextChannel, *, content: str):
-    # Split content into optional text and optional image
+    # Split message content by '/'
     if '/' in content:
         text_part, image_url = map(str.strip, content.split('/', 1))
     else:
         text_part, image_url = content.strip(), None
 
     if image_url and is_valid_image_url(image_url):
-        embed = discord.Embed(description=text_part or None)
-        embed.set_image(url=image_url)
-        await channel.send(embed=embed)
+        # Send image with optional text
+        await channel.send(content=text_part or None, files=[discord.File(fp=image_url)] if image_url.startswith("file://") else None, embed=None)
+        await channel.send(content=text_part or None, embed=None) if not image_url.startswith("file://") else None
+        await channel.send(image_url)  # Send the image link directly
     elif image_url and not is_valid_image_url(image_url):
-        await ctx.send("🚫 Invalid image URL. Make sure it's a direct link ending in .jpg, .png, etc.")
+        await ctx.send("🚫 Invalid image URL. Make sure it ends with .png, .jpg, etc.")
         return
     else:
+        # Only text
         await channel.send(text_part)
 
     await ctx.message.add_reaction("✅")
-
 
 
 
