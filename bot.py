@@ -1817,16 +1817,15 @@ async def message(ctx, channel: discord.TextChannel, *, content: str):
 
     if image_url and is_valid_image_url(image_url):
         if text_part:  # If there is text, send both text and image
-            await channel.send(content=text_part, file=discord.File(image_url))
-        else:  # If no text, just send the image
-            await channel.send(file=discord.File(image_url))  
+            await channel.send(content=text_part, embed=None, files=[discord.File(image_url)])
+        else:  # If no text, just send the image URL
+            await channel.send(content=text_part or None, embed=None, file=image_url)
     elif image_url and not is_valid_image_url(image_url):
         await ctx.send("🚫 Invalid image URL. Make sure it's a direct link ending in .jpg, .png, etc.")
     else:
-        await channel.send(text_part)  # If there's no image, only send the text
+        await channel.send(content=text_part)
 
     await ctx.message.add_reaction("✅")
-
 
 keep_alive()
 bot.run(TOKEN)
