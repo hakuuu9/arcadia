@@ -12,6 +12,7 @@ import time
 import datetime
 import textwrap
 import aiohttp
+import yt_dlp as youtube_dl
 from discord import app_commands
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageOps
 import io
@@ -1820,40 +1821,50 @@ async def sms(ctx, user_id: int, *, message: str):
 
 # ---------------------------------------------------------------------------------
 
+# This will store the currently playing song info
+current_song = None
+
+# Function to play music (for demonstration)
+@bot.command()
+async def play(ctx, url: str):
+    global current_song
+    # Use yt-dlp to get the video details and fetch the audio stream
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'extractaudio': True,
+        'audioquality': 1,
+        'outtmpl': 'downloads/%(id)s.%(ext)s',
+        'quiet': True,
+    }
+
+    with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(url, download=False)
+        url2 = info['formats'][0]['url']
+        current_song = f"{info['title']} by {info['uploader']}"  # Storing song info
+
+    # Play the audio in the voice channel
+    voice_channel = ctx.author.voice.channel
+    voice = await voice_channel.connect()
+    voice.play(discord.FFmpegPCMAudio(url2), after=lambda e: print('done', e))
 
 @bot.command()
-async def lyrics(ctx, *, song: str):
-    # Split song and artist (Example: "Shape of You Ed Sheeran")
-    parts = song.rsplit(' ', 1)
-    if len(parts) == 2:
-        song_name, artist_name = parts
+async def nowplaying(ctx):
+    if current_song:
+        await ctx.send(f"Now playing: **{current_song}**")
     else:
-        await ctx.send("❌ Please provide both song name and artist.")
-        return
+        await ctx.send("❌ No song is currently playing.")
 
-    # URL encode the song and artist names
-    song_name = song_name.replace(" ", "+")
-    artist_name = artist_name.replace(" ", "+")
+@bot.command()
+async def stop(ctx):
+    voice_client = discord.utils.get(bot.voice_clients, guild=ctx.guild)
+    if voice_client and voice_client.is_playing():
+        voice_client.stop()
+        await ctx.send("Music stopped.")
+        global current_song
+        current_song = None
+    else:
+        await ctx.send("❌ No music is playing.")
 
-    # API URL to fetch lyrics from Lyrics.ovh
-    url = f"https://api.lyrics.ovh/v1/{artist_name}/{song_name}"
-
-    try:
-        # Get the lyrics from the API
-        response = requests.get(url)
-        response.raise_for_status()  # Raise an exception for bad responses
-
-        # Parse the response
-        data = response.json()
-
-        # Check if the lyrics were found
-        if 'lyrics' in data:
-            lyrics = data['lyrics']
-            await ctx.send(f"**{song_name}** by {artist_name}:\n\n{lyrics[:1500]}...")  # Limiting to first 1500 characters
-        else:
-            await ctx.send(f"❌ Lyrics for `{song_name}` by `{artist_name}` not found.")
-    except requests.exceptions.RequestException as e:
-        await ctx.send(f"❌ Error: Could not fetch lyrics. {e}")
 
 keep_alive()
 bot.run(TOKEN)
