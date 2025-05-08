@@ -1822,7 +1822,7 @@ async def sms(ctx, user_id: int, *, message: str):
 
 @bot.command()
 async def translate(ctx, target_language: str, *, text_to_translate: str):
-    # Check if the target language is supported (LibreTranslate supports many languages)
+    # Check if the target language is supported
     supported_languages = ['en', 'es', 'fr', 'de', 'it', 'ja', 'pt', 'ru', 'tl']  # Add more as needed
     if target_language not in supported_languages:
         await ctx.send("❌ Invalid target language. Supported languages: en, es, fr, de, it, ja, pt, ru, tl, etc.")
@@ -1839,16 +1839,19 @@ async def translate(ctx, target_language: str, *, text_to_translate: str):
     # Send the translation request to the LibreTranslate API
     try:
         response = requests.post('https://libretranslate.com/translate', data=payload)
-        response.raise_for_status()  # Raise an exception if the request was unsuccessful
+        
+        # Check if the request was successful
+        response.raise_for_status()
+
+        # Extract translated text from the response
         translated_text = response.json()['translatedText']
         
         # Send the translated message
         translated_message = f"**Original Text**: {text_to_translate}\n**Translated Text**: {translated_text}"
         await ctx.send(translated_message)
-    
+
     except requests.exceptions.RequestException as e:
         await ctx.send(f"❌ Error: Could not translate. {e}")
-
 
 
 keep_alive()
