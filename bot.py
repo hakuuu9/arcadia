@@ -1825,7 +1825,21 @@ async def sms(ctx, user_id: int, *, message: str):
 current_song = None
 
 @bot.command()
+async def join(ctx):
+    """Command for the bot to join the voice channel"""
+    # Check if the user is in a voice channel
+    if ctx.author.voice:
+        # Get the voice channel the user is in
+        voice_channel = ctx.author.voice.channel
+        # Connect the bot to the voice channel
+        await voice_channel.connect()
+        await ctx.send(f"Joined {voice_channel.name} voice channel.")
+    else:
+        await ctx.send("❌ You need to join a voice channel first!")
+
+@bot.command()
 async def play(ctx, url: str):
+    """Command to play music in the voice channel"""
     global current_song
 
     # Get the cookies from the environment variable
@@ -1856,6 +1870,7 @@ async def play(ctx, url: str):
 
 @bot.command()
 async def nowplaying(ctx):
+    """Command to display the current song playing"""
     if current_song:
         await ctx.send(f"Now playing: **{current_song}**")
     else:
@@ -1863,6 +1878,7 @@ async def nowplaying(ctx):
 
 @bot.command()
 async def stop(ctx):
+    """Command to stop the music and disconnect the bot from the voice channel"""
     voice_client = discord.utils.get(bot.voice_clients, guild=ctx.guild)
     if voice_client and voice_client.is_playing():
         voice_client.stop()
@@ -1871,6 +1887,11 @@ async def stop(ctx):
         current_song = None
     else:
         await ctx.send("❌ No music is playing.")
+    
+    # Disconnect the bot from the voice channel if it's connected
+    if voice_client:
+        await voice_client.disconnect()
+        await ctx.send("Disconnected from the voice channel.")
 
 
 keep_alive()
