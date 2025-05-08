@@ -1827,12 +1827,12 @@ active_games = {}
 emoji_choices = ['🔥', '💖', '🍀', '🌙', '⭐', '❄️']
 
 @bot.command()
-async def crackgame(ctx, arg=None, *, guess=None):
+async def crackg(ctx, arg=None, *, guess=None):
     user_id = ctx.author.id
 
     if arg in ["number", "color", "word", "emoji"] and not guess:
         if user_id in active_games:
-            await ctx.send("🛑 You already have an active game! Use `$crackgame guess <your_guess>`.")
+            await ctx.send("🛑 You already have an active game! Use `$cg guess <your_guess>`.")
             return
 
         if arg == "number":
@@ -1860,11 +1860,11 @@ async def crackgame(ctx, arg=None, *, guess=None):
             code = random.sample(emoji_choices, 4)
 
         active_games[user_id] = {"category": arg, "code": code, "tries": 0}
-        await ctx.send(f"🎮 CrackGame started! Category: **{arg}**\nUse `$crackgame guess <your_guess>` to play.")
+        await ctx.send(f"🎮 CrackGame started! Category: **{arg}**\nUse `$cg guess <your_guess>` to play.")
 
     elif arg == "guess" and guess:
         if user_id not in active_games:
-            await ctx.send("❌ You don't have an active game. Start one using `$crackgame <category>`.")
+            await ctx.send("❌ You don't have an active game. Start one using `$crackg <category>`.")
             return
 
         game = active_games[user_id]
@@ -1895,8 +1895,6 @@ async def crackgame(ctx, arg=None, *, guess=None):
         for i in range(4):
             if user_guess[i] == code[i]:
                 response.append("✅")
-            elif user_guess[i] in code:
-                response.append("⚠️")
             else:
                 response.append("❌")
 
@@ -1907,7 +1905,7 @@ async def crackgame(ctx, arg=None, *, guess=None):
             await ctx.send(f"🔎 {' '.join(response)} ({game['tries']}/10 tries)")
 
     else:
-        await ctx.send("❓ Usage:\n`$crackgame <number|color|word|emoji>` to start\n`$crackgame guess <your_guess>` to play")
+        await ctx.send("❓ Usage:\n`$crackg <number|color|word|emoji>` to start\n`$cg guess <your_guess>` to play")
 
 
 keep_alive()
