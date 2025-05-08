@@ -5,4 +5,4 @@ aiohttp
 pillow
 requests
 pyfiglet
-yt-dlp
+--upgrade yt-dlp
