@@ -12,7 +12,7 @@ import time
 import datetime
 import textwrap
 import aiohttp
-import yt_dlp
+import yt_dlp as youtube_dl
 from discord import app_commands
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageOps
 import io
@@ -1821,32 +1821,35 @@ async def sms(ctx, user_id: int, *, message: str):
 
 # ---------------------------------------------------------------------------------
 
-
-# Store the currently playing song info
+# This will store the currently playing song info
 current_song = None
-
-# Fetch cookies from environment variable (Railway configuration)
-cookies = os.getenv('YT_COOKIE')
-
-# yt-dlp options
-ydl_opts = {
-    'format': 'bestaudio/best',
-    'extractaudio': True,
-    'audioquality': 1,
-    'outtmpl': 'downloads/%(id)s.%(ext)s',
-    'quiet': True,
-    'cookiefile': cookies,  # Using cookies from the environment variable
-}
 
 @bot.command()
 async def play(ctx, url: str):
     global current_song
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+
+    # Get the cookies from the environment variable
+    yt_cookies = os.getenv('YT_COOKIE')  # Assuming YT_COOKIE contains the cookie string
+
+    # Save the cookies to a temporary file if needed
+    with open('temp_cookies.txt', 'w') as f:
+        f.write(yt_cookies)
+
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'extractaudio': True,
+        'audioquality': 1,
+        'outtmpl': 'downloads/%(id)s.%(ext)s',
+        'quiet': True,
+        'cookies': 'temp_cookies.txt',  # Use the temp cookies file
+    }
+
+    with youtube_dl.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=False)
         url2 = info['formats'][0]['url']
-        current_song = f"{info['title']} by {info['uploader']}"  # Store song info
+        current_song = f"{info['title']} by {info['uploader']}"  # Storing song info
 
-    # Play audio in voice channel
+    # Play the audio in the voice channel
     voice_channel = ctx.author.voice.channel
     voice = await voice_channel.connect()
     voice.play(discord.FFmpegPCMAudio(url2), after=lambda e: print('done', e))
@@ -1862,11 +1865,10 @@ async def nowplaying(ctx):
 async def stop(ctx):
     voice_client = discord.utils.get(bot.voice_clients, guild=ctx.guild)
     if voice_client and voice_client.is_playing():
-        voice_client.stop()  # Stop the audio
+        voice_client.stop()
         await ctx.send("Music stopped.")
         global current_song
         current_song = None
-        await voice_client.disconnect()  # Disconnect from the voice channel
     else:
         await ctx.send("❌ No music is playing.")
 
