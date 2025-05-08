@@ -1826,7 +1826,7 @@ async def sms(ctx, user_id: int, *, message: str):
 current_song = None
 
 # Fetch cookies from environment variable (Railway configuration)
-cookies = os.getenv('YT_COOKIES')
+cookies = os.getenv('YT_COOKIE')
 
 # yt-dlp options
 ydl_opts = {
