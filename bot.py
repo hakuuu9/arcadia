@@ -12,7 +12,6 @@ import time
 import datetime
 import textwrap
 import aiohttp
-import yt_dlp as youtube_dl
 from discord import app_commands
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageOps
 import io
@@ -1821,77 +1820,29 @@ async def sms(ctx, user_id: int, *, message: str):
 
 # ---------------------------------------------------------------------------------
 
-# This will store the currently playing song info
-current_song = None
-
 @bot.command()
 async def join(ctx):
-    """Command for the bot to join the voice channel"""
     # Check if the user is in a voice channel
     if ctx.author.voice:
         # Get the voice channel the user is in
-        voice_channel = ctx.author.voice.channel
-        # Connect the bot to the voice channel
-        await voice_channel.connect()
-        await ctx.send(f"Joined {voice_channel.name} voice channel.")
+        channel = ctx.author.voice.channel
+        # Connect to the voice channel
+        await channel.connect()
+        await ctx.send(f"Joined {channel.name} and staying here.")
     else:
-        await ctx.send("❌ You need to join a voice channel first!")
+        await ctx.send("You are not connected to a voice channel.")
 
 @bot.command()
-async def play(ctx, url: str):
-    """Command to play music in the voice channel"""
-    global current_song
-
-    # Get the cookies from the environment variable
-    yt_cookies = os.getenv('YT_COOKIE')  # Assuming YT_COOKIE contains the cookie string
-
-    # Save the cookies to a temporary file if needed
-    with open('temp_cookies.txt', 'w') as f:
-        f.write(yt_cookies)
-
-    ydl_opts = {
-        'format': 'bestaudio/best',
-        'extractaudio': True,
-        'audioquality': 1,
-        'outtmpl': 'downloads/%(id)s.%(ext)s',
-        'quiet': True,
-        'cookies': 'temp_cookies.txt',  # Use the temp cookies file
-    }
-
-    with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=False)
-        url2 = info['formats'][0]['url']
-        current_song = f"{info['title']} by {info['uploader']}"  # Storing song info
-
-    # Play the audio in the voice channel
-    voice_channel = ctx.author.voice.channel
-    voice = await voice_channel.connect()
-    voice.play(discord.FFmpegPCMAudio(url2), after=lambda e: print('done', e))
-
-@bot.command()
-async def nowplaying(ctx):
-    """Command to display the current song playing"""
-    if current_song:
-        await ctx.send(f"Now playing: **{current_song}**")
-    else:
-        await ctx.send("❌ No song is currently playing.")
-
-@bot.command()
-async def stop(ctx):
-    """Command to stop the music and disconnect the bot from the voice channel"""
+async def leave(ctx):
+    # Get the bot's voice client
     voice_client = discord.utils.get(bot.voice_clients, guild=ctx.guild)
-    if voice_client and voice_client.is_playing():
-        voice_client.stop()
-        await ctx.send("Music stopped.")
-        global current_song
-        current_song = None
-    else:
-        await ctx.send("❌ No music is playing.")
-    
-    # Disconnect the bot from the voice channel if it's connected
     if voice_client:
+        # Disconnect the bot from the voice channel
         await voice_client.disconnect()
-        await ctx.send("Disconnected from the voice channel.")
+        await ctx.send("Left the voice channel.")
+    else:
+        await ctx.send("I am not in any voice channel.")
+
 
 
 keep_alive()
