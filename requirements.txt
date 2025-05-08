@@ -5,4 +5,4 @@ aiohttp
 pillow
 requests
 pyfiglet
-discord.py yt-dlp
+yt-dlp
