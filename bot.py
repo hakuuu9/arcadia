@@ -1828,7 +1828,7 @@ current_song = None
 @bot.command()
 async def play(ctx, url: str):
     global current_song
-    cookies_file = 'cookies.txt'  # Path to your cookies file
+    cookies_file = 'cookies.txt'  # Ensure this path is correct
 
     # yt-dlp options
     ydl_opts = {
@@ -1837,19 +1837,23 @@ async def play(ctx, url: str):
         'audioquality': 1,
         'outtmpl': 'downloads/%(id)s.%(ext)s',
         'quiet': True,
-        'cookies': cookies_file  # Use the cookies.txt file
+        'cookies': cookies_file,  # Ensure this points to the correct cookies.txt
+        'geo_bypass': True,  # Geo-blocking bypass, in case of region restrictions
     }
 
     # Using yt-dlp to get the video details and fetch the audio stream
-    with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=False)
-        url2 = info['formats'][0]['url']
-        current_song = f"{info['title']} by {info['uploader']}"  # Store song info
+    try:
+        with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            url2 = info['formats'][0]['url']
+            current_song = f"{info['title']} by {info['uploader']}"  # Store song info
 
-    # Play the audio in the voice channel
-    voice_channel = ctx.author.voice.channel
-    voice = await voice_channel.connect()
-    voice.play(discord.FFmpegPCMAudio(url2), after=lambda e: print('done', e))
+        # Play the audio in the voice channel
+        voice_channel = ctx.author.voice.channel
+        voice = await voice_channel.connect()
+        voice.play(discord.FFmpegPCMAudio(url2), after=lambda e: print('done', e))
+    except Exception as e:
+        await ctx.send(f"❌ An error occurred: {e}")
 
 @bot.command()
 async def nowplaying(ctx):
@@ -1868,6 +1872,7 @@ async def stop(ctx):
         current_song = None
     else:
         await ctx.send("❌ No music is playing.")
+
 
 keep_alive()
 bot.run(TOKEN)
