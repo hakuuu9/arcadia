@@ -1907,6 +1907,20 @@ async def crackg(ctx, arg=None, *, guess=None):
     else:
         await ctx.send("❓ Usage:\n`$crackg <number|color|word|emoji>` to start\n`$crackg guess <your_guess>` to play")
 
+# -----------------------------------------------------------------------------------------
+
+@bot.command()
+async def fortune(ctx):
+    url = "https://fortuneapi.herokuapp.com/random"
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as response:
+            if response.status == 200:
+                data = await response.json()
+                fortune_message = data.get("data", "No fortune available.")
+                await ctx.send(f"🔮 Your fortune: {fortune_message}")
+            else:
+                await ctx.send("❌ Failed to retrieve a fortune. Please try again later.")
+
 
 keep_alive()
 bot.run(TOKEN)
