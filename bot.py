@@ -1818,7 +1818,97 @@ async def sms(ctx, user_id: int, *, message: str):
     except Exception as e:
         await ctx.send(f"❌ An error occurred: {e}")
 
-# ---------------------------------------------------------------------------------\
+# ---------------------------------------------------------------------------------
+
+# Game sessions stored per user
+active_games = {}
+
+# Predefined emoji choices
+emoji_choices = ['🔥', '💖', '🍀', '🌙', '⭐', '❄️']
+
+@bot.command()
+async def crackgame(ctx, arg=None, *, guess=None):
+    user_id = ctx.author.id
+
+    if arg in ["number", "color", "word", "emoji"] and not guess:
+        if user_id in active_games:
+            await ctx.send("🛑 You already have an active game! Use `$crackgame guess <your_guess>`.")
+            return
+
+        if arg == "number":
+            # Fetch 4 random digits from random.org
+            async with aiohttp.ClientSession() as session:
+                async with session.get("https://www.random.org/integers/?num=4&min=0&max=9&col=1&base=10&format=plain&rnd=new") as resp:
+                    data = await resp.text()
+                    code = list(data.strip().replace("\n", ""))  # Convert to list of digits
+        elif arg == "color":
+            # Fetch 4 random colors from colr.org
+            code = []
+            async with aiohttp.ClientSession() as session:
+                for _ in range(4):
+                    async with session.get("https://www.colr.org/json/colors/random") as resp:
+                        data = await resp.json()
+                        code.append(data['colors'][0]['name'].capitalize())  # Get color name
+        elif arg == "word":
+            # Fetch 4-letter word from random-word-api
+            async with aiohttp.ClientSession() as session:
+                async with session.get("https://random-word-api.herokuapp.com/word?length=4") as resp:
+                    data = await resp.json()
+                    code = list(data[0].upper())  # Convert word to list of letters
+        elif arg == "emoji":
+            # Random 4 emoji from emoji_choices
+            code = random.sample(emoji_choices, 4)
+
+        active_games[user_id] = {"category": arg, "code": code, "tries": 0}
+        await ctx.send(f"🎮 CrackGame started! Category: **{arg}**\nUse `$crackgame guess <your_guess>` to play.")
+
+    elif arg == "guess" and guess:
+        if user_id not in active_games:
+            await ctx.send("❌ You don't have an active game. Start one using `$crackgame <category>`.")
+            return
+
+        game = active_games[user_id]
+        category = game["category"]
+        code = game["code"]
+        game["tries"] += 1
+
+        if game["tries"] > 10:
+            del active_games[user_id]
+            await ctx.send(f"💥 You've used all 10 tries! The correct code was: {' '.join(code)}")
+            return
+
+        # Process the guess based on category
+        if category == "number":
+            user_guess = list(guess.replace(" ", ""))  # Guess is numeric
+        elif category in ["color", "word"]:
+            user_guess = guess.upper().split()  # Split for word/ color guesses
+            if category == "word":
+                user_guess = list(guess.upper().replace(" ", ""))
+        elif category == "emoji":
+            user_guess = list(guess.replace(" ", ""))  # Emoji-based guess
+
+        if len(user_guess) != 4:
+            await ctx.send("⚠️ Your guess must be 4 items long!")
+            return
+
+        response = []
+        for i in range(4):
+            if user_guess[i] == code[i]:
+                response.append("✅")
+            elif user_guess[i] in code:
+                response.append("⚠️")
+            else:
+                response.append("❌")
+
+        if user_guess == code:
+            await ctx.send(f"🎉 You cracked the code in {game['tries']} tries! Code: {' '.join(code)}")
+            del active_games[user_id]
+        else:
+            await ctx.send(f"🔎 {' '.join(response)} ({game['tries']}/10 tries)")
+
+    else:
+        await ctx.send("❓ Usage:\n`$crackgame <number|color|word|emoji>` to start\n`$crackgame guess <your_guess>` to play")
+
 
 keep_alive()
 bot.run(TOKEN)
