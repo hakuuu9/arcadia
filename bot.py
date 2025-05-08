@@ -1828,19 +1828,23 @@ current_song = None
 @bot.command()
 async def play(ctx, url: str):
     global current_song
-    # Use yt-dlp to get the video details and fetch the audio stream
+    cookies_file = 'cookies.txt'  # Path to your cookies file
+
+    # yt-dlp options
     ydl_opts = {
         'format': 'bestaudio/best',
         'extractaudio': True,
         'audioquality': 1,
         'outtmpl': 'downloads/%(id)s.%(ext)s',
         'quiet': True,
+        'cookies': cookies_file  # Use the cookies.txt file
     }
 
+    # Using yt-dlp to get the video details and fetch the audio stream
     with youtube_dl.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=False)
         url2 = info['formats'][0]['url']
-        current_song = f"{info['title']} by {info['uploader']}"  # Storing song info
+        current_song = f"{info['title']} by {info['uploader']}"  # Store song info
 
     # Play the audio in the voice channel
     voice_channel = ctx.author.voice.channel
@@ -1864,7 +1868,6 @@ async def stop(ctx):
         current_song = None
     else:
         await ctx.send("❌ No music is playing.")
-
 
 keep_alive()
 bot.run(TOKEN)
