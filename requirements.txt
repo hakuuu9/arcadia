@@ -5,3 +5,4 @@ aiohttp
 pillow
 requests
 pyfiglet
+googletrans==4.0.0-rc1
