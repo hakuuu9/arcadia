@@ -5,5 +5,4 @@ aiohttp
 pillow
 requests
 pyfiglet
-yt-dlp
 PyNaCl
