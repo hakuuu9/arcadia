@@ -11,6 +11,7 @@ import html
 import time
 import datetime
 import textwrap
+from googletrans import Translator, LANGUAGES
 import aiohttp
 from discord import app_commands
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageOps
@@ -1820,7 +1821,23 @@ async def sms(ctx, user_id: int, *, message: str):
 
 # ---------------------------------------------------------------------------------
 
+# Initialize the Translator object
+translator = Translator()
 
+@bot.command()
+async def translate(ctx, target_language: str, *, text_to_translate: str):
+    # Check if the target language is valid
+    if target_language not in LANGUAGES:
+        await ctx.send("❌ Invalid target language. Please provide a valid language code.")
+        return
+
+    # Translate the text
+    try:
+        translated_text = translator.translate(text_to_translate, dest=target_language)
+        translated_message = f"**Original Text**: {text_to_translate}\n**Translated Text**: {translated_text.text}"
+        await ctx.send(translated_message)
+    except Exception as e:
+        await ctx.send(f"❌ Error translating text: {str(e)}")
 
 
 
