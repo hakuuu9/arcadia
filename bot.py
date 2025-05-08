@@ -1905,7 +1905,7 @@ async def crackg(ctx, arg=None, *, guess=None):
             await ctx.send(f"🔎 {' '.join(response)} ({game['tries']}/10 tries)")
 
     else:
-        await ctx.send("❓ Usage:\n`$crackg <number|color|word|emoji>` to start\n`$cg guess <your_guess>` to play")
+        await ctx.send("❓ Usage:\n`$crackg <number|color|word|emoji>` to start\n`$crackg guess <your_guess>` to play")
 
 
 keep_alive()
