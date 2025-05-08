@@ -1820,39 +1820,40 @@ async def sms(ctx, user_id: int, *, message: str):
 
 # ---------------------------------------------------------------------------------
 
+
 @bot.command()
-async def translate(ctx, target_language: str, *, text_to_translate: str):
-    # Check if the target language is supported
-    supported_languages = ['en', 'es', 'fr', 'de', 'it', 'ja', 'pt', 'ru', 'tl']  # Add more as needed
-    if target_language not in supported_languages:
-        await ctx.send("❌ Invalid target language. Supported languages: en, es, fr, de, it, ja, pt, ru, tl, etc.")
+async def lyrics(ctx, *, song: str):
+    # Split song and artist (Example: "Shape of You Ed Sheeran")
+    parts = song.rsplit(' ', 1)
+    if len(parts) == 2:
+        song_name, artist_name = parts
+    else:
+        await ctx.send("❌ Please provide both song name and artist.")
         return
 
-    # Prepare the translation request payload
-    payload = {
-        'q': text_to_translate,
-        'source': 'auto',  # Automatically detect source language
-        'target': target_language,
-        'format': 'text'
-    }
+    # URL encode the song and artist names
+    song_name = song_name.replace(" ", "+")
+    artist_name = artist_name.replace(" ", "+")
 
-    # Send the translation request to the LibreTranslate API
+    # API URL to fetch lyrics from Lyrics.ovh
+    url = f"https://api.lyrics.ovh/v1/{artist_name}/{song_name}"
+
     try:
-        response = requests.post('https://libretranslate.com/translate', data=payload)
-        
-        # Check if the request was successful
-        response.raise_for_status()
+        # Get the lyrics from the API
+        response = requests.get(url)
+        response.raise_for_status()  # Raise an exception for bad responses
 
-        # Extract translated text from the response
-        translated_text = response.json()['translatedText']
-        
-        # Send the translated message
-        translated_message = f"**Original Text**: {text_to_translate}\n**Translated Text**: {translated_text}"
-        await ctx.send(translated_message)
+        # Parse the response
+        data = response.json()
 
+        # Check if the lyrics were found
+        if 'lyrics' in data:
+            lyrics = data['lyrics']
+            await ctx.send(f"**{song_name}** by {artist_name}:\n\n{lyrics[:1500]}...")  # Limiting to first 1500 characters
+        else:
+            await ctx.send(f"❌ Lyrics for `{song_name}` by `{artist_name}` not found.")
     except requests.exceptions.RequestException as e:
-        await ctx.send(f"❌ Error: Could not translate. {e}")
-
+        await ctx.send(f"❌ Error: Could not fetch lyrics. {e}")
 
 keep_alive()
 bot.run(TOKEN)
