@@ -12,7 +12,6 @@ import time
 import datetime
 import textwrap
 import aiohttp
-from discord_slash import SlashCommand
 from discord import app_commands
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageOps
 import io
@@ -1845,8 +1844,6 @@ async def leave(ctx):
         await ctx.send("I am not in any voice channel.")
 
 # --------------------------------------------------------------------------
-slash = SlashCommand(bot, sync_commands=True)
-
 # UNO card deck
 colors = ['Red', 'Yellow', 'Green', 'Blue']
 values = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'Skip', 'Reverse', 'Draw Two', 'Wild', 'Wild Draw Four']
@@ -1864,7 +1861,8 @@ def is_playable(card, top_card):
         return True
     return card.split(" ")[0] == top_card.split(" ")[0] or card.split(" ")[1] == top_card.split(" ")[1]
 
-@slash.slash(name="uno", description="Starts a UNO game and deals cards to players.")
+# Slash Command: Start UNO game
+@bot.slash_command(name="uno", description="Starts a UNO game and deals cards to players.")
 async def uno(ctx):
     """Starts a UNO game and deals cards to players."""
     if ctx.channel.id not in game_state:
@@ -1877,13 +1875,14 @@ async def uno(ctx):
             'top_card': None,  # No card is placed initially
             'game_over': False
         }
-        await ctx.send("UNO game started! Use /join to join the game.")
+        await ctx.respond("UNO game started! Use /join to join the game.")
 
-@slash.slash(name="join", description="Join the UNO game.")
+# Slash Command: Join UNO game
+@bot.slash_command(name="join", description="Join the UNO game.")
 async def join(ctx):
     """Players can join the UNO game."""
     if ctx.channel.id not in game_state:
-        await ctx.send("No UNO game is active in this channel. Type /uno to start one.")
+        await ctx.respond("No UNO game is active in this channel. Type /uno to start one.")
         return
 
     game = game_state[ctx.channel.id]
@@ -1891,131 +1890,114 @@ async def join(ctx):
     if ctx.author.name not in game['players']:
         game['players'].append(ctx.author.name)
         game['hands'][ctx.author.name] = [game['deck'].pop(random.randint(0, len(game['deck']) - 1)) for _ in range(7)]
-        await ctx.send(f"{ctx.author.name} has joined the game and received 7 cards!")
-
+        await ctx.respond(f"{ctx.author.name} has joined the game and received 7 cards!")
     else:
-        await ctx.send(f"{ctx.author.name}, you're already in the game!")
+        await ctx.respond(f"{ctx.author.name}, you're already in the game!")
 
-@slash.slash(name="draw", description="Draw a card from the deck.")
+# Slash Command: Draw a card
+@bot.slash_command(name="draw", description="Draw a card from the deck.")
 async def draw(ctx):
     """Draw a card from the deck."""
     if ctx.channel.id not in game_state:
-        await ctx.send("No UNO game is active in this channel. Type /uno to start one.")
+        await ctx.respond("No UNO game is active in this channel. Type /uno to start one.")
         return
 
     game = game_state[ctx.channel.id]
 
     if ctx.author.name not in game['players']:
-        await ctx.send(f"{ctx.author.name}, you need to join the game first with /join.")
+        await ctx.respond(f"{ctx.author.name}, you need to join the game first with /join.")
         return
 
     if game['game_over']:
-        await ctx.send("The game is over! Start a new one with /uno.")
+        await ctx.respond("The game is over! Start a new one with /uno.")
         return
 
     if ctx.author.name == game['players'][game['current_player']]:
         # Draw a card from the deck
         drawn_card = game['deck'].pop(random.randint(0, len(game['deck']) - 1))
         game['hands'][ctx.author.name].append(drawn_card)
-        await ctx.send(f"{ctx.author.name} drew a card: {drawn_card}")
-        
+        await ctx.respond(f"{ctx.author.name} drew a card: {drawn_card}")
+
         # Switch to the next player
         game['current_player'] = (game['current_player'] + game['direction']) % len(game['players'])
-        await ctx.send(f"It's now {game['players'][game['current_player']]}'s turn!")
-
+        await ctx.respond(f"It's now {game['players'][game['current_player']]}'s turn!")
     else:
-        await ctx.send("It's not your turn yet!")
+        await ctx.respond("It's not your turn yet!")
 
-@slash.slash(name="play", description="Play a card from your hand.")
+# Slash Command: Play a card
+@bot.slash_command(name="play", description="Play a card from your hand.")
 async def play(ctx, card: str):
     """Play a card from your hand."""
     if ctx.channel.id not in game_state:
-        await ctx.send("No UNO game is active in this channel. Type /uno to start one.")
+        await ctx.respond("No UNO game is active in this channel. Type /uno to start one.")
         return
 
     game = game_state[ctx.channel.id]
 
     if ctx.author.name not in game['players']:
-        await ctx.send(f"{ctx.author.name}, you need to join the game first with /join.")
+        await ctx.respond(f"{ctx.author.name}, you need to join the game first with /join.")
         return
 
     if game['game_over']:
-        await ctx.send("The game is over! Start a new one with /uno.")
+        await ctx.respond("The game is over! Start a new one with /uno.")
         return
 
     if ctx.author.name == game['players'][game['current_player']]:
         # Check if card is in player's hand
         if card not in game['hands'][ctx.author.name]:
-            await ctx.send(f"{ctx.author.name}, you don't have that card in your hand!")
+            await ctx.respond(f"{ctx.author.name}, you don't have that card in your hand!")
             return
 
         # Check if the card is playable
         if not is_playable(card, game['top_card']):
-            await ctx.send(f"{ctx.author.name}, this card is not playable!")
+            await ctx.respond(f"{ctx.author.name}, this card is not playable!")
             return
 
         # Play the card
         game['hands'][ctx.author.name].remove(card)
         game['top_card'] = card
-        await ctx.send(f"{ctx.author.name} played {card}!")
+        await ctx.respond(f"{ctx.author.name} played {card}!")
 
         # Check for special cards
         if "Skip" in card:
             game['current_player'] = (game['current_player'] + game['direction']) % len(game['players'])  # Skip the next player
-            await ctx.send(f"{game['players'][game['current_player']]} is skipped!")
+            await ctx.respond(f"{game['players'][game['current_player']]} is skipped!")
         elif "Reverse" in card:
             game['direction'] *= -1  # Reverse the direction of play
-            await ctx.send(f"The play direction is now reversed!")
+            await ctx.respond(f"The play direction is now reversed!")
         elif "Draw Two" in card:
             # Skip the next player and make them draw two cards
             next_player = game['players'][(game['current_player'] + game['direction']) % len(game['players'])]
             game['hands'][next_player].append(game['deck'].pop(random.randint(0, len(game['deck']) - 1)))
             game['hands'][next_player].append(game['deck'].pop(random.randint(0, len(game['deck']) - 1)))
             game['current_player'] = (game['current_player'] + game['direction']) % len(game['players'])
-            await ctx.send(f"{next_player} drew two cards and is skipped!")
+            await ctx.respond(f"{next_player} drew two cards and is skipped!")
 
         elif "Wild" in card:
-            await ctx.send("You played a Wild card! Choose a color (Red, Yellow, Green, Blue):")
+            await ctx.respond("You played a Wild card! Choose a color (Red, Yellow, Green, Blue):")
             # Wait for color choice (add logic for choosing color later)
 
         # Check for winner
         if len(game['hands'][ctx.author.name]) == 0:
             game['game_over'] = True
-            await ctx.send(f"{ctx.author.name} wins the game! Congratulations!")
-        else:
-            # Move to the next player
-            game['current_player'] = (game['current_player'] + game['direction']) % len(game['players'])
-            await ctx.send(f"It's now {game['players'][game['current_player']]}'s turn!")
-
+            await ctx.respond(f"{ctx.author.name} wins the game!")
     else:
-        await ctx.send("It's not your turn yet!")
+        await ctx.respond("It's not your turn yet!")
 
-@slash.slash(name="hand", description="Show your current hand.")
-async def hand(ctx):
-    """Show your current hand."""
-    if ctx.channel.id not in game_state:
-        await ctx.send("No UNO game is active in this channel. Type /uno to start one.")
-        return
+# Slash Command: Check the type of card
+@bot.slash_command(name="type", description="Check the type of card (Wild, Skip, etc.).")
+async def type_card(ctx, card: str):
+    """Check the type of card."""
+    card_parts = card.split(" ")
 
-    game = game_state[ctx.channel.id]
-
-    if ctx.author.name in game['hands']:
-        hand = game['hands'][ctx.author.name]
-        await ctx.send(f"{ctx.author.name}'s hand: {', '.join(hand)}")
+    if card_parts[0] == "Wild":
+        await ctx.respond(f"{card} is a Wild card.")
+    elif card_parts[1] in ["Skip", "Reverse", "Draw Two"]:
+        await ctx.respond(f"{card} is a special action card.")
+    elif card_parts[1] in ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]:
+        await ctx.respond(f"{card} is a numbered card.")
     else:
-        await ctx.send(f"{ctx.author.name}, you're not in the game yet! Type /join to join the game.")
-
-@slash.slash(name="type", description="Displays the type of the current card.")
-async def type(ctx):
-    """Display the type of the current card."""
-    if ctx.channel.id not in game_state or game_state[ctx.channel.id]['top_card'] is None:
-        await ctx.send("No card has been played yet!")
-        return
-    
-    top_card = game_state[ctx.channel.id]['top_card']
-    card_type = top_card.split(" ")[1] if len(top_card.split(" ")) > 1 else "Number"
-    
-    await ctx.send(f"The current card type is: {card_type}")
+        await ctx.respond(f"{card} is an unknown card.")
 
 
 
