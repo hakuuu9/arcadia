@@ -33,7 +33,7 @@ mongo_uri = os.getenv("MONGO_URI")
 client = MongoClient(mongo_uri)
 
 # Choose the database
-db = client["your_db_name"]  # Replace with the actual name if needed
+db = client["test"]  # Replace with the actual name if needed
 
 # Apply rate limit to all commands
 @bot.event
