@@ -28,6 +28,13 @@ intents.members = True
 
 bot = commands.Bot(command_prefix="$", intents=intents)
 
+# Get the connection string from GitHub Secrets (automatically set as env variable)
+mongo_uri = os.getenv("MONGO_URI")
+client = MongoClient(mongo_uri)
+
+# Choose the database
+db = client["your_db_name"]  # Replace with the actual name if needed
+
 # Apply rate limit to all commands
 @bot.event
 async def on_ready():
