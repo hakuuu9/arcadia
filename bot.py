@@ -20,6 +20,7 @@ from collections import defaultdict
 from config import TOKEN, GUILD_ID, ROLE_ID, VANITY_LINK, LOG_CHANNEL_ID, VANITY_IMAGE_URL
 from keep_alive import keep_alive
 from datetime import datetime, timedelta
+import pymongo
 
 intents = discord.Intents.default()
 intents.message_content = True
