@@ -20,7 +20,6 @@ from collections import defaultdict
 from config import TOKEN, GUILD_ID, ROLE_ID, VANITY_LINK, LOG_CHANNEL_ID, VANITY_IMAGE_URL
 from keep_alive import keep_alive
 from datetime import datetime, timedelta
-import pymongo
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -1846,112 +1845,6 @@ async def leave(ctx):
 
 # --------------------------------------------------------------------------
 
-# MongoDB Connection
-MONGO_URI = os.environ.get("mongodb://mongo:hPoalfINsfyJkcmezqqeWEVAhYNDJIkl@mongodb.railway.internal:27017")
-client = pymongo.MongoClient(MONGO_URI)
-db = client["your_database_name"]
-daily_codes_collection = db["daily_codes"]
-user_coins_collection = db["user_coins"]
-
-# Configuration
-DAILY_CODE_LENGTH = 8
-DAILY_REWARD = 100
-DAILY_CODE_RESET_HOUR = 0  # Hour of the day (UTC) to reset the code
-
-# Variable to store current daily code data
-current_daily_code_data = None
-
-# Helper function to generate daily code
-def generate_daily_code(length=DAILY_CODE_LENGTH):
-    characters = string.ascii_uppercase + string.digits
-    return ''.join(random.choice(characters) for _ in range(length))
-
-# Function to get current daily code data from MongoDB
-async def get_current_daily_code_data():
-    data = await daily_codes_collection.find_one()
-    return data
-
-# Function to update daily code data in MongoDB
-async def update_daily_code_data(new_code):
-    await daily_codes_collection.delete_many({})
-    post = {
-        "code": new_code,
-        "reward": DAILY_REWARD,
-        "redeemed_users": []
-    }
-    await daily_codes_collection.insert_one(post)
-    global current_daily_code_data
-    current_daily_code_data = post
-
-# Daily code generation task
-@tasks.loop(hours=24)
-async def generate_daily_code_task():
-    new_code = generate_daily_code()
-    await update_daily_code_data(new_code)
-    print(f"Generated new daily code: {new_code}")
-
-@generate_daily_code_task.before_loop
-async def before_generate_daily_code():
-    await bot.wait_until_ready()
-    now = datetime.datetime.utcnow()
-    target_time = now.replace(hour=DAILY_CODE_RESET_HOUR, minute=0, second=0, microsecond=0)
-    if now >= target_time:
-        target_time += datetime.timedelta(days=1)
-    wait_seconds = (target_time - now).total_seconds()
-    await asyncio.sleep(wait_seconds)
-    global current_daily_code_data
-    current_daily_code_data = await get_current_daily_code_data()
-    if not current_daily_code_data:
-        new_code = generate_daily_code()
-        await update_daily_code_data(new_code)
-
-# Commands
-@bot.command()
-async def dailycode(ctx):
-    """Shows the current daily code."""
-    global current_daily_code_data
-    if current_daily_code_data:
-        await ctx.send(f"The daily code is: `{current_daily_code_data['code']}`. Use `$redeem <code>` to claim your reward of {current_daily_code_data['reward']} coins!")
-    else:
-        await ctx.send("There is no daily code available right now. Please try again later.")
-
-@bot.command()
-async def redeem(ctx, code: str):
-    """Redeems the daily code for a reward."""
-    global current_daily_code_data
-    if not current_daily_code_data:
-        return await ctx.send("There is no daily code available to redeem.")
-
-    if code == current_daily_code_data['code']:
-        user_id = str(ctx.author.id)
-        if user_id not in current_daily_code_data['redeemed_users']:
-            reward = current_daily_code_data['reward']
-
-            # Update user's coin balance in MongoDB
-            await user_coins_collection.update_one(
-                {"user_id": user_id},
-                {"$inc": {"coins": reward}},
-                upsert=True
-            )
-
-            # Update the daily code data to mark the user as redeemed
-            await daily_codes_collection.update_one(
-                {"code": current_daily_code_data['code']},
-                {"$push": {"redeemed_users": user_id}}
-            )
-            global current_daily_code_data
-            current_daily_code_data = await get_current_daily_code_data() # Refresh data
-
-            await ctx.send(f"{ctx.author.mention} You have successfully redeemed the daily code and received {reward} coins!")
-        else:
-            await ctx.send(f"{ctx.author.mention} You have already redeemed today's daily code.")
-    else:
-        await ctx.send(f"{ctx.author.mention} That is not the correct daily code. Please try again.")
-
-@bot.event
-async def on_ready():
-    print(f'Logged in as {bot.user}')
-    generate_daily_code_task.start()
 
 
 
