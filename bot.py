@@ -53,7 +53,7 @@ VANITY_LOG_CHANNEL_ID = 1363396246663860356
 ROLE_ID = 1361732154584858724  # Replace with the actual Role ID
 
 # The specific vanity link to check for in the custom status
-VANITY_LINK = "discord.gg/arcadiasolana"  # Replace with your actual vanity link
+VANITY_LINK = ".gg/warcadia"  # Replace with your actual vanity link
 
 # The URL of the image to embed when the role is granted
 VANITY_IMAGE_URL = 'https://cdn.discordapp.com/attachments/1365065762104020992/1370057690302386206/Your_paragraph_text_20250427_091202_0000.jpg'
