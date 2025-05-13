@@ -1239,7 +1239,7 @@ async def timeout_error(ctx, error):
     if isinstance(error, commands.CheckFailure):
         await ctx.send("⚠️ You do not have permission to use this command.")
     else:
-        await ctx.send("❌ An unexpected error occurred.")
+        await ctx.send("$timeout @User 10mins ?r spamming in general")
         print(f"Error in timeout command: {error}")
 
 # -----------------------------------------------------------------------------
