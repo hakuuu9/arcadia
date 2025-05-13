@@ -1097,14 +1097,9 @@ async def kick_error(ctx, error):
 
 # ----------------------------------------------------------------------------
 
-import discord
-from discord.ext import commands
-
-# Your log channel ID
+# Constants
 LOG_CHANNEL_ID = 1364839238960549908
-
-# The specific role ID that can use the ban command
-ALLOWED_BAN_ROLE_ID = 1347181345922748456  # Replace with the actual role ID
+ALLOWED_BAN_ROLE_ID = 1347181345922748456
 
 @bot.event
 async def on_ready():
@@ -1121,26 +1116,45 @@ def is_allowed_ban_role():
 
 @bot.command()
 @is_allowed_ban_role()
-async def ban(ctx, member: discord.Member, *, reason="No reason provided"):
-    """Ban a member from the server."""
+async def ban(ctx, user: str, *, reason: str = ""):
+    # Make sure reason is provided and starts with ?r
+    if not reason.startswith('?r ') or len(reason[3:].strip()) == 0:
+        await ctx.send("❌ Please provide a reason using `?r <reason>`.")
+        return
+    reason = reason[3:].strip()
+
+    # Try to resolve the user
     try:
-        # Try to DM the member first
+        if user.startswith("<@") and user.endswith(">"):
+            user_id = int(user.strip("<@!>"))
+        else:
+            user_id = int(user)
+        member = await ctx.guild.fetch_member(user_id)
+    except Exception:
+        await ctx.send("❌ Invalid user mention or ID.")
+        return
+
+    try:
+        # Try to DM the user
+        allowed_role = ctx.guild.get_role(ALLOWED_BAN_ROLE_ID)
+        role_name = allowed_role.name if allowed_role else "Staff"
+
         try:
-            await member.send(f"🔨 You have been banned from **{ctx.guild.name}**.\nReason: **{reason}**")
+            await member.send(
+                f"🔨 You have been banned from **{ctx.guild.name}**.\n"
+                f"Reason: {reason}\n\n"
+            )
         except discord.Forbidden:
-            pass  # Ignore if DMs are closed
+            pass  # DMs closed
 
-        # Ban the member
+        # Ban the user
         await member.ban(reason=reason)
-        await ctx.send(f"✅ Successfully banned {member.mention} for: **{reason}**")
+        await ctx.send(f"✅ Successfully banned {member.mention}.\nReason: {reason}")
 
-        # Send a log message to the log channel
+        # Log the action
         log_channel = bot.get_channel(LOG_CHANNEL_ID)
         if log_channel:
-            log_embed = discord.Embed(
-                title="Ban Action",
-                color=discord.Color.dark_red()
-            )
+            log_embed = discord.Embed(title="Ban Action", color=discord.Color.dark_red())
             log_embed.add_field(name="Member", value=member.mention, inline=False)
             log_embed.add_field(name="Moderator", value=ctx.author.mention, inline=False)
             log_embed.add_field(name="Reason", value=reason, inline=False)
@@ -1148,15 +1162,16 @@ async def ban(ctx, member: discord.Member, *, reason="No reason provided"):
             await log_channel.send(embed=log_embed)
 
     except Exception as e:
-        await ctx.send(f"❌ Failed to ban {member.mention}. Error: {e}")
+        await ctx.send(f"❌ Failed to ban user. Error: {e}")
 
 @ban.error
 async def ban_error(ctx, error):
     if isinstance(error, commands.CheckFailure):
-        await ctx.send("⚠️ You do not have the required role to use the ban command.")
+        await ctx.send("⚠️ You do not have permission to use this command.")
     else:
         print(f"Error in ban command: {error}")
-        await ctx.send("❌ An unexpected error occurred while trying to ban.")
+        await ctx.send("$ban @user ?r Repeated rule violations")
+
 # ------------------------------------------------------------------------------
 
 # Constants
