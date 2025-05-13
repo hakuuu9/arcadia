@@ -1143,15 +1143,9 @@ async def ban_error(ctx, error):
         await ctx.send("❌ An unexpected error occurred while trying to ban.")
 # ------------------------------------------------------------------------------
 
-import discord
-from discord.ext import commands
-from datetime import timedelta
-
-# Your log channel ID
+# Constants
 LOG_CHANNEL_ID = 1364839238960549908
-
-# The specific role ID that can use the timeout command
-ALLOWED_TIMEOUT_ROLE_ID = 1347181345922748456  # Replace with the actual role ID
+ALLOWED_TIMEOUT_ROLE_ID = 1347181345922748456
 
 @bot.event
 async def on_ready():
@@ -1168,56 +1162,85 @@ def is_allowed_timeout_role():
 
 @bot.command()
 @is_allowed_timeout_role()
-async def timeout(ctx, member: discord.Member, time: str, *, reason="No reason provided."):
+async def timeout(ctx, user: str, duration: str, *, reason: str = ""):
+    # Ensure reason is provided using ?r
+    if not reason.startswith('?r ') or len(reason[3:].strip()) == 0:
+        await ctx.send("❌ Please provide a reason using `?r <reason>`.")
+        return
+    reason = reason[3:].strip()
+
+    # Get the member object
     try:
-        time = time.lower()
-        seconds = 0
-        if time.endswith("min"):
-            seconds = int(time[:-3]) * 60
-        elif time.endswith("hr"):
-            seconds = int(time[:-2]) * 60 * 60
-        elif time.endswith("d"):
-            seconds = int(time[:-1]) * 60 * 60 * 24
+        if user.startswith("<@") and user.endswith(">"):
+            user_id = int(user.strip("<@!>"))
         else:
-            await ctx.send("❌ Invalid time format! Use formats like `10min`, `2hr`, or `1d`.")
-            return
+            user_id = int(user)
+        member = await ctx.guild.fetch_member(user_id)
+    except Exception:
+        await ctx.send("❌ Invalid user mention or ID.")
+        return
 
-        if seconds <= 0 or seconds > 2419200:
-            await ctx.send("❌ Timeout must be between 1 second and 28 days.")
+    # Parse time
+    duration = duration.lower()
+    seconds = 0
+    try:
+        if duration.endswith(("sec", "secs")):
+            seconds = int(duration.rstrip("secs").rstrip("sec"))
+        elif duration.endswith(("min", "mins")):
+            seconds = int(duration.rstrip("mins").rstrip("min")) * 60
+        elif duration.endswith(("hr", "hrs")):
+            seconds = int(duration.rstrip("hrs").rstrip("hr")) * 3600
+        elif duration.endswith(("d", "days")):
+            seconds = int(duration.rstrip("days").rstrip("d")) * 86400
+        else:
+            await ctx.send("❌ Invalid time format! Use `60sec`, `5min`, `2hr`, or `1d`.")
             return
+    except ValueError:
+        await ctx.send("❌ Invalid duration format.")
+        return
 
+    if seconds <= 0 or seconds > 2419200:
+        await ctx.send("❌ Timeout must be between 1 second and 28 days.")
+        return
+
+    # Attempt to timeout
+    try:
         await member.timeout(timedelta(seconds=seconds), reason=reason)
-        await ctx.send(f"✅ {member.mention} has been timed out for **{time}**. Reason: {reason}")
+        await ctx.send(f"✅ {member.mention} has been timed out for **{duration}**.\nReason: {reason}")
+
+        # Get staff role name
+        allowed_role = ctx.guild.get_role(ALLOWED_TIMEOUT_ROLE_ID)
+        role_name = allowed_role.name if allowed_role else "Staff"
 
         try:
-            await member.send(f"🚫 You have been timed out in **{ctx.guild.name}** for **{time}**.\nReason: {reason}")
+            await member.send(
+                f"🚫 You have been timed out in **{ctx.guild.name}** for **{duration}**.\n"
+                f"Reason: {reason}\n\n"
+                f"If you believe this was a mistake, you may reach out to **{role_name}**."
+            )
         except discord.Forbidden:
-            pass  # can't DM
+            pass  # Can't DM
 
-        # Send a log message to the log channel
         log_channel = bot.get_channel(LOG_CHANNEL_ID)
         if log_channel:
-            log_embed = discord.Embed(
-                title="Timeout Action",
-                color=discord.Color.orange()
-            )
+            log_embed = discord.Embed(title="Timeout Issued", color=discord.Color.orange())
             log_embed.add_field(name="Member", value=member.mention, inline=False)
             log_embed.add_field(name="Moderator", value=ctx.author.mention, inline=False)
-            log_embed.add_field(name="Duration", value=time, inline=False)
+            log_embed.add_field(name="Duration", value=duration, inline=False)
             log_embed.add_field(name="Reason", value=reason, inline=False)
             log_embed.timestamp = discord.utils.utcnow()
             await log_channel.send(embed=log_embed)
 
     except Exception as e:
-        await ctx.send(f"⚠️ Error: {e}")
+        await ctx.send(f"⚠️ Failed to timeout user: {e}")
 
 @timeout.error
 async def timeout_error(ctx, error):
     if isinstance(error, commands.CheckFailure):
-        await ctx.send("⚠️ You do not have the required role to use the timeout command.")
+        await ctx.send("⚠️ You do not have permission to use this command.")
     else:
+        await ctx.send("❌ An unexpected error occurred.")
         print(f"Error in timeout command: {error}")
-        await ctx.send("❌ An unexpected error occurred while trying to timeout.")
 
 # -----------------------------------------------------------------------------
 
