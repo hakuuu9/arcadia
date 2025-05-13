@@ -56,7 +56,7 @@ ROLE_ID = 1361732154584858724  # Replace with the actual Role ID
 VANITY_LINK = "discord.gg/warcadia"  # Replace with your actual vanity link
 
 # The URL of the image to embed when the role is granted
-VANITY_IMAGE_URL = 'https://cdn.discordapp.com/attachments/1365065762104020992/1370057690302386206/Your_paragraph_text_20250427_091202_0000.jpg'
+VANITY_IMAGE_URL = 'https://cdn.discordapp.com/attachments/1365065762104020992/1371819836908503122/Recording_2025-05-13_195956.gif'
 
 @bot.event
 async def on_presence_update(before, after):
