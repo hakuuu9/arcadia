@@ -1990,9 +1990,10 @@ async def serveravatar(ctx):
         await ctx.send("This server doesn't have an avatar set.")
 
 # ------------------------------------
-TICKET_COMMAND_CHANNEL_ID = 1361757195686907925  # Your ticket command channel ID
-SUPPORT_CATEGORY_ID = 1343219140864901150        # Your SUPPORT category ID
-STAFF_ROLE_NAME = "Moderator"                    # Staff role name (must match exactly)
+
+TICKET_COMMAND_CHANNEL_ID = 1361757195686907925
+SUPPORT_CATEGORY_ID = 1343219140864901150
+STAFF_ROLE_NAME = "Moderator"
 
 open_tickets = {}
 
@@ -2020,32 +2021,29 @@ async def ticket(ctx):
             await interaction.response.send_message("You already have an open ticket.", ephemeral=True)
             return
 
-        # Set permissions
         overwrites = {
-    guild.default_role: discord.PermissionOverwrite(read_messages=False),
-    user: discord.PermissionOverwrite(
-        read_messages=True,
-        send_messages=True,
-        read_message_history=True,
-        embed_links=True,
-        attach_files=True
-    ),
-}
+            guild.default_role: discord.PermissionOverwrite(read_messages=False),
+            user: discord.PermissionOverwrite(
+                read_messages=True,
+                send_messages=True,
+                attach_files=True,
+                embed_links=True,
+                read_message_history=True
+            )
+        }
 
         staff_role = discord.utils.get(guild.roles, name=STAFF_ROLE_NAME)
         if staff_role:
             overwrites[staff_role] = discord.PermissionOverwrite(
                 read_messages=True,
                 send_messages=True,
-                read_message_history=True
+                manage_messages=True
             )
 
-        # Get or create category
         category = guild.get_channel(SUPPORT_CATEGORY_ID)
         if category is None or not isinstance(category, discord.CategoryChannel):
             category = await guild.create_category("Tickets")
 
-        # Create channel
         channel_name = f"ticket-{user.name}".replace(" ", "-").lower()
         ticket_channel = await guild.create_text_channel(
             name=channel_name,
@@ -2056,7 +2054,6 @@ async def ticket(ctx):
 
         open_tickets[user.id] = ticket_channel.id
 
-        # Close button
         close_button = Button(label="🔒 Close Ticket", style=discord.ButtonStyle.red)
 
         async def close_ticket_callback(close_interaction: discord.Interaction):
@@ -2072,7 +2069,6 @@ async def ticket(ctx):
         close_view = View()
         close_view.add_item(close_button)
 
-        # Send ticket confirmation and ping staff
         if staff_role:
             await ticket_channel.send(
                 f"{user.mention}, your ticket has been created. <@&{staff_role.id}> will assist you shortly.",
@@ -2091,6 +2087,8 @@ async def ticket(ctx):
     view.add_item(create_button)
 
     await ctx.send(embed=embed, view=view)
+
+
 
 
 keep_alive()
