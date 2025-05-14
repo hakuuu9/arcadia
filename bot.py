@@ -2055,7 +2055,7 @@ class TicketView(View):
             await ticket_channel.delete()
             open_tickets.pop(user.id, None)
 
-        close_button = Button(label="🔒 Close Ticket", style=discord.ButtonStyle.red)
+        close_button = Button(label="🔒 Close Ticket", style=discord.ButtonStyle.red, custom_id=f"close_ticket_{user.id}")
         close_button.callback = close_ticket_callback
         close_view = View()
         close_view.add_item(close_button)
