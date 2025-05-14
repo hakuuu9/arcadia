@@ -400,6 +400,9 @@ async def info_command(ctx):
                 "**⏰ `$remind [time] [task]`** — Set a reminder\n"
                 "**🧑‍💻 `$userinfo [@user]`** — Display user info\n"
                 "**🕊️ `$confess your message`** — Anonymous confession (with private logging)\n"
+                "**📱 `$tiktok <link>`** — Download TikTok video (no watermark)\n"
+                "**🖼️ `$serveravatar`** — Show the server's icon\n"
+                "**🖼️ `$serverbanner`** — Show the server's banner\n"
             ),
             inline=False
         ).set_thumbnail(url="https://i.imgur.com/JxsCfCe.gif"),
