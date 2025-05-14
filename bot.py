@@ -1899,7 +1899,15 @@ async def leave(ctx):
 
 # --------------------------------------------------------------------------
 
-
+@bot.command()
+async def chat(ctx, channel: discord.TextChannel, *, message: str):
+    try:
+        await channel.send(message)
+        await ctx.send(f"Message sent to {channel.mention}!")
+    except discord.Forbidden:
+        await ctx.send("I don't have permission to send messages in that channel.")
+    except Exception as e:
+        await ctx.send(f"An error occurred: {e}")
 
 
 keep_alive()
