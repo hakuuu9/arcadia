@@ -1909,6 +1909,36 @@ async def chat(ctx, channel: discord.TextChannel, *, message: str):
     except Exception as e:
         await ctx.send(f"An error occurred: {e}")
 
+# -------------------------------
+
+@bot.command()
+async def banner(ctx, user_input=None):
+    try:
+        if user_input is None:
+            user = ctx.author
+        else:
+            try:
+                # Try to get user by mention or ID
+                user_id = int(user_input.strip("<@!>"))
+                user = await bot.fetch_user(user_id)
+            except:
+                return await ctx.send("Invalid user mention or ID.")
+
+        user = await bot.fetch_user(user.id)  # Ensure full object for banner
+        if user.banner:
+            banner_url = user.banner.url
+            embed = discord.Embed(
+                title=f"{user.name}'s Banner",
+                color=discord.Color.blue()
+            )
+            embed.set_image(url=banner_url)
+            await ctx.send(embed=embed)
+        else:
+            await ctx.send(f"{user.name} has no banner set.")
+
+    except Exception as e:
+        await ctx.send(f"An error occurred: {e}")
+
 
 keep_alive()
 bot.run(TOKEN)
