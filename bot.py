@@ -1947,40 +1947,29 @@ async def banner(ctx, user_input=None):
     except Exception as e:
         await ctx.send(f"An error occurred: {e}")
 
-# ------------------------------------
+# -----------------------------------
 
 @bot.command()
 async def tiktok(ctx, url: str):
-    await ctx.send("Fetching the video...")
+    await ctx.send("Downloading video...")
 
     try:
         api_url = f"https://tikwm.com/api/?url={url}"
-        response = requests.get(api_url)
-        data = response.json()
+        res = requests.get(api_url).json()
 
-        if data.get("data") and data["data"].get("play"):
-            video_data = data["data"]
-            title = video_data.get("title", "TikTok Video")
-            author = video_data.get("author", {}).get("unique_id", "Unknown")
-            video_url = video_data["play"]
-            cover_url = video_data.get("cover", "")
+        video_url = res["data"]["play"]
+        title = res["data"].get("title", "TikTok Video")
 
-            embed = discord.Embed(
-                title=f"@{author}'s TikTok",
-                description=title,
-                color=discord.Color.pink()
-            )
-            embed.set_image(url=cover_url)
-            embed.add_field(name="Video Link (No Watermark)", value=f"[Click to watch]({video_url})", inline=False)
-            embed.set_footer(text="Downloaded via tikwm.com")
+        # Download the video as bytes
+        video_response = requests.get(video_url)
+        video_bytes = io.BytesIO(video_response.content)
 
-            await ctx.send(embed=embed)
-
-        else:
-            await ctx.send("Failed to fetch the video. Make sure the link is public and valid.")
+        # Send the video directly to Discord
+        await ctx.send(content=f"**{title}**", file=discord.File(video_bytes, filename="tiktok.mp4"))
 
     except Exception as e:
         await ctx.send(f"An error occurred: {e}")
+
 
 keep_alive()
 bot.run(TOKEN)
