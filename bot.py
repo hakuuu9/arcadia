@@ -2019,13 +2019,15 @@ async def ticket(ctx):
 
         # Set permissions
         overwrites = {
-            guild.default_role: discord.PermissionOverwrite(read_messages=False),
-            user: discord.PermissionOverwrite(
-                read_messages=True,
-                send_messages=True,
-                read_message_history=True
-            ),
-        }
+    guild.default_role: discord.PermissionOverwrite(read_messages=False),
+    user: discord.PermissionOverwrite(
+        read_messages=True,
+        send_messages=True,
+        read_message_history=True,
+        embed_links=True,
+        attach_files=True
+    ),
+}
 
         staff_role = discord.utils.get(guild.roles, name=STAFF_ROLE_NAME)
         if staff_role:
