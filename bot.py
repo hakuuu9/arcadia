@@ -2006,7 +2006,7 @@ async def ticket(ctx):
         color=discord.Color.blue()
     )
     embed.set_thumbnail(url=ctx.guild.icon.url if ctx.guild.icon else discord.Embed.Empty)
-    embed.set_footer(text="Ticket System by YourBotName")
+    embed.set_footer(text="Ticket System by ARCADIA")
 
     create_button = Button(label="🎫 Open Ticket", style=discord.ButtonStyle.green)
 
