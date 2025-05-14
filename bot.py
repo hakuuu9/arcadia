@@ -1989,7 +1989,7 @@ async def serveravatar(ctx):
 # ------------------------------------
 
 TICKET_COMMAND_CHANNEL_ID = 1361757195686907925  # Replace with your actual full channel ID
-SUPPORT_CATEGORY_ID = 1343219140864901150  # Replace with your real SUPPORT category ID
+SUPPORT_CATEGORY_ID = 1343219140864901150       # Replace with your real SUPPORT category ID
 STAFF_ROLE_NAME = "Moderator"
 
 open_tickets = {}
@@ -2057,7 +2057,18 @@ async def ticket(ctx):
         close_view = View()
         close_view.add_item(close_button)
 
-        await ticket_channel.send(f"{user.mention}, your ticket has been created. A staff member will assist you shortly.", view=close_view)
+        # Send message with staff ping
+        if staff_role:
+            await ticket_channel.send(
+                f"{user.mention}, your ticket has been created. <@&{staff_role.id}> will assist you shortly.",
+                view=close_view
+            )
+        else:
+            await ticket_channel.send(
+                f"{user.mention}, your ticket has been created. A staff member will assist you shortly.",
+                view=close_view
+            )
+
         await interaction.response.send_message(f"Ticket created: {ticket_channel.mention}", ephemeral=True)
 
     create_button.callback = create_ticket_callback
