@@ -506,8 +506,8 @@ async def support_info(ctx):
             "📤 `$dm @user | message`\n"
             "📤 `$dm @role | message`\n"
             "📩 `$sms [user_id] [message]`\n"
-            "🎵 `$np` – Show currently playing song\n"
-            "🎲 `$randomvc` – Move you to a random public voice channel\n"
+            "💬 `$chat #channel text`\n"
+         
         ),
         inline=False
     )
