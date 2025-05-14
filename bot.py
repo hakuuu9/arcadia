@@ -20,6 +20,8 @@ from collections import defaultdict
 from config import TOKEN, GUILD_ID, ROLE_ID, VANITY_LINK, LOG_CHANNEL_ID, VANITY_IMAGE_URL
 from keep_alive import keep_alive
 from datetime import datetime, timedelta
+from discord.ext import commands
+import discord
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -1945,6 +1947,40 @@ async def banner(ctx, user_input=None):
     except Exception as e:
         await ctx.send(f"An error occurred: {e}")
 
+# ------------------------------------
+
+@bot.command()
+async def tiktok(ctx, url: str):
+    await ctx.send("Fetching the video...")
+
+    try:
+        api_url = f"https://tikwm.com/api/?url={url}"
+        response = requests.get(api_url)
+        data = response.json()
+
+        if data.get("data") and data["data"].get("play"):
+            video_data = data["data"]
+            title = video_data.get("title", "TikTok Video")
+            author = video_data.get("author", {}).get("unique_id", "Unknown")
+            video_url = video_data["play"]
+            cover_url = video_data.get("cover", "")
+
+            embed = discord.Embed(
+                title=f"@{author}'s TikTok",
+                description=title,
+                color=discord.Color.pink()
+            )
+            embed.set_image(url=cover_url)
+            embed.add_field(name="Video Link (No Watermark)", value=f"[Click to watch]({video_url})", inline=False)
+            embed.set_footer(text="Downloaded via tikwm.com")
+
+            await ctx.send(embed=embed)
+
+        else:
+            await ctx.send("Failed to fetch the video. Make sure the link is public and valid.")
+
+    except Exception as e:
+        await ctx.send(f"An error occurred: {e}")
 
 keep_alive()
 bot.run(TOKEN)
