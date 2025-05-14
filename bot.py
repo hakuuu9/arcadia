@@ -1989,7 +1989,7 @@ async def serveravatar(ctx):
 # ------------------------------------
 
 # Settings
-TICKET_COMMAND_CHANNEL_ID = 128199  # Replace with the full real channel ID
+TICKET_COMMAND_CHANNEL_ID = 1361757195686907925  # Replace with the full real channel ID
 STAFF_ROLE_NAME = "Moderator"
 TICKET_CATEGORY_NAME = "Tickets"
 open_tickets = {}
