@@ -1900,6 +1900,7 @@ async def leave(ctx):
 # --------------------------------------------------------------------------
 
 @bot.command()
+@commands.has_permissions(manage_messages=True)
 async def chat(ctx, channel: discord.TextChannel, *, message: str):
     try:
         await channel.send(message)
@@ -1908,6 +1909,11 @@ async def chat(ctx, channel: discord.TextChannel, *, message: str):
         await ctx.send("I don't have permission to send messages in that channel.")
     except Exception as e:
         await ctx.send(f"An error occurred: {e}")
+
+@chat.error
+async def chat_error(ctx, error):
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.send("Only staff members with **Manage Messages** permission can use this command.")
 
 # -------------------------------
 
