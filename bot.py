@@ -1975,28 +1975,18 @@ async def tiktok(ctx, url: str):
 @bot.command()
 async def serverbanner(ctx):
     if ctx.guild.banner:
-        embed = discord.Embed(
-            title=f"{ctx.guild.name}'s Server Banner",
-            color=discord.Color.blue()
-        )
-        embed.set_image(url=ctx.guild.banner.url)
-        embed.set_footer(text="Banner preview")
-        await ctx.send(embed=embed)
+        await ctx.send(f"{ctx.guild.name}'s banner:\n{ctx.guild.banner.url}")
     else:
         await ctx.send("This server doesn't have a banner set.")
 
 @bot.command()
 async def serveravatar(ctx):
     if ctx.guild.icon:
-        embed = discord.Embed(
-            title=f"{ctx.guild.name}'s Server Avatar",
-            color=discord.Color.green()
-        )
-        embed.set_image(url=ctx.guild.icon.url)
-        embed.set_footer(text="Avatar preview")
-        await ctx.send(embed=embed)
+        await ctx.send(f"{ctx.guild.name}'s avatar:\n{ctx.guild.icon.url}")
     else:
         await ctx.send("This server doesn't have an avatar set.")
+
+# ------------------------------------
 
 
 keep_alive()
