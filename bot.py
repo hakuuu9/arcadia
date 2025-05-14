@@ -2083,9 +2083,6 @@ async def ticket(ctx):
 
     await ctx.send(embed=embed, view=TicketView())
 
-bot.run("YOUR_TOKEN")
-
-
 
 keep_alive()
 bot.run(TOKEN)
