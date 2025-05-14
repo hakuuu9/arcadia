@@ -1987,12 +1987,21 @@ async def serveravatar(ctx):
         await ctx.send("This server doesn't have an avatar set.")
 
 # ------------------------------------
+
+# Settings
+TICKET_COMMAND_CHANNEL_ID = 128199  # Replace with the full real channel ID
+STAFF_ROLE_NAME = "Moderator"
+TICKET_CATEGORY_NAME = "Tickets"
+open_tickets = {}
+
 @bot.command()
 async def ticket(ctx):
+    # Ensure command is used in the correct channel
     if ctx.channel.id != TICKET_COMMAND_CHANNEL_ID:
-        await ctx.send("You can only use this command in the ticket channel.", delete_after=5)
+        await ctx.send("You can only use this command in the designated ticket channel.", delete_after=5)
         return
 
+    # Embed with ticket info
     embed = discord.Embed(
         title="Need Support?",
         description="Click the button below to open a **private ticket** with our staff.\nWe're here to help you!",
@@ -2001,29 +2010,41 @@ async def ticket(ctx):
     embed.set_thumbnail(url=ctx.guild.icon.url if ctx.guild.icon else discord.Embed.Empty)
     embed.set_footer(text="Ticket System by YourBotName")
 
+    # Button setup
     button = Button(label="🎫 Open Ticket", style=discord.ButtonStyle.green)
 
     async def button_callback(interaction: discord.Interaction):
         user = interaction.user
         guild = interaction.guild
 
+        # Prevent multiple tickets per user
         if user.id in open_tickets:
             await interaction.response.send_message("You already have an open ticket.", ephemeral=True)
             return
 
+        # Permissions setup
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(read_messages=False),
             user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
         }
 
+        # Get staff role
         staff_role = discord.utils.get(guild.roles, name=STAFF_ROLE_NAME)
         if staff_role:
-            overwrites[staff_role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+            overwrites[staff_role] = discord.PermissionOverwrite(
+                read_messages=True,
+                send_messages=True,
+                attach_files=True,
+                embed_links=True,
+                view_channel=True
+            )
 
+        # Create category if missing
         category = discord.utils.get(guild.categories, name=TICKET_CATEGORY_NAME)
         if category is None:
             category = await guild.create_category(TICKET_CATEGORY_NAME)
 
+        # Create ticket channel
         channel_name = f"ticket-{user.name}".replace(" ", "-").lower()
         ticket_channel = await guild.create_text_channel(
             name=channel_name,
