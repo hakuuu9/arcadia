@@ -1997,8 +1997,6 @@ STAFF_ROLE_NAME = "Moderator"
 
 open_tickets = {}
 
-bot = commands.Bot(command_prefix="$", intents=discord.Intents.all())
-
 @bot.command()
 async def ticket(ctx):
     if ctx.channel.id != TICKET_COMMAND_CHANNEL_ID:
