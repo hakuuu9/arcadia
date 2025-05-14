@@ -1998,11 +1998,6 @@ STAFF_ROLE_NAME = "Moderator"
 
 open_tickets = {}
 
-# Make sure your bot initialization includes intents
-intents = discord.Intents.default()
-intents.message_content = True  # Enable if your bot needs to read message content
-bot = commands.Bot(command_prefix="!", intents=intents)
-
 @bot.command()
 async def ticket(ctx):
     if ctx.channel.id != TICKET_COMMAND_CHANNEL_ID:
