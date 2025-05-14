@@ -1987,7 +1987,61 @@ async def serveravatar(ctx):
         await ctx.send("This server doesn't have an avatar set.")
 
 # ------------------------------------
+@bot.command()
+async def ticket(ctx):
+    if ctx.channel.id != TICKET_COMMAND_CHANNEL_ID:
+        await ctx.send("You can only use this command in the ticket channel.", delete_after=5)
+        return
 
+    embed = discord.Embed(
+        title="Need Support?",
+        description="Click the button below to open a **private ticket** with our staff.\nWe're here to help you!",
+        color=discord.Color.blue()
+    )
+    embed.set_thumbnail(url=ctx.guild.icon.url if ctx.guild.icon else discord.Embed.Empty)
+    embed.set_footer(text="Ticket System by YourBotName")
+
+    button = Button(label="🎫 Open Ticket", style=discord.ButtonStyle.green)
+
+    async def button_callback(interaction: discord.Interaction):
+        user = interaction.user
+        guild = interaction.guild
+
+        if user.id in open_tickets:
+            await interaction.response.send_message("You already have an open ticket.", ephemeral=True)
+            return
+
+        overwrites = {
+            guild.default_role: discord.PermissionOverwrite(read_messages=False),
+            user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
+        }
+
+        staff_role = discord.utils.get(guild.roles, name=STAFF_ROLE_NAME)
+        if staff_role:
+            overwrites[staff_role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+
+        category = discord.utils.get(guild.categories, name=TICKET_CATEGORY_NAME)
+        if category is None:
+            category = await guild.create_category(TICKET_CATEGORY_NAME)
+
+        channel_name = f"ticket-{user.name}".replace(" ", "-").lower()
+        ticket_channel = await guild.create_text_channel(
+            name=channel_name,
+            overwrites=overwrites,
+            category=category,
+            reason="Ticket created"
+        )
+
+        open_tickets[user.id] = ticket_channel.id
+
+        await ticket_channel.send(f"{user.mention}, your ticket has been created. A staff member will assist you shortly.")
+        await interaction.response.send_message(f"Ticket created: {ticket_channel.mention}", ephemeral=True)
+
+    button.callback = button_callback
+    view = View()
+    view.add_item(button)
+
+    await ctx.send(embed=embed, view=view)
 
 keep_alive()
 bot.run(TOKEN)
