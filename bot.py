@@ -2098,53 +2098,75 @@ async def on_message(message):
 
 # --------------------------------------------------------------------
 
+class AdminInfoView(ui.View):
+    def __init__(self, ctx):
+        super().__init__(timeout=60)
+        self.ctx = ctx
+        self.current_page = 0
+        self.embeds = self.generate_embeds()
+
+        # Buttons
+        self.prev_button = ui.Button(label="⬅️ Previous", style=ButtonStyle.gray)
+        self.next_button = ui.Button(label="Next ➡️", style=ButtonStyle.gray)
+
+        self.prev_button.callback = self.go_previous
+        self.next_button.callback = self.go_next
+
+        self.add_item(self.prev_button)
+        self.add_item(self.next_button)
+
+    def generate_embeds(self):
+        noir_embed = Embed(
+            title="Biography — Noir Witherfork",
+            color=discord.Color.dark_blue()
+        )
+        noir_embed.add_field(name="Name", value="Noir Witherfork", inline=True)
+        noir_embed.add_field(name="Sex", value="Male", inline=True)
+        noir_embed.add_field(name="Marital Status", value="Single", inline=True)
+        noir_embed.add_field(name="Occupation", value="Student", inline=True)
+        noir_embed.add_field(name="Hometown", value="Bacolod City", inline=True)
+        noir_embed.add_field(name="Education", value="📚 Polytechnic University of the Philippines", inline=False)
+        noir_embed.add_field(name="Program", value="🎓 Bachelor of Science in Electronics Engineering (BSECE)", inline=False)
+        noir_embed.add_field(name="Former Administrator", value="• Gratis.PH\n• Pinoy Cyber Technology\n• Pinoy Cyber Ghost Army\n• Facebook Chatbot Maker", inline=False)
+        noir_embed.add_field(name="Quote", value="*“No matter how many weapons you have, no matter how great your technology might be, the world cannot live without love.”*", inline=False)
+        noir_embed.set_thumbnail(url="https://i.imgur.com/GWhafOK.jpeg")
+        noir_embed.set_footer(text="Formal Profile | Noir Witherfork")
+
+        alex_embed = Embed(
+            title="Biography — Alex Mendoza",
+            color=discord.Color.teal()
+        )
+        alex_embed.add_field(name="Name", value="Alex Mendoza", inline=True)
+        alex_embed.add_field(name="Sex", value="Female", inline=True)
+        alex_embed.add_field(name="Marital Status", value="Single", inline=True)
+        alex_embed.add_field(name="Occupation", value="Freelancer", inline=True)
+        alex_embed.add_field(name="Hometown", value="Quezon City", inline=True)
+        alex_embed.add_field(name="Education", value="UP Diliman", inline=False)
+        alex_embed.add_field(name="Program", value="Mass Communication", inline=False)
+        alex_embed.add_field(name="Former Roles", value="• Art Director — Gratis.PH\n• Writer — Creative Guild", inline=False)
+        alex_embed.add_field(name="Quote", value="*“Creativity takes courage.”*", inline=False)
+        alex_embed.set_thumbnail(url="https://i.imgur.com/xyzExample.jpg")  # Replace with Alex's image
+        alex_embed.set_footer(text="Formal Profile | Alex Mendoza")
+
+        return [noir_embed, alex_embed]
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        return interaction.user == self.ctx.author
+
+    async def go_previous(self, interaction: discord.Interaction):
+        if self.current_page > 0:
+            self.current_page -= 1
+            await interaction.response.edit_message(embed=self.embeds[self.current_page], view=self)
+
+    async def go_next(self, interaction: discord.Interaction):
+        if self.current_page < len(self.embeds) - 1:
+            self.current_page += 1
+            await interaction.response.edit_message(embed=self.embeds[self.current_page], view=self)
+
 @bot.command()
-async def noir(ctx):
-    embed = discord.Embed(
-        title="𝐁𝐢𝐨𝐠𝐫𝐚𝐩𝐡𝐲 — Noir Witherfork",
-        description="A concise formal profile of Noir Witherfork.",
-        color=discord.Color.dark_blue()
-    )
-
-    embed.add_field(name="🪪 Name", value="Noir Witherfork", inline=True)
-    embed.add_field(name="🚹 Sex", value="Male", inline=True)
-    embed.add_field(name="💍 Marital Status", value="Single", inline=True)
-    embed.add_field(name="🎓 Occupation", value="Student", inline=True)
-    embed.add_field(name="🏙️ Hometown", value="Bacolod City", inline=True)
-
-    embed.add_field(
-        name="🎓 Education",
-        value="**Polytechnic University of the Philippines**",
-        inline=False
-    )
-
-    embed.add_field(
-        name="📘 Program",
-        value="**Bachelor of Science in Electronics Engineering (BSECE)**",
-        inline=False
-    )
-
-    embed.add_field(
-        name="🧾 Former Affiliations",
-        value=(
-            "• Administrator — **Gratis.PH**\n"
-            "• Administrator — **Pinoy Cyber Technology**\n"
-            "• Administrator — **Pinoy Cyber Ghost Army**\n"
-            "• Administrator — **Facebook Chatbot Maker**"
-        ),
-        inline=False
-    )
-
-    embed.add_field(
-        name="🖋️ Personal Quote",
-        value="*“No matter how many weapons you have, no matter how great your technology might be, the world cannot live without love.”*",
-        inline=False
-    )
-
-    embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1357671759511556216/1372540738209841182/53cbd2e48f2b3e374fff7bf78e3c2b9d.gif")  # You can replace this with a different image if needed
-    embed.set_footer(text="Formal Profile • Noir Witherfork", icon_url=ctx.author.display_avatar.url)
-
-    await ctx.send(embed=embed)
+async def admininfo(ctx):
+    view = AdminInfoView(ctx)
+    await ctx.send(embed=view.embeds[0], view=view)
 
 
 keep_alive()
