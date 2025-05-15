@@ -12,7 +12,7 @@ import time
 import datetime
 import textwrap
 import aiohttp
-from discord import app_commands
+from discord import app_commands, Embed, ButtonStyle, ui
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageOps
 import io
 import requests
