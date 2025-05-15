@@ -1989,32 +1989,22 @@ async def serveravatar(ctx):
     else:
         await ctx.send("This server doesn't have an avatar set.")
 
-# ------------------------------------
+# -----------------------------------
 
-# Replace with your actual channel and category IDs
 TICKET_COMMAND_CHANNEL_ID = 1361757195686907925
 SUPPORT_CATEGORY_ID = 1343219140864901150
 STAFF_ROLE_NAME = "Moderator"
 
 open_tickets = {}
 
-@bot.command()
-async def ticket(ctx):
-    if ctx.channel.id != TICKET_COMMAND_CHANNEL_ID:
-        await ctx.send("You can only use this command in the ticket channel.", delete_after=5)
-        return
+# Create a persistent view class
+class TicketView(View):
+    def __init__(self):
+        super().__init__(timeout=None)  # persistent
+        self.add_item(Button(label="🎫 Open Ticket", style=discord.ButtonStyle.green, custom_id="create_ticket"))
 
-    embed = discord.Embed(
-        title="Need Support?",
-        description="Click the button below to open a **private ticket** with our staff.\nWe're here to help you!",
-        color=discord.Color.blue()
-    )
-    embed.set_thumbnail(url=ctx.guild.icon.url if ctx.guild.icon else discord.Embed.Empty)
-    embed.set_footer(text="Ticket System by ARCADIA")
-
-    create_button = Button(label="🎫 Open Ticket", style=discord.ButtonStyle.green, custom_id="create_ticket")
-
-    async def create_ticket_callback(interaction: discord.Interaction):
+    @discord.ui.button(label="🎫 Open Ticket", style=discord.ButtonStyle.green, custom_id="create_ticket")
+    async def create_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
         user = interaction.user
         guild = interaction.guild
 
@@ -2055,40 +2045,54 @@ async def ticket(ctx):
 
         open_tickets[user.id] = ticket_channel.id
 
-        # Close button with unique custom_id
-        close_button = Button(label="🔒 Close Ticket", style=discord.ButtonStyle.red, custom_id=f"close_ticket_{user.id}")
+        # Close button view
+        class CloseView(View):
+            @discord.ui.button(label="🔒 Close Ticket", style=discord.ButtonStyle.red, custom_id="close_ticket")
+            async def close(self, close_interaction: discord.Interaction, button: discord.ui.Button):
+                if close_interaction.user != user and STAFF_ROLE_NAME not in [role.name for role in close_interaction.user.roles]:
+                    await close_interaction.response.send_message("Only the ticket owner or staff can close this ticket.", ephemeral=True)
+                    return
 
-        async def close_ticket_callback(close_interaction: discord.Interaction):
-            if close_interaction.user != user and STAFF_ROLE_NAME not in [role.name for role in close_interaction.user.roles]:
-                await close_interaction.response.send_message("Only the ticket owner or staff can close this ticket.", ephemeral=True)
-                return
-
-            await ticket_channel.send("Closing this ticket...")
-            await ticket_channel.delete()
-            open_tickets.pop(user.id, None)
-
-        close_button.callback = close_ticket_callback
-        close_view = View()
-        close_view.add_item(close_button)
+                await ticket_channel.send("Closing this ticket...")
+                await ticket_channel.delete()
+                open_tickets.pop(user.id, None)
 
         if staff_role:
             await ticket_channel.send(
                 f"{user.mention}, your ticket has been created. <@&{staff_role.id}> will assist you shortly.",
-                view=close_view
+                view=CloseView()
             )
         else:
             await ticket_channel.send(
                 f"{user.mention}, your ticket has been created. A staff member will assist you shortly.",
-                view=close_view
+                view=CloseView()
             )
 
         await interaction.response.send_message(f"Ticket created: {ticket_channel.mention}", ephemeral=True)
 
-    create_button.callback = create_ticket_callback  # Corrected line
-    view = View()
-    view.add_item(create_button)
 
-    await ctx.send(embed=embed, view=view)
+@bot.command()
+async def ticket(ctx):
+    if ctx.channel.id != TICKET_COMMAND_CHANNEL_ID:
+        await ctx.send("You can only use this command in the ticket channel.", delete_after=5)
+        return
+
+    embed = discord.Embed(
+        title="Need Support?",
+        description="Click the button below to open a **private ticket** with our staff.\nWe're here to help you!",
+        color=discord.Color.blue()
+    )
+    embed.set_thumbnail(url=ctx.guild.icon.url if ctx.guild.icon else discord.Embed.Empty)
+    embed.set_footer(text="Ticket System by ARCADIA")
+
+    await ctx.send(embed=embed, view=TicketView())
+
+
+@bot.event
+async def on_ready():
+    print(f"Bot is ready. Logged in as {bot.user}")
+    bot.add_view(TicketView())  # Register persistent view on startup
+
 
 keep_alive()
 bot.run(TOKEN)
