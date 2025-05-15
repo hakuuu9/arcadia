@@ -2098,74 +2098,88 @@ async def on_message(message):
 
 # --------------------------------------------------------------------
 
-class AdminInfoView(ui.View):
+# List of staff data with their user IDs
+staff_data = [
+    {
+        "user_id": 879936602414133288,  # Replace with Noir's actual Discord user ID
+        "name": "Noir Witherfork",
+        "sex": "Male",
+        "marital_status": "Single",
+        "occupation": "Student",
+        "hometown": "Bacolod City",
+        "education": "📚 Polytechnic University of the Philippines",
+        "program": "🎓 Bachelor of Science in Electronics Engineering (BSECE)",
+        "former_admin": (
+            "• Gratis.PH\n"
+            "• Pinoy Cyber Technology\n"
+            "• Pinoy Cyber Ghost Army\n"
+            "• Facebook Chatbot Maker"
+        ),
+        "quote": "No matter how many weapons you have, no matter how great your technology might be, the world cannot live without love."
+    },
+    {
+        "user_id": 987654321098765432,  # Replace with Alex's actual Discord user ID
+        "name": "Alex Example",
+        "sex": "Male",
+        "marital_status": "Single",
+        "occupation": "Moderator",
+        "hometown": "Example City",
+        "education": "Example University",
+        "program": "Example Program",
+        "former_admin": "• Example Org\n• Another Org",
+        "quote": "Example quote here."
+    }
+    # Add more staff profiles as needed
+]
+
+class AdminInfoView(View):
     def __init__(self, ctx):
-        super().__init__(timeout=60)
+        super().__init__(timeout=180)  # 3 minutes timeout
         self.ctx = ctx
-        self.current_page = 0
-        self.embeds = self.generate_embeds()
+        self.page = 0
+        self.embeds = []
+    
+    async def prepare(self):
+        # Generate embeds for all staff members
+        for staff in staff_data:
+            member = await self.ctx.guild.fetch_member(staff["user_id"])
+            embed = discord.Embed(
+                title=f"Biography — {staff['name']}",
+                color=discord.Color.dark_blue()
+            )
+            embed.add_field(name="Name", value=staff["name"], inline=True)
+            embed.add_field(name="Sex", value=staff["sex"], inline=True)
+            embed.add_field(name="Marital Status", value=staff["marital_status"], inline=True)
+            embed.add_field(name="Occupation", value=staff["occupation"], inline=True)
+            embed.add_field(name="Hometown", value=staff["hometown"], inline=True)
+            embed.add_field(name="Education", value=staff["education"], inline=False)
+            embed.add_field(name="Program", value=staff["program"], inline=False)
+            embed.add_field(name="Former Administrator", value=staff["former_admin"], inline=False)
+            embed.add_field(name="Quote", value=f"*“{staff['quote']}”*", inline=False)
+            embed.set_thumbnail(url=member.display_avatar.url)
+            embed.set_footer(text=f"Formal Profile | {staff['name']}")
+            self.embeds.append(embed)
 
-        # Buttons
-        self.prev_button = ui.Button(label="⬅️ Previous", style=ButtonStyle.gray)
-        self.next_button = ui.Button(label="Next ➡️", style=ButtonStyle.gray)
+    @discord.ui.button(label="Previous", style=discord.ButtonStyle.secondary)
+    async def previous(self, interaction: discord.Interaction, button: Button):
+        if self.page > 0:
+            self.page -= 1
+            await interaction.response.edit_message(embed=self.embeds[self.page], view=self)
+        else:
+            await interaction.response.defer()  # do nothing if already first page
 
-        self.prev_button.callback = self.go_previous
-        self.next_button.callback = self.go_next
-
-        self.add_item(self.prev_button)
-        self.add_item(self.next_button)
-
-    def generate_embeds(self):
-        noir_embed = Embed(
-            title="Biography — Noir Witherfork",
-            color=discord.Color.dark_blue()
-        )
-        noir_embed.add_field(name="Name", value="Noir Witherfork", inline=True)
-        noir_embed.add_field(name="Sex", value="Male", inline=True)
-        noir_embed.add_field(name="Marital Status", value="Single", inline=True)
-        noir_embed.add_field(name="Occupation", value="Student", inline=True)
-        noir_embed.add_field(name="Hometown", value="Bacolod City", inline=True)
-        noir_embed.add_field(name="Education", value="📚 Polytechnic University of the Philippines", inline=False)
-        noir_embed.add_field(name="Program", value="🎓 Bachelor of Science in Electronics Engineering (BSECE)", inline=False)
-        noir_embed.add_field(name="Former Administrator", value="• Gratis.PH\n• Pinoy Cyber Technology\n• Pinoy Cyber Ghost Army\n• Facebook Chatbot Maker", inline=False)
-        noir_embed.add_field(name="Quote", value="*“No matter how many weapons you have, no matter how great your technology might be, the world cannot live without love.”*", inline=False)
-        noir_embed.set_thumbnail(url="https://i.imgur.com/GWhafOK.jpeg")
-        noir_embed.set_footer(text="Formal Profile | Noir Witherfork")
-
-        alex_embed = Embed(
-            title="Biography — Alex Mendoza",
-            color=discord.Color.teal()
-        )
-        alex_embed.add_field(name="Name", value="Alex Mendoza", inline=True)
-        alex_embed.add_field(name="Sex", value="Female", inline=True)
-        alex_embed.add_field(name="Marital Status", value="Single", inline=True)
-        alex_embed.add_field(name="Occupation", value="Freelancer", inline=True)
-        alex_embed.add_field(name="Hometown", value="Quezon City", inline=True)
-        alex_embed.add_field(name="Education", value="UP Diliman", inline=False)
-        alex_embed.add_field(name="Program", value="Mass Communication", inline=False)
-        alex_embed.add_field(name="Former Roles", value="• Art Director — Gratis.PH\n• Writer — Creative Guild", inline=False)
-        alex_embed.add_field(name="Quote", value="*“Creativity takes courage.”*", inline=False)
-        alex_embed.set_thumbnail(url="https://i.imgur.com/xyzExample.jpg")  # Replace with Alex's image
-        alex_embed.set_footer(text="Formal Profile | Alex Mendoza")
-
-        return [noir_embed, alex_embed]
-
-    async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        return interaction.user == self.ctx.author
-
-    async def go_previous(self, interaction: discord.Interaction):
-        if self.current_page > 0:
-            self.current_page -= 1
-            await interaction.response.edit_message(embed=self.embeds[self.current_page], view=self)
-
-    async def go_next(self, interaction: discord.Interaction):
-        if self.current_page < len(self.embeds) - 1:
-            self.current_page += 1
-            await interaction.response.edit_message(embed=self.embeds[self.current_page], view=self)
+    @discord.ui.button(label="Next", style=discord.ButtonStyle.secondary)
+    async def next(self, interaction: discord.Interaction, button: Button):
+        if self.page < len(self.embeds) - 1:
+            self.page += 1
+            await interaction.response.edit_message(embed=self.embeds[self.page], view=self)
+        else:
+            await interaction.response.defer()  # do nothing if already last page
 
 @bot.command()
 async def admininfo(ctx):
     view = AdminInfoView(ctx)
+    await view.prepare()
     await ctx.send(embed=view.embeds[0], view=view)
 
 
