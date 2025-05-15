@@ -2113,7 +2113,7 @@ async def noir(ctx):
     embed.add_field(name="Education", value="Polytechnic University of the Philippines", inline=False)
     embed.add_field(name="Program", value="Bachelor of Science in Electronics Engineering (BSECE)", inline=False)
 
-    embed.set_thumbnail(url="https://media1.tenor.com/m/LAXGq0NCqWYAAAAC/laughing-happy.gif")
+    embed.set_thumbnail(url="https://i.imgur.com/GWhafOK.jpeg")
     embed.set_footer(text="Formal Profile | Noir Witherfork", icon_url=ctx.author.display_avatar.url)
 
     await ctx.send(embed=embed)
