@@ -2118,7 +2118,7 @@ staff_data = [
         "quote": "No matter how many weapons you have, no matter how great your technology might be, the world cannot live without love."
     },
     {
-        "user_id": 987654321098765432,  # Replace with Alex's actual Discord user ID
+        "user_id": 592779805439688710,  # Replace with Alex's actual Discord user ID
         "name": "Alex Example",
         "sex": "Male",
         "marital_status": "Single",
