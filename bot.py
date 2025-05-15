@@ -1991,17 +1991,36 @@ async def serveravatar(ctx):
 
 # -----------------------------------
 
+
 TICKET_COMMAND_CHANNEL_ID = 1361757195686907925
 SUPPORT_CATEGORY_ID = 1343219140864901150
 STAFF_ROLE_NAME = "Moderator"
 
 open_tickets = {}
 
-# Create a persistent view class
+# Close view for each ticket
+class CloseView(View):
+    def __init__(self, user_id, ticket_channel):
+        super().__init__(timeout=None)
+        self.user_id = user_id
+        self.ticket_channel = ticket_channel
+
+    @discord.ui.button(label="🔒 Close Ticket", style=discord.ButtonStyle.red, custom_id="close_ticket")
+    async def close_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
+        is_staff = any(role.name == STAFF_ROLE_NAME for role in interaction.user.roles)
+        if interaction.user.id != self.user_id and not is_staff:
+            await interaction.response.send_message("Only the ticket owner or staff can close this ticket.", ephemeral=True)
+            return
+
+        await self.ticket_channel.send("Closing this ticket...")
+        await self.ticket_channel.delete()
+        open_tickets.pop(self.user_id, None)
+
+
+# Main ticket view with the create ticket button
 class TicketView(View):
     def __init__(self):
-        super().__init__(timeout=None)  # persistent
-        self.add_item(Button(label="🎫 Open Ticket", style=discord.ButtonStyle.green, custom_id="create_ticket"))
+        super().__init__(timeout=None)
 
     @discord.ui.button(label="🎫 Open Ticket", style=discord.ButtonStyle.green, custom_id="create_ticket")
     async def create_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -2012,6 +2031,7 @@ class TicketView(View):
             await interaction.response.send_message("You already have an open ticket.", ephemeral=True)
             return
 
+        # Setup permissions
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(read_messages=False),
             user: discord.PermissionOverwrite(
@@ -2045,27 +2065,17 @@ class TicketView(View):
 
         open_tickets[user.id] = ticket_channel.id
 
-        # Close button view
-        class CloseView(View):
-            @discord.ui.button(label="🔒 Close Ticket", style=discord.ButtonStyle.red, custom_id="close_ticket")
-            async def close(self, close_interaction: discord.Interaction, button: discord.ui.Button):
-                if close_interaction.user != user and STAFF_ROLE_NAME not in [role.name for role in close_interaction.user.roles]:
-                    await close_interaction.response.send_message("Only the ticket owner or staff can close this ticket.", ephemeral=True)
-                    return
-
-                await ticket_channel.send("Closing this ticket...")
-                await ticket_channel.delete()
-                open_tickets.pop(user.id, None)
-
+        # Send ticket channel message with close button
+        close_view = CloseView(user.id, ticket_channel)
         if staff_role:
             await ticket_channel.send(
                 f"{user.mention}, your ticket has been created. <@&{staff_role.id}> will assist you shortly.",
-                view=CloseView()
+                view=close_view
             )
         else:
             await ticket_channel.send(
                 f"{user.mention}, your ticket has been created. A staff member will assist you shortly.",
-                view=CloseView()
+                view=close_view
             )
 
         await interaction.response.send_message(f"Ticket created: {ticket_channel.mention}", ephemeral=True)
@@ -2090,8 +2100,8 @@ async def ticket(ctx):
 
 @bot.event
 async def on_ready():
-    print(f"Bot is ready. Logged in as {bot.user}")
-    bot.add_view(TicketView())  # Register persistent view on startup
+    print(f"✅ Bot is ready as {bot.user}")
+    bot.add_view(TicketView())  # Register persistent view
 
 
 keep_alive()
