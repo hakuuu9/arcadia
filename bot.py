@@ -2101,20 +2101,48 @@ async def on_message(message):
 @bot.command()
 async def noir(ctx):
     embed = discord.Embed(
-        title="Biography — Noir Witherfork",
+        title="𝐁𝐢𝐨𝐠𝐫𝐚𝐩𝐡𝐲 — Noir Witherfork",
+        description="A concise formal profile of Noir Witherfork.",
         color=discord.Color.dark_blue()
     )
 
-    embed.add_field(name="Name", value="Noir Witherfork", inline=True)
-    embed.add_field(name="Sex", value="Male", inline=True)
-    embed.add_field(name="Marital Status", value="Single", inline=True)
-    embed.add_field(name="Occupation", value="Student", inline=True)
-    embed.add_field(name="Hometown", value="Bacolod City", inline=True)
-    embed.add_field(name="Education", value="Polytechnic University of the Philippines", inline=False)
-    embed.add_field(name="Program", value="Bachelor of Science in Electronics Engineering (BSECE)", inline=False)
+    embed.add_field(name="🪪 Name", value="Noir Witherfork", inline=True)
+    embed.add_field(name="🚹 Sex", value="Male", inline=True)
+    embed.add_field(name="💍 Marital Status", value="Single", inline=True)
+    embed.add_field(name="🎓 Occupation", value="Student", inline=True)
+    embed.add_field(name="🏙️ Hometown", value="Bacolod City", inline=True)
 
-    embed.set_thumbnail(url="https://i.imgur.com/GWhafOK.jpeg")
-    embed.set_footer(text="Formal Profile | Noir Witherfork", icon_url=ctx.author.display_avatar.url)
+    embed.add_field(
+        name="🎓 Education",
+        value="**Polytechnic University of the Philippines**",
+        inline=False
+    )
+
+    embed.add_field(
+        name="📘 Program",
+        value="**Bachelor of Science in Electronics Engineering (BSECE)**",
+        inline=False
+    )
+
+    embed.add_field(
+        name="🧾 Former Affiliations",
+        value=(
+            "• Administrator — **Gratis.PH**\n"
+            "• Administrator — **Pinoy Cyber Technology**\n"
+            "• Administrator — **Pinoy Cyber Ghost Army**\n"
+            "• Administrator — **Facebook Chatbot Maker**"
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name="🖋️ Personal Quote",
+        value="*“No matter how many weapons you have, no matter how great your technology might be, the world cannot live without love.”*",
+        inline=False
+    )
+
+    embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1357671759511556216/1372540738209841182/53cbd2e48f2b3e374fff7bf78e3c2b9d.gif")  # You can replace this with a different image if needed
+    embed.set_footer(text="Formal Profile • Noir Witherfork", icon_url=ctx.author.display_avatar.url)
 
     await ctx.send(embed=embed)
 
