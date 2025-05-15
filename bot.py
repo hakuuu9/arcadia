@@ -2096,6 +2096,28 @@ async def on_message(message):
         new_msg = await message.channel.send(data["message"])
         sticky_messages[channel_id]["message_id"] = new_msg.id
 
+# --------------------------------------------------------------------
+
+@bot.command()
+async def noir(ctx):
+    embed = discord.Embed(
+        title="Biography — Noir Witherfork",
+        color=discord.Color.dark_blue()
+    )
+
+    embed.add_field(name="Name", value="Noir Witherfork", inline=True)
+    embed.add_field(name="Sex", value="Male", inline=True)
+    embed.add_field(name="Marital Status", value="Single", inline=True)
+    embed.add_field(name="Occupation", value="Student", inline=True)
+    embed.add_field(name="Hometown", value="Bacolod City", inline=True)
+    embed.add_field(name="Education", value="Polytechnic University of the Philippines", inline=False)
+    embed.add_field(name="Program", value="Bachelor of Science in Electronics Engineering (BSECE)", inline=False)
+
+    embed.set_thumbnail(url="https://media.tenor.com/bjN8y.gif")
+    embed.set_footer(text="Formal Profile | Noir Witherfork", icon_url=ctx.author.display_avatar.url)
+
+    await ctx.send(embed=embed)
+
 
 keep_alive()
 bot.run(TOKEN)
