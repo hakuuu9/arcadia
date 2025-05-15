@@ -2044,6 +2044,58 @@ async def on_ready():
     print(f"✅ Bot is ready as {bot.user}")
     bot.add_view(TicketView())  # Register persistent view
 
+# --------------------------------------------------------
+sticky_messages = {}  # Stores sticky messages per channel
+
+
+@bot.command()
+async def sticky(ctx, *, message: str):
+    if ctx.channel.id in sticky_messages:
+        await ctx.send("There's already a sticky message in this channel. Use `$unsticky` first.", delete_after=5)
+        return
+
+    # Send the sticky message and store its ID
+    sticky = await ctx.send(message)
+    sticky_messages[ctx.channel.id] = {
+        "message": message,
+        "message_id": sticky.id,
+        "author": ctx.author.id
+    }
+
+    await ctx.send("Sticky message set successfully.", delete_after=5)
+
+
+@bot.command()
+async def unsticky(ctx):
+    if ctx.channel.id not in sticky_messages:
+        await ctx.send("There's no sticky message in this channel.", delete_after=5)
+        return
+
+    del sticky_messages[ctx.channel.id]
+    await ctx.send("Sticky message removed successfully.", delete_after=5)
+
+
+@bot.event
+async def on_message(message):
+    await bot.process_commands(message)
+
+    # Don't process bot messages
+    if message.author.bot:
+        return
+
+    channel_id = message.channel.id
+    if channel_id in sticky_messages:
+        try:
+            data = sticky_messages[channel_id]
+            # Re-send the sticky message and delete the old one
+            old_msg = await message.channel.fetch_message(data["message_id"])
+            await old_msg.delete()
+        except discord.NotFound:
+            pass  # Old message doesn't exist anymore
+
+        new_msg = await message.channel.send(data["message"])
+        sticky_messages[channel_id]["message_id"] = new_msg.id
+
 
 keep_alive()
 bot.run(TOKEN)
