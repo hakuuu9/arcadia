@@ -1329,65 +1329,6 @@ async def confess(ctx, *, message=None):
 
 # --------------------------------------------------------------------------------------
 
-sticky_messages = {}
-
-@bot.command()
-@commands.has_permissions(manage_messages=True)
-async def sticky(ctx, channel: discord.TextChannel, *, message: str):
-    await ctx.send(f"✅ Sticky message set for {channel.mention}!")
-    
-    # Define a helper function to send the sticky message
-    async def send_sticky(channel, message):
-        await bot.wait_until_ready()
-
-        # Re-send the sticky message every time a member sends a message
-        async def on_message(message):
-            # Ignore the bot's own messages
-            if message.author == bot.user:
-                return
-
-            # Delete the previous sticky if it exists
-            if channel.id in sticky_messages:
-                try:
-                    previous_message = await channel.fetch_message(sticky_messages[channel.id])
-                    await previous_message.delete()
-                except Exception:
-                    pass  # Ignore if the message can't be found or deleted
-
-            # Send the new sticky message
-            # If the message is an embed
-            if isinstance(message, discord.Embed):
-                new_message = await channel.send(embed=message)
-            else:
-                # Support server emojis in the text message
-                new_message = await channel.send(message)
-
-            # Store the new sticky message ID
-            sticky_messages[channel.id] = new_message.id
-
-        # Add the on_message listener to the bot
-        bot.add_listener(on_message)
-
-    # Start the sticky message task
-    bot.loop.create_task(send_sticky(channel, message))
-
-@bot.command()
-@commands.has_permissions(manage_messages=True)
-async def unsticky(ctx, channel: discord.TextChannel):
-    if channel.id in sticky_messages:
-        try:
-            # Try to fetch and delete the current sticky message
-            sticky_message = await channel.fetch_message(sticky_messages[channel.id])
-            await sticky_message.delete()
-            del sticky_messages[channel.id]
-            await ctx.send(f"✅ Sticky message has been removed from {channel.mention}.")
-        except Exception as e:
-            await ctx.send(f"⚠️ Error: {e}")
-    else:
-        await ctx.send("❌ No sticky message found in that channel.")
-
-# ------------------------------------------------------------------------
-
 # Store posted messages and tasks
 posted_messages = {}
 post_tasks = {}
