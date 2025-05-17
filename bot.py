@@ -2098,89 +2098,75 @@ async def on_message(message):
 
 # --------------------------------------------------------------------
 
-# List of staff data with their user IDs
-staff_data = [
-    {
-        "user_id": 879936602414133288,  # Replace with Noir's actual Discord user ID
-        "name": "Noir Witherfork",
-        "sex": "Male",
-        "marital_status": "Single",
-        "occupation": "Student",
-        "hometown": "Bacolod City",
-        "education": "📚 Polytechnic University of the Philippines",
-        "program": "🎓 Bachelor of Science in Electronics Engineering (BSECE)",
-        "former_admin": (
-            "• Gratis.PH\n"
-            "• Pinoy Cyber Technology\n"
-            "• Pinoy Cyber Ghost Army\n"
-            "• Facebook Chatbot Maker"
-        ),
-        "quote": "No matter how many weapons you have, no matter how great your technology might be, the world cannot live without love."
-    },
-    {
-        "user_id": 592779805439688710,  # Replace with Alex's actual Discord user ID
-        "name": "Alex Example",
-        "sex": "Male",
-        "marital_status": "Single",
-        "occupation": "Moderator",
-        "hometown": "Example City",
-        "education": "Example University",
-        "program": "Example Program",
-        "former_admin": "• Example Org\n• Another Org",
-        "quote": "Example quote here."
-    }
-    # Add more staff profiles as needed
-]
+target_number = None
+winner_declared = False
+user_cooldowns = {}
 
-class AdminInfoView(View):
-    def __init__(self, ctx):
-        super().__init__(timeout=180)  # 3 minutes timeout
-        self.ctx = ctx
-        self.page = 0
-        self.embeds = []
-    
-    async def prepare(self):
-        # Generate embeds for all staff members
-        for staff in staff_data:
-            member = await self.ctx.guild.fetch_member(staff["user_id"])
-            embed = discord.Embed(
-                title=f"Biography — {staff['name']}",
-                color=discord.Color.dark_blue()
-            )
-            embed.add_field(name="Name", value=staff["name"], inline=True)
-            embed.add_field(name="Sex", value=staff["sex"], inline=True)
-            embed.add_field(name="Marital Status", value=staff["marital_status"], inline=True)
-            embed.add_field(name="Occupation", value=staff["occupation"], inline=True)
-            embed.add_field(name="Hometown", value=staff["hometown"], inline=True)
-            embed.add_field(name="Education", value=staff["education"], inline=False)
-            embed.add_field(name="Program", value=staff["program"], inline=False)
-            embed.add_field(name="Former Administrator", value=staff["former_admin"], inline=False)
-            embed.add_field(name="Quote", value=f"*“{staff['quote']}”*", inline=False)
-            embed.set_thumbnail(url=member.display_avatar.url)
-            embed.set_footer(text=f"Formal Profile | {staff['name']}")
-            self.embeds.append(embed)
+COOLDOWN_SECONDS = 3
 
-    @discord.ui.button(label="Previous", style=discord.ButtonStyle.secondary)
-    async def previous(self, interaction: discord.Interaction, button: Button):
-        if self.page > 0:
-            self.page -= 1
-            await interaction.response.edit_message(embed=self.embeds[self.page], view=self)
-        else:
-            await interaction.response.defer()  # do nothing if already first page
+class RollButton(Button):
+    def __init__(self, number):
+        super().__init__(label="🎲 Arcadia Roll!", style=discord.ButtonStyle.primary)
+        self.number = number
 
-    @discord.ui.button(label="Next", style=discord.ButtonStyle.secondary)
-    async def next(self, interaction: discord.Interaction, button: Button):
-        if self.page < len(self.embeds) - 1:
-            self.page += 1
-            await interaction.response.edit_message(embed=self.embeds[self.page], view=self)
-        else:
-            await interaction.response.defer()  # do nothing if already last page
+    async def callback(self, interaction: discord.Interaction):
+        global winner_declared
+
+        if winner_declared:
+            await interaction.response.send_message("❌ The game is already over!", ephemeral=True)
+            return
+
+        user_id = interaction.user.id
+        now = asyncio.get_event_loop().time()
+
+        # Cooldown check with visual time left
+        if user_id in user_cooldowns:
+            elapsed = now - user_cooldowns[user_id]
+            remaining = COOLDOWN_SECONDS - elapsed
+            if remaining > 0:
+                await interaction.response.send_message(
+                    f"⏳ Please wait **{remaining:.1f}s** before rolling again!", ephemeral=True
+                )
+                return
+
+        user_cooldowns[user_id] = now
+
+        rolled = random.randint(1, 1000)
+        await interaction.response.send_message(f"🎲 You rolled a **{rolled}**!", ephemeral=True)
+
+        if rolled == self.number:
+            winner_declared = True
+            self.disabled = True
+            self.style = discord.ButtonStyle.success
+            self.label = f"{interaction.user.display_name} WON! 🎉"
+            await interaction.message.edit(view=self.view)
+            await interaction.followup.send(f"🎉 {interaction.user.mention} **rolled the winning number {self.number}!** Game over!")
+
+class RollView(View):
+    def __init__(self, number):
+        super().__init__(timeout=None)
+        self.add_item(RollButton(number))
 
 @bot.command()
-async def admininfo(ctx):
-    view = AdminInfoView(ctx)
-    await view.prepare()
-    await ctx.send(embed=view.embeds[0], view=view)
+@commands.has_permissions(manage_guild=True)
+async def startroll(ctx, number: int):
+    global target_number, winner_declared, user_cooldowns
+    if number < 1 or number > 1000:
+        await ctx.send("Please choose a number between 1 and 1000.")
+        return
+
+    target_number = number
+    winner_declared = False
+    user_cooldowns = {}
+
+    view = RollView(number)
+    await ctx.send(
+        f"🎯 The target number is set!\n"
+        f"Range: **1–1000**\n"
+        f"Tap the button below to roll. First to get **{number}** wins!",
+        view=view
+    )
+
 
 
 keep_alive()
