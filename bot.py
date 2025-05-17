@@ -247,8 +247,8 @@ async def createembed(ctx, *, content: str = None):
 
 @bot.command()
 async def role(ctx, member: discord.Member = None, *, role_input: str = None):
-STAFF_ROLE_NAME = "Moderator, Supreme Authority"
-STAFF_ROLE_ID = 1347181345922748456, 1359467025109618849
+STAFF_ROLE_NAME = "Moderator"
+STAFF_ROLE_ID = 1347181345922748456
 LOG_CHANNEL_ID = 1364839238960549908
 
 staff_role = discord.utils.get(ctx.guild.roles, name=STAFF_ROLE_NAME)  
