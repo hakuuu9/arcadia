@@ -2097,13 +2097,12 @@ async def on_message(message):
         sticky_messages[channel_id]["message_id"] = new_msg.id
 
 # --------------------------------------------------------------------
-
 target_number = None
 min_range = None
 max_range = None
 winner_declared = False
 user_cooldowns = {}
-total_rolls = 0  # <-- Added roll counter
+total_rolls = 0
 
 COOLDOWN_SECONDS = 3
 
@@ -2136,17 +2135,21 @@ class RollButton(Button):
 
         user_cooldowns[user_id] = now
         rolled = random.randint(min_range, max_range)
-        total_rolls += 1  # Increment roll count on each roll
+        total_rolls += 1
 
-        # Check how close roll is to target_number
+        # Send ephemeral message with the actual roll number to the user only
+        await interaction.response.send_message(
+            f"🎲 You rolled a **{rolled}**!",
+            ephemeral=True
+        )
+
+        # Public message based on closeness
         if abs(rolled - target_number) <= 10:
-            # Show roll number if near
-            await interaction.channel.send(f"🎲 {interaction.user.mention} rolled a **{rolled}**!")
+            await interaction.channel.send(f"🔔 {interaction.user.mention} rolled near the target number!")
         else:
-            # Hide roll number if far
-            await interaction.channel.send(f"🎲 {interaction.user.mention} rolled a number far from the target.")
+            await interaction.channel.send(f"⚠️ {interaction.user.mention} rolled far from the target number.")
 
-        # Check win
+        # Check for win
         if rolled == target_number:
             winner_declared = True
             self.disabled = True
@@ -2190,14 +2193,15 @@ async def roll(ctx, range_str: str):
     target_number = random.randint(min_range, max_range)
     winner_declared = False
     user_cooldowns = {}
-    total_rolls = 0  # Reset roll counter when game starts
+    total_rolls = 0
 
     view = RollView()
 
-    highlight_text = "**__Arcadia Roll The Number__**"
+    # Fake bigger font using code block + caps + bold + underline for "Arcadia Roll The Number"
+    big_title = "```\n# ARCADIA ROLL THE NUMBER #\n```"
 
     msg = (
-        f"🎲 {highlight_text}\n"
+        f"🎲 {big_title}\n"
         f"A new Arcadia Roll round has started! The number to roll is **{target_number}**.\n\n"
         f"Click the button below to roll a number. You can do this every {COOLDOWN_SECONDS} seconds."
     )
