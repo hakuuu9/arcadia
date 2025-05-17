@@ -245,18 +245,13 @@ async def createembed(ctx, *, content: str = None):
 
 
 
+
 @bot.command()
 async def role(ctx, member: discord.Member = None, *, role_input: str = None):
-    STAFF_ROLE_NAME = "Moderator, Supreme Authority"
-    STAFF_ROLE_ID = 1347181345922748456, 1359467025109618849
+    STAFF_ROLE_IDS = {1347181345922748456, 1359467025109618849}
     LOG_CHANNEL_ID = 1364839238960549908
 
-    staff_role = discord.utils.get(ctx.guild.roles, name=STAFF_ROLE_NAME)
-
-    if not staff_role or staff_role.id != STAFF_ROLE_ID:
-        await ctx.send("❌ You don't have the required staff role.")
-        return
-    if STAFF_ROLE_ID not in [role.id for role in ctx.author.roles]:
+    if not any(role.id in STAFF_ROLE_IDS for role in ctx.author.roles):
         await ctx.send("❌ You don't have permission to use this command.")
         return
 
@@ -264,6 +259,7 @@ async def role(ctx, member: discord.Member = None, *, role_input: str = None):
         await ctx.send("Usage: `$role @member @role`")
         return
 
+    # Try to get the role
     role = None
     if role_input.isdigit():
         role = ctx.guild.get_role(int(role_input))
@@ -282,7 +278,7 @@ async def role(ctx, member: discord.Member = None, *, role_input: str = None):
 
     embed = discord.Embed(
         color=discord.Color.blurple(),
-        timestamp=discord.utils.utcnow()
+        timestamp=datetime.datetime.utcnow()
     )
     embed.set_thumbnail(url="https://i.imgur.com/JxsCfCe.gif")
     embed.set_footer(text=f"Requested by {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
