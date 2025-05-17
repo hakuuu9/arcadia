@@ -2168,7 +2168,7 @@ async def roll(ctx, arg: str):
     })
 
     description = (
-        f"🎲 **# ARCADIA ROLL THE NUMBER #**\n"
+        f"🎲 __**ARCADIA ROLL THE NUMBER**__\n"
         f"A new Arcadia Roll round has started! The number to roll is **{target}**.\n\n"
         f"Click the button below to roll a number. You can do this every {COOLDOWN_SECONDS} seconds."
     )
