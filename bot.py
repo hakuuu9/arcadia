@@ -2103,9 +2103,11 @@ ROLL_DATA = {
     "rolls": 0,
     "winner": None,
     "cooldowns": {},
+    "active": False,
 }
 
 COOLDOWN_SECONDS = 3
+ALLOWED_CHANNEL_ID = 1363403776999948380  # Replace with your actual channel ID
 
 class RollButton(discord.ui.View):
     def __init__(self, target_number, number_range):
@@ -2115,6 +2117,10 @@ class RollButton(discord.ui.View):
 
     @discord.ui.button(label="🎲 Roll the Dice!", style=discord.ButtonStyle.primary, custom_id="roll_button")
     async def roll_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if ROLL_DATA["winner"]:
+            await interaction.response.send_message("❌ This game has already ended.", ephemeral=True)
+            return
+
         user_id = interaction.user.id
         now = time.time()
 
@@ -2133,24 +2139,31 @@ class RollButton(discord.ui.View):
         if rolled == self.target_number:
             ROLL_DATA["winner"] = interaction.user
             await interaction.response.send_message(
-                f"🎉 The winner is {interaction.user.mention} — it took {ROLL_DATA['rolls']} rolls!", 
+                f"🎉 The winner is {interaction.user.mention} — it took {ROLL_DATA['rolls']} rolls!",
                 allowed_mentions=discord.AllowedMentions(users=True)
             )
             self.disable_all_items()
             await interaction.message.edit(view=self)
-        elif abs(rolled - self.target_number) <= 10:
+        elif abs(rolled - self.target_number) <= 5:
             await interaction.response.send_message(
-                f"🎯 {interaction.user.mention} rolled **{rolled}** — so close!", 
-                ephemeral=False
+                f"🎯 {interaction.user.mention} rolled **{rolled}** — very close!", ephemeral=False
             )
         else:
             await interaction.response.send_message(
-                f"🎲 You rolled **{rolled}** — try again!", 
-                ephemeral=True
+                f"🎲 You rolled **{rolled}** — try again!", ephemeral=True
             )
 
 @bot.command()
 async def roll(ctx, arg: str):
+    if ctx.channel.id != ALLOWED_CHANNEL_ID:
+        correct_channel = bot.get_channel(ALLOWED_CHANNEL_ID)
+        await ctx.send(f"❌ Please use this command in {correct_channel.mention}.")
+        return
+
+    if ROLL_DATA["active"]:
+        await ctx.send("⚠️ A game is already in progress. Please finish it before starting a new one.")
+        return
+
     try:
         parts = arg.split("-")
         low, high = int(parts[0]), int(parts[1])
@@ -2165,6 +2178,7 @@ async def roll(ctx, arg: str):
         "rolls": 0,
         "winner": None,
         "cooldowns": {},
+        "active": True,
     })
 
     description = (
@@ -2174,6 +2188,7 @@ async def roll(ctx, arg: str):
     )
 
     await ctx.send(description, view=RollButton(target, (low, high)))
+
 
 keep_alive()
 bot.run(TOKEN)
