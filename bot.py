@@ -2142,12 +2142,18 @@ class RollButton(discord.ui.View):
             ROLL_DATA["winner"] = interaction.user
             ROLL_DATA["active"] = False
 
-            # Re-enable send message permissions for muted roles
+            # Re-enable permissions for muted roles
             channel = interaction.channel
             for role_id in MUTED_ROLE_IDS:
                 muted_role = interaction.guild.get_role(role_id)
                 if muted_role:
-                    await channel.set_permissions(muted_role, send_messages=True, attach_files=True, read_message_history=True)
+                    await channel.set_permissions(
+                        muted_role,
+                        send_messages=True,
+                        attach_files=True,
+                        read_message_history=True,
+                        view_channel=True
+                    )
 
             await interaction.response.send_message(
                 f"🎉 The winner is {interaction.user.mention} — it took {ROLL_DATA['rolls']} rolls!",
@@ -2192,11 +2198,15 @@ async def roll(ctx, arg: str):
         "active": True,
     })
 
-    # Disable send message permission for muted roles
+    # Disable permissions for muted roles
     for role_id in MUTED_ROLE_IDS:
         muted_role = ctx.guild.get_role(role_id)
         if muted_role:
-            await ctx.channel.set_permissions(muted_role, send_messages=False)
+            await ctx.channel.set_permissions(
+                muted_role,
+                send_messages=False,
+                view_channel=True
+            )
 
     description = (
         f"🎲 __**ARCADIA ROLL THE NUMBER**__\n"
@@ -2205,7 +2215,6 @@ async def roll(ctx, arg: str):
     )
 
     await ctx.send(description, view=RollButton(target, (low, high)))
-
 
 
 keep_alive()
