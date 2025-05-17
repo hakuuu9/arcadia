@@ -244,30 +244,26 @@ async def createembed(ctx, *, content: str = None):
         await ctx.send(f"⚠️ Error: {e}")
 
 
+# -----------------------------
 @bot.command()
 async def role(ctx, member: discord.Member = None, *, role_input: str = None):
     STAFF_ROLE_NAME = "Moderator"
     STAFF_ROLE_ID = 1347181345922748456
     LOG_CHANNEL_ID = 1364839238960549908
 
-    # Get the staff role by name
     staff_role = discord.utils.get(ctx.guild.roles, name=STAFF_ROLE_NAME)
 
-    # Check if staff role exists and if author has it
     if not staff_role or staff_role.id != STAFF_ROLE_ID:
         await ctx.send("❌ You don't have the required staff role.")
         return
-
-    if staff_role not in ctx.author.roles:
+    if STAFF_ROLE_ID not in [role.id for role in ctx.author.roles]:
         await ctx.send("❌ You don't have permission to use this command.")
         return
 
-    # Check for missing arguments
     if not member or not role_input:
-        await ctx.send("Usage: `$role @member @role` or `$role @member rolename`")
+        await ctx.send("Usage: `$role @member @role`")
         return
 
-    # Try to get the role
     role = None
     if role_input.isdigit():
         role = ctx.guild.get_role(int(role_input))
@@ -281,18 +277,16 @@ async def role(ctx, member: discord.Member = None, *, role_input: str = None):
         await ctx.send("❌ Couldn't find that role.")
         return
 
-    # Emojis for embed
     granted_emoji = "<a:GC_Fire:1348482027447386116>"
     revoked_emoji = "<a:calcifer:1348189333542404106>"
 
     embed = discord.Embed(
-    color=discord.Color.blurple(),
-    timestamp=datetime.utcnow()
-)
+        color=discord.Color.blurple(),
+        timestamp=discord.utils.utcnow()
+    )
     embed.set_thumbnail(url="https://i.imgur.com/JxsCfCe.gif")
     embed.set_footer(text=f"Requested by {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
 
-    # Add or remove the role
     if role in member.roles:
         await member.remove_roles(role)
         embed.title = f"{revoked_emoji} Role Revoked"
@@ -308,14 +302,11 @@ async def role(ctx, member: discord.Member = None, *, role_input: str = None):
             f"Relevant permissions are now active."
         )
 
-    # Send in current channel
     await ctx.send(embed=embed)
 
-    # Log to log channel
     log_channel = ctx.guild.get_channel(LOG_CHANNEL_ID)
     if log_channel:
         await log_channel.send(embed=embed)
-
 
 
 from discord import ui
