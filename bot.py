@@ -2141,13 +2141,8 @@ class RollButton(Button):
         user_cooldowns[user_id] = now
         rolled = random.randint(1, 1000)
 
-        # Public message with embed
-        roll_embed = discord.Embed(
-            title="🎲 Roll Attempt",
-            description=f"**{interaction.user.mention}** rolled a **{rolled}**!",
-            color=discord.Color.blue()
-        )
-        await interaction.channel.send(embed=roll_embed)
+        # Plain message roll result
+        await interaction.channel.send(f"🎲 {interaction.user.mention} rolled a **{rolled}**!")
 
         if rolled == self.number:
             winner_declared = True
@@ -2184,14 +2179,14 @@ async def startroll(ctx, number: int):
     start_embed = discord.Embed(
         title="🎯 Number Roll Game Started!",
         description=(
-            f"The Arcadia target number has been chosen!\n"
-            f"🔢 Range: **1–1000**\n"
-            f"First person to roll **{number}** wins!\n\n"
-            f"Press the button below to try your luck."
+            f"A number between 1 and 1000 has been set!\n\n"
+            f"🎯 First to roll **{number}** wins.\n"
+            f"Tap the button below to try your luck!"
         ),
         color=discord.Color.purple()
     )
     await ctx.send(embed=start_embed, view=view)
+
 
 
 
