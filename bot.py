@@ -2140,14 +2140,14 @@ class RollButton(discord.ui.View):
 
         if rolled == self.target_number:
             ROLL_DATA["winner"] = interaction.user
-            ROLL_DATA["active"] = False  # Mark game as ended
+            ROLL_DATA["active"] = False
 
             # Re-enable send message permissions for muted roles
             channel = interaction.channel
             for role_id in MUTED_ROLE_IDS:
                 muted_role = interaction.guild.get_role(role_id)
                 if muted_role:
-                    await channel.set_permissions(muted_role, send_messages=True)
+                    await channel.set_permissions(muted_role, send_messages=True, attach_files=True, read_message_history=True)
 
             await interaction.response.send_message(
                 f"🎉 The winner is {interaction.user.mention} — it took {ROLL_DATA['rolls']} rolls!",
@@ -2205,6 +2205,7 @@ async def roll(ctx, arg: str):
     )
 
     await ctx.send(description, view=RollButton(target, (low, high)))
+
 
 
 keep_alive()
