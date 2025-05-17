@@ -2107,7 +2107,6 @@ ROLL_DATA = {
 
 COOLDOWN_SECONDS = 3
 
-
 class RollButton(discord.ui.View):
     def __init__(self, target_number, number_range):
         super().__init__(timeout=None)
@@ -2119,7 +2118,6 @@ class RollButton(discord.ui.View):
         user_id = interaction.user.id
         now = time.time()
 
-        # Check cooldown
         last_time = ROLL_DATA["cooldowns"].get(user_id, 0)
         if now - last_time < COOLDOWN_SECONDS:
             remaining = COOLDOWN_SECONDS - int(now - last_time)
@@ -2151,7 +2149,6 @@ class RollButton(discord.ui.View):
                 ephemeral=True
             )
 
-
 @bot.command()
 async def roll(ctx, arg: str):
     try:
@@ -2170,14 +2167,8 @@ async def roll(ctx, arg: str):
         "cooldowns": {},
     })
 
-    title_box = """```
-+------------------------------+
-| # ARCADIA ROLL THE NUMBER #  |
-+------------------------------+
-```"""
-
     description = (
-        f"🎲 {title_box}\n"
+        f"🎲 **# ARCADIA ROLL THE NUMBER #**\n"
         f"A new Arcadia Roll round has started! The number to roll is **{target}**.\n\n"
         f"Click the button below to roll a number. You can do this every {COOLDOWN_SECONDS} seconds."
     )
