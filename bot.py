@@ -2097,121 +2097,92 @@ async def on_message(message):
         sticky_messages[channel_id]["message_id"] = new_msg.id
 
 # --------------------------------------------------------------------
-target_number = None
-min_range = None
-max_range = None
-winner_declared = False
-user_cooldowns = {}
-total_rolls = 0
+ROLL_DATA = {
+    "target": None,
+    "range": None,
+    "rolls": 0,
+    "winner": None,
+    "cooldowns": {},
+}
 
 COOLDOWN_SECONDS = 3
 
-class RollButton(Button):
-    def __init__(self):
-        super().__init__(label="🎲 Tap to Roll!", style=discord.ButtonStyle.blurple)
 
-    async def callback(self, interaction: discord.Interaction):
-        global winner_declared, target_number, min_range, max_range, total_rolls
+class RollButton(discord.ui.View):
+    def __init__(self, target_number, number_range):
+        super().__init__(timeout=None)
+        self.target_number = target_number
+        self.number_range = number_range
 
-        if winner_declared:
+    @discord.ui.button(label="🎲 Roll the Dice!", style=discord.ButtonStyle.primary, custom_id="roll_button")
+    async def roll_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        user_id = interaction.user.id
+        now = time.time()
+
+        # Check cooldown
+        last_time = ROLL_DATA["cooldowns"].get(user_id, 0)
+        if now - last_time < COOLDOWN_SECONDS:
+            remaining = COOLDOWN_SECONDS - int(now - last_time)
             await interaction.response.send_message(
-                "❌ The game is already over!",
-                ephemeral=True
+                f"⏳ Please wait {remaining} more second(s) before rolling again.", ephemeral=True
             )
             return
 
-        user_id = interaction.user.id
-        now = asyncio.get_event_loop().time()
+        ROLL_DATA["cooldowns"][user_id] = now
+        rolled = random.randint(self.number_range[0], self.number_range[1])
+        ROLL_DATA["rolls"] += 1
 
-        if user_id in user_cooldowns:
-            elapsed = now - user_cooldowns[user_id]
-            remaining = COOLDOWN_SECONDS - elapsed
-            if remaining > 0:
-                await interaction.response.send_message(
-                    f"⏳ Please wait **{remaining:.1f}s** before rolling again!",
-                    ephemeral=True
-                )
-                return
-
-        user_cooldowns[user_id] = now
-        rolled = random.randint(min_range, max_range)
-        total_rolls += 1
-
-        # Send ephemeral message with the actual roll number to the user only
-        await interaction.response.send_message(
-            f"🎲 You rolled a **{rolled}**!",
-            ephemeral=True
-        )
-
-        # Public message based on closeness including the rolled number
-        if abs(rolled - target_number) <= 10:
-            await interaction.channel.send(
-                f"🔔 {interaction.user.mention} rolled near the target number with **{rolled}**!"
+        if rolled == self.target_number:
+            ROLL_DATA["winner"] = interaction.user
+            await interaction.response.send_message(
+                f"🎉 The winner is {interaction.user.mention} — it took {ROLL_DATA['rolls']} rolls!", 
+                allowed_mentions=discord.AllowedMentions(users=True)
+            )
+            self.disable_all_items()
+            await interaction.message.edit(view=self)
+        elif abs(rolled - self.target_number) <= 10:
+            await interaction.response.send_message(
+                f"🎯 {interaction.user.mention} rolled **{rolled}** — so close!", 
+                ephemeral=False
             )
         else:
-            await interaction.channel.send(
-                f"⚠️ {interaction.user.mention} rolled far from the target number with **{rolled}**!"
+            await interaction.response.send_message(
+                f"🎲 You rolled **{rolled}** — try again!", 
+                ephemeral=True
             )
 
-        # Check for win
-        if rolled == target_number:
-            winner_declared = True
-            self.disabled = True
-            self.style = discord.ButtonStyle.success
-            self.label = f"{interaction.user.display_name} WON! 🎉"
-            await interaction.message.edit(view=self.view)
-
-            await interaction.channel.send(
-                f"🏆 Congratulations {interaction.user.mention}! You rolled the winning number **{target_number}**! Game over!"
-            )
-            await interaction.channel.send(
-                f"🎉 The winner is {interaction.user.mention} — it took **{total_rolls}** rolls."
-            )
-
-class RollView(View):
-    def __init__(self):
-        super().__init__(timeout=None)
-        self.add_item(RollButton())
 
 @bot.command()
-@commands.has_permissions(manage_guild=True)
-async def roll(ctx, range_str: str):
-    global target_number, min_range, max_range, winner_declared, user_cooldowns, total_rolls
-
+async def roll(ctx, arg: str):
     try:
-        parts = range_str.split("-")
-        if len(parts) != 2:
-            await ctx.send("❌ Please specify a valid range like 1-50 or 10-100.")
-            return
-        min_range = int(parts[0])
-        max_range = int(parts[1])
-
-        if min_range >= max_range or min_range < 1:
-            await ctx.send("❌ Please provide a valid range with min < max and min >= 1.")
-            return
-
-    except ValueError:
-        await ctx.send("❌ Range must contain only numbers like 1-50 or 10-100.")
+        parts = arg.split("-")
+        low, high = int(parts[0]), int(parts[1])
+    except:
+        await ctx.send("❌ Please provide a valid range like `1-100`.")
         return
 
-    target_number = random.randint(min_range, max_range)
-    winner_declared = False
-    user_cooldowns = {}
-    total_rolls = 0
+    target = random.randint(low, high)
+    ROLL_DATA.update({
+        "target": target,
+        "range": (low, high),
+        "rolls": 0,
+        "winner": None,
+        "cooldowns": {},
+    })
 
-    view = RollView()
-
-    big_title = """```
+    title_box = """```
 +------------------------------+
 | # ARCADIA ROLL THE NUMBER #  |
 +------------------------------+
 ```"""
 
-msg = (
-    f"🎲 {big_title}\n"
-    f"A new Arcadia Roll round has started! The number to roll is **{target_number}**.\n\n"
-    f"Click the button below to roll a number. You can do this every {COOLDOWN_SECONDS} seconds."
-)
-await ctx.send(msg, view=view)
+    description = (
+        f"🎲 {title_box}\n"
+        f"A new Arcadia Roll round has started! The number to roll is **{target}**.\n\n"
+        f"Click the button below to roll a number. You can do this every {COOLDOWN_SECONDS} seconds."
+    )
+
+    await ctx.send(description, view=RollButton(target, (low, high)))
+
 keep_alive()
 bot.run(TOKEN)
