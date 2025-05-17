@@ -2099,25 +2099,24 @@ async def on_message(message):
 # --------------------------------------------------------------------
 
 target_number = None
+min_range = None
+max_range = None
 winner_declared = False
 user_cooldowns = {}
+total_rolls = 0  # <-- Added roll counter
 
 COOLDOWN_SECONDS = 3
 
 class RollButton(Button):
-    def __init__(self, number):
-        super().__init__(label="🎲 Arcadia Roll!", style=discord.ButtonStyle.blurple)
-        self.number = number
+    def __init__(self):
+        super().__init__(label="🎲 Tap to Roll!", style=discord.ButtonStyle.blurple)
 
     async def callback(self, interaction: discord.Interaction):
-        global winner_declared
+        global winner_declared, target_number, min_range, max_range, total_rolls
 
         if winner_declared:
             await interaction.response.send_message(
-                embed=discord.Embed(
-                    description="❌ The game is already over!",
-                    color=discord.Color.red()
-                ),
+                "❌ The game is already over!",
                 ephemeral=True
             )
             return
@@ -2130,68 +2129,79 @@ class RollButton(Button):
             remaining = COOLDOWN_SECONDS - elapsed
             if remaining > 0:
                 await interaction.response.send_message(
-                    embed=discord.Embed(
-                        description=f"⏳ Please wait **{remaining:.1f}s** before rolling again!",
-                        color=discord.Color.orange()
-                    ),
+                    f"⏳ Please wait **{remaining:.1f}s** before rolling again!",
                     ephemeral=True
                 )
                 return
 
         user_cooldowns[user_id] = now
-        rolled = random.randint(1, 1000)
+        rolled = random.randint(min_range, max_range)
+        total_rolls += 1  # Increment roll count on each roll
 
-        # Show the result as plain text
-        await interaction.channel.send(f"🎲 {interaction.user.mention} rolled a **{rolled}**!")
+        # Check how close roll is to target_number
+        if abs(rolled - target_number) <= 10:
+            # Show roll number if near
+            await interaction.channel.send(f"🎲 {interaction.user.mention} rolled a **{rolled}**!")
+        else:
+            # Hide roll number if far
+            await interaction.channel.send(f"🎲 {interaction.user.mention} rolled a number far from the target.")
 
-        # Near-miss feedback
-        if abs(rolled - self.number) <= 10 and rolled != self.number:
-            await interaction.channel.send(f"😱 So close, {interaction.user.mention}! You almost got it!")
-
-        # Winning condition
-        if rolled == self.number:
+        # Check win
+        if rolled == target_number:
             winner_declared = True
             self.disabled = True
             self.style = discord.ButtonStyle.success
             self.label = f"{interaction.user.display_name} WON! 🎉"
             await interaction.message.edit(view=self.view)
 
-            win_embed = discord.Embed(
-                title="🏆 We have a winner!",
-                description=f"🎉 {interaction.user.mention} **rolled the winning number {self.number}**!\nGame over!",
-                color=discord.Color.green()
+            await interaction.channel.send(
+                f"🏆 Congratulations {interaction.user.mention}! You rolled the winning number **{target_number}**! Game over!"
             )
-            await interaction.channel.send(embed=win_embed)
+            await interaction.channel.send(
+                f"🎉 The winner is {interaction.user.mention} — it took **{total_rolls}** rolls."
+            )
 
 class RollView(View):
-    def __init__(self, number):
+    def __init__(self):
         super().__init__(timeout=None)
-        self.add_item(RollButton(number))
+        self.add_item(RollButton())
 
 @bot.command()
 @commands.has_permissions(manage_guild=True)
-async def startroll(ctx, number: int):
-    global target_number, winner_declared, user_cooldowns
-    if number < 1 or number > 1000:
-        await ctx.send("Please choose a number between 1 and 1000.")
+async def roll(ctx, range_str: str):
+    global target_number, min_range, max_range, winner_declared, user_cooldowns, total_rolls
+
+    try:
+        parts = range_str.split("-")
+        if len(parts) != 2:
+            await ctx.send("❌ Please specify a valid range like 1-50 or 10-100.")
+            return
+        min_range = int(parts[0])
+        max_range = int(parts[1])
+
+        if min_range >= max_range or min_range < 1:
+            await ctx.send("❌ Please provide a valid range with min < max and min >= 1.")
+            return
+
+    except ValueError:
+        await ctx.send("❌ Range must contain only numbers like 1-50 or 10-100.")
         return
 
-    target_number = number
+    target_number = random.randint(min_range, max_range)
     winner_declared = False
     user_cooldowns = {}
+    total_rolls = 0  # Reset roll counter when game starts
 
-    view = RollView(number)
-    start_embed = discord.Embed(
-        title="🎲 Arcadia Dice of Destiny",
-        description=(
-            f"Fate has spoken: it’s... **{number}**\n\n"
-            "Unleash the dice gods — hit that button!"
-        ),
-        color=discord.Color.dark_purple()
+    view = RollView()
+
+    highlight_text = "**__Arcadia Roll The Number__**"
+
+    msg = (
+        f"🎲 {highlight_text}\n"
+        f"A new Arcadia Roll round has started! The number to roll is **{target_number}**.\n\n"
+        f"Click the button below to roll a number. You can do this every {COOLDOWN_SECONDS} seconds."
     )
-    await ctx.send(embed=start_embed, view=view)
-
-
+    await ctx.send(msg, view=view)
 
 keep_alive()
 bot.run(TOKEN)
