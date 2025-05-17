@@ -285,11 +285,10 @@ async def role(ctx, member: discord.Member = None, *, role_input: str = None):
     granted_emoji = "<a:GC_Fire:1348482027447386116>"
     revoked_emoji = "<a:calcifer:1348189333542404106>"
 
-    # Embed setup
     embed = discord.Embed(
-        color=discord.Color.blurple(),
-        timestamp=datetime.datetime.utcnow()
-    )
+    color=discord.Color.blurple(),
+    timestamp=datetime.utcnow()
+)
     embed.set_thumbnail(url="https://i.imgur.com/JxsCfCe.gif")
     embed.set_footer(text=f"Requested by {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
 
