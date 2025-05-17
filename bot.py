@@ -2097,6 +2097,7 @@ async def on_message(message):
         sticky_messages[channel_id]["message_id"] = new_msg.id
 
 # --------------------------------------------------------------------
+
 ROLL_DATA = {
     "target": None,
     "range": None,
@@ -2139,15 +2140,17 @@ class RollButton(discord.ui.View):
 
         if rolled == self.target_number:
             ROLL_DATA["winner"] = interaction.user
+            ROLL_DATA["active"] = False  # Mark game as ended
 
             # Re-enable send message permissions for muted roles
             channel = interaction.channel
             for role_id in MUTED_ROLE_IDS:
                 muted_role = interaction.guild.get_role(role_id)
-                await channel.set_permissions(muted_role, overwrite=None)
+                if muted_role:
+                    await channel.set_permissions(muted_role, send_messages=True)
 
             await interaction.response.send_message(
-                f"🎉 The winner is {interaction.user.mention} — it took {ROLL_DATA['rolls']} rolls!\n✅ Message permissions restored for participants.",
+                f"🎉 The winner is {interaction.user.mention} — it took {ROLL_DATA['rolls']} rolls!",
                 allowed_mentions=discord.AllowedMentions(users=True)
             )
             self.disable_all_items()
@@ -2192,7 +2195,8 @@ async def roll(ctx, arg: str):
     # Disable send message permission for muted roles
     for role_id in MUTED_ROLE_IDS:
         muted_role = ctx.guild.get_role(role_id)
-        await ctx.channel.set_permissions(muted_role, send_messages=False)
+        if muted_role:
+            await ctx.channel.set_permissions(muted_role, send_messages=False)
 
     description = (
         f"🎲 __**ARCADIA ROLL THE NUMBER**__\n"
