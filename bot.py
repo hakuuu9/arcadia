@@ -2201,15 +2201,17 @@ async def roll(ctx, range_str: str):
 
     view = RollView()
 
-    # Title with bigger font effect using code block and caps as requested
-    big_title = "# ARCADIA ROLL THE NUMBER #"
+    big_title = """```
++------------------------------+
+| # ARCADIA ROLL THE NUMBER #  |
++------------------------------+
+```"""
 
-    msg = (
-        f"🎲 {big_title}\n"
-        f"A new Arcadia Roll round has started! The number to roll is **{target_number}**.\n\n"
-        f"Click the button below to roll a number. You can do this every {COOLDOWN_SECONDS} seconds."
-    )
-    await ctx.send(msg, view=view)
-
+msg = (
+    f"🎲 {big_title}\n"
+    f"A new Arcadia Roll round has started! The number to roll is **{target_number}**.\n\n"
+    f"Click the button below to roll a number. You can do this every {COOLDOWN_SECONDS} seconds."
+)
+await ctx.send(msg, view=view)
 keep_alive()
 bot.run(TOKEN)
