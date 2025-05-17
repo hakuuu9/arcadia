@@ -2143,11 +2143,15 @@ class RollButton(Button):
             ephemeral=True
         )
 
-        # Public message based on closeness
+        # Public message based on closeness including the rolled number
         if abs(rolled - target_number) <= 10:
-            await interaction.channel.send(f"🔔 {interaction.user.mention} rolled near the target number!")
+            await interaction.channel.send(
+                f"🔔 {interaction.user.mention} rolled near the target number with **{rolled}**!"
+            )
         else:
-            await interaction.channel.send(f"⚠️ {interaction.user.mention} rolled far from the target number.")
+            await interaction.channel.send(
+                f"⚠️ {interaction.user.mention} rolled far from the target number with **{rolled}**!"
+            )
 
         # Check for win
         if rolled == target_number:
@@ -2197,8 +2201,8 @@ async def roll(ctx, range_str: str):
 
     view = RollView()
 
-    # Fake bigger font using code block + caps + bold + underline for "Arcadia Roll The Number"
-    big_title = "```\n# ARCADIA ROLL THE NUMBER #\n```"
+    # Title with bigger font effect using code block and caps as requested
+    big_title = "# ARCADIA ROLL THE NUMBER #"
 
     msg = (
         f"🎲 {big_title}\n"
