@@ -2106,33 +2106,48 @@ COOLDOWN_SECONDS = 3
 
 class RollButton(Button):
     def __init__(self, number):
-        super().__init__(label="🎲 Arcadia Roll!", style=discord.ButtonStyle.primary)
+        super().__init__(label="🎲 Arcadia Roll!", style=discord.ButtonStyle.blurple)
         self.number = number
 
     async def callback(self, interaction: discord.Interaction):
         global winner_declared
 
         if winner_declared:
-            await interaction.response.send_message("❌ The game is already over!", ephemeral=True)
+            await interaction.response.send_message(
+                embed=discord.Embed(
+                    description="❌ The game is already over!",
+                    color=discord.Color.red()
+                ),
+                ephemeral=True
+            )
             return
 
         user_id = interaction.user.id
         now = asyncio.get_event_loop().time()
 
-        # Cooldown check with visual time left
         if user_id in user_cooldowns:
             elapsed = now - user_cooldowns[user_id]
             remaining = COOLDOWN_SECONDS - elapsed
             if remaining > 0:
                 await interaction.response.send_message(
-                    f"⏳ Please wait **{remaining:.1f}s** before rolling again!", ephemeral=True
+                    embed=discord.Embed(
+                        description=f"⏳ Please wait **{remaining:.1f}s** before rolling again!",
+                        color=discord.Color.orange()
+                    ),
+                    ephemeral=True
                 )
                 return
 
         user_cooldowns[user_id] = now
-
         rolled = random.randint(1, 1000)
-        await interaction.response.send_message(f"🎲 You rolled a **{rolled}**!", ephemeral=True)
+
+        # Public message with embed
+        roll_embed = discord.Embed(
+            title="🎲 Roll Attempt",
+            description=f"**{interaction.user.mention}** rolled a **{rolled}**!",
+            color=discord.Color.blue()
+        )
+        await interaction.channel.send(embed=roll_embed)
 
         if rolled == self.number:
             winner_declared = True
@@ -2140,7 +2155,13 @@ class RollButton(Button):
             self.style = discord.ButtonStyle.success
             self.label = f"{interaction.user.display_name} WON! 🎉"
             await interaction.message.edit(view=self.view)
-            await interaction.followup.send(f"🎉 {interaction.user.mention} **rolled the winning number {self.number}!** Game over!")
+
+            win_embed = discord.Embed(
+                title="🏆 We have a winner!",
+                description=f"🎉 {interaction.user.mention} **rolled the winning number {self.number}**!\nGame over!",
+                color=discord.Color.green()
+            )
+            await interaction.channel.send(embed=win_embed)
 
 class RollView(View):
     def __init__(self, number):
@@ -2160,12 +2181,17 @@ async def startroll(ctx, number: int):
     user_cooldowns = {}
 
     view = RollView(number)
-    await ctx.send(
-        f"🎯 The target number is set!\n"
-        f"Range: **1–1000**\n"
-        f"Tap the button below to roll. First to get **{number}** wins!",
-        view=view
+    start_embed = discord.Embed(
+        title="🎯 Number Roll Game Started!",
+        description=(
+            f"The Arcadia target number has been chosen!\n"
+            f"🔢 Range: **1–1000**\n"
+            f"First person to roll **{number}** wins!\n\n"
+            f"Press the button below to try your luck."
+        ),
+        color=discord.Color.purple()
     )
+    await ctx.send(embed=start_embed, view=view)
 
 
 
