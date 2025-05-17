@@ -2108,6 +2108,7 @@ ROLL_DATA = {
 
 COOLDOWN_SECONDS = 3
 ALLOWED_CHANNEL_ID = 1363403776999948380  # Replace with your actual channel ID
+MUTED_ROLE_IDS = [1259666579214569552, 1259678918089379910, 1361732154584858724, 1276479975654166581]  # Replace with the roles to be muted during game
 
 class RollButton(discord.ui.View):
     def __init__(self, target_number, number_range):
@@ -2138,8 +2139,15 @@ class RollButton(discord.ui.View):
 
         if rolled == self.target_number:
             ROLL_DATA["winner"] = interaction.user
+
+            # Re-enable send message permissions for muted roles
+            channel = interaction.channel
+            for role_id in MUTED_ROLE_IDS:
+                muted_role = interaction.guild.get_role(role_id)
+                await channel.set_permissions(muted_role, overwrite=None)
+
             await interaction.response.send_message(
-                f"🎉 The winner is {interaction.user.mention} — it took {ROLL_DATA['rolls']} rolls!",
+                f"🎉 The winner is {interaction.user.mention} — it took {ROLL_DATA['rolls']} rolls!\n✅ Message permissions restored for participants.",
                 allowed_mentions=discord.AllowedMentions(users=True)
             )
             self.disable_all_items()
@@ -2180,6 +2188,11 @@ async def roll(ctx, arg: str):
         "cooldowns": {},
         "active": True,
     })
+
+    # Disable send message permission for muted roles
+    for role_id in MUTED_ROLE_IDS:
+        muted_role = ctx.guild.get_role(role_id)
+        await ctx.channel.set_permissions(muted_role, send_messages=False)
 
     description = (
         f"🎲 __**ARCADIA ROLL THE NUMBER**__\n"
