@@ -416,6 +416,9 @@ async def info_command(ctx):
                 "**🎲 `$rps @user`** — Rock-Paper-Scissors\n"
                 "**🎯 `$hangman solo/duo/free`** — Hangman modes\n"
                 "**❌ `$tictactoe @user`** — Play Tic Tac Toe\n"
+                "**🎰 `$roll 1-100`** — Roll the number game\n"
+                "**💣 `$bomb`** — Join and pass the bomb game\n"
+
             ),
             inline=False
         ).set_thumbnail(url="https://i.imgur.com/JxsCfCe.gif"),
