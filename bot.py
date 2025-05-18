@@ -2218,157 +2218,168 @@ async def roll(ctx, arg: str):
 # --------------------------------
 
 
-COLOR_EMOJIS = ["🟥", "🟦", "🟩", "🟨", "🟪"]
-MEMORY_GAMES = {}
+COLOR_EMOJIS = ["🟥", "🟦", "🟩", "🟨", "🟪", "🟧"]
+MEMORIZE_BASE_TIME = 2  # Base time in seconds
+INACTIVITY_TIMEOUT = 30
 
-class GameState:
-    def __init__(self):
-        self.sequence = []
-        self.players = []
-        self.active = False
-        self.current_player = 0
-        self.mode = "solo"
-        self.message = None
-        self.channel = None
-        self.last_interaction = None
-
-class ModeSelect(discord.ui.View):
+class MemoryGameView(discord.ui.View):
     def __init__(self, ctx):
-        super().__init__(timeout=30)
+        super().__init__(timeout=None)
         self.ctx = ctx
 
-    @discord.ui.button(label="Solo Mode", style=discord.ButtonStyle.primary, emoji="👤")
+    @discord.ui.button(label="Solo", style=discord.ButtonStyle.success, custom_id="solo_mode")
     async def solo(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user != self.ctx.author:
-            return await interaction.response.send_message("Only the command user can start the game.", ephemeral=True)
+            await interaction.response.send_message("Only the command invoker can choose the mode.", ephemeral=True)
+            return
+        await interaction.response.defer()
+        await start_memory_game(interaction, mode="solo")
 
-        game = GameState()
-        game.players = [interaction.user]
-        game.mode = "solo"
-        game.channel = interaction.channel
-        MEMORY_GAMES[interaction.channel.id] = game
-        await start_memory_game(interaction.channel, game)
-        self.stop()
-
-    @discord.ui.button(label="Multiplayer Mode", style=discord.ButtonStyle.success, emoji="👥")
+    @discord.ui.button(label="Multiplayer", style=discord.ButtonStyle.primary, custom_id="multiplayer_mode")
     async def multi(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user != self.ctx.author:
-            return await interaction.response.send_message("Only the command user can start the game.", ephemeral=True)
+            await interaction.response.send_message("Only the command invoker can choose the mode.", ephemeral=True)
+            return
+        await interaction.response.defer()
+        await start_memory_game(interaction, mode="multi")
 
-        game = GameState()
-        game.players = [interaction.user]
-        game.mode = "multi"
-        game.channel = interaction.channel
-        MEMORY_GAMES[interaction.channel.id] = game
 
-        join_view = JoinMultiplayer(game)
-        embed = discord.Embed(title="Multiplayer Memory Game", description="Others can join by clicking the button below.\nGame will start in 15 seconds.", color=0x94b9ff)
-        await interaction.response.edit_message(embed=embed, view=join_view)
-        await asyncio.sleep(15)
+class GameState:
+    def __init__(self, channel, players, mode="solo"):
+        self.sequence = []
+        self.channel = channel
+        self.players = players
+        self.lives = {p.id: 3 for p in players}
+        self.current_player = 0
+        self.active = True
+        self.last_interaction = time.time()
+        self.mode = mode
+        self.round = 1
 
-        if len(game.players) > 1:
-            await start_memory_game(interaction.channel, game)
-        else:
-            await interaction.channel.send("Not enough players joined. Game canceled.")
-            MEMORY_GAMES.pop(interaction.channel.id, None)
-        self.stop()
 
-class JoinMultiplayer(discord.ui.View):
-    def __init__(self, game):
-        super().__init__(timeout=15)
-        self.game = game
+async def start_memory_game(interaction: discord.Interaction, mode):
+    players = [interaction.user]
+    state = GameState(interaction.channel, players, mode=mode)
 
-    @discord.ui.button(label="Join Game", style=discord.ButtonStyle.secondary, emoji="➕")
-    async def join(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user not in self.game.players:
-            self.game.players.append(interaction.user)
-            await interaction.response.send_message(f"{interaction.user.mention} joined the game!", ephemeral=False)
-        else:
-            await interaction.response.send_message("You already joined!", ephemeral=True)
-
-async def start_memory_game(channel, game):
-    game.sequence = [random.choice(COLOR_EMOJIS) for _ in range(3)]
-    game.last_interaction = time.time()
-    game.active = True
-
-    embed = discord.Embed(
-        title="🧠 Memorize the Sequence!",
-        description="You have 5 seconds to memorize this:",
-        color=0xffd166
+    await interaction.followup.send(
+        embed=discord.Embed(
+            title="Memory Challenge Begins!",
+            description="Memorize the pattern and repeat it correctly!\nYou have 3 lives.",
+            color=discord.Color.teal()
+        )
     )
-    embed.add_field(name="Sequence", value=" ".join(game.sequence), inline=False)
-    message = await channel.send(embed=embed)
-    await asyncio.sleep(5)
 
-    # Hide sequence
-    await message.edit(embed=discord.Embed(
-        title="🧠 Now Choose the Correct Sequence",
-        description="Click the buttons in order!",
-        color=0x06d6a0
-    ))
+    while state.active:
+        state.last_interaction = time.time()
+        await play_round(state)
 
-    game.message = await channel.send(view=MemoryButtons(game))
+        if not state.active:
+            break
 
-    # Inactivity timeout
-    await asyncio.sleep(30)
-    if game.active and time.time() - game.last_interaction >= 30:
-        await channel.send("⏰ Game ended due to inactivity.")
-        MEMORY_GAMES.pop(channel.id, None)
+        if all(lives <= 0 for lives in state.lives.values()):
+            break
+
+    await interaction.followup.send(
+        embed=discord.Embed(
+            title="Game Over!",
+            description="Thanks for playing the memory game!",
+            color=discord.Color.red()
+        )
+    )
+
+
+async def play_round(state: GameState):
+    state.sequence.append(random.choice(COLOR_EMOJIS))
+    display = " ".join(state.sequence)
+    time_to_memorize = MEMORIZE_BASE_TIME + state.round
+
+    # Show pattern to memorize
+    msg = await state.channel.send(
+        embed=discord.Embed(
+            title=f"Round {state.round}",
+            description=f"Memorize this pattern:\n\n{display}",
+            color=discord.Color.gold()
+        )
+    )
+    await asyncio.sleep(time_to_memorize)
+    await msg.delete()
+
+    # Show buttons to choose the pattern
+    view = MemoryButtons(state)
+    state.button_message = await state.channel.send(
+        embed=discord.Embed(
+            title=f"Repeat the Pattern!",
+            description=f"Choose the colors in the same order.",
+            color=discord.Color.blurple()
+        ),
+        view=view
+    )
+
+    await view.wait()
+    state.round += 1
+
 
 class MemoryButtons(discord.ui.View):
-    def __init__(self, game):
-        super().__init__(timeout=30)
-        self.game = game
-        self.user_choices = []
+    def __init__(self, state: GameState):
+        super().__init__(timeout=INACTIVITY_TIMEOUT)
+        self.state = state
+        self.user_input = []
+        self.current_user = self.state.players[self.state.current_player]
+        self.correct = False
 
-        for color in COLOR_EMOJIS:
-            self.add_item(MemoryButton(color))
+        for emoji in COLOR_EMOJIS:
+            self.add_item(ColorButton(emoji, self))
 
-class MemoryButton(discord.ui.Button):
-    def __init__(self, color):
-        super().__init__(label=color, style=discord.ButtonStyle.secondary)
-        self.color = color
+    async def on_timeout(self):
+        self.state.active = False
+        try:
+            await self.state.channel.send("⏳ Game ended due to inactivity.")
+        except:
+            pass
+
+    async def check_input(self):
+        if self.user_input == self.state.sequence:
+            await self.state.channel.send(f"✅ Correct, {self.current_user.mention}!")
+            self.correct = True
+        else:
+            self.state.lives[self.current_user.id] -= 1
+            lives = self.state.lives[self.current_user.id]
+            if lives > 0:
+                await self.state.channel.send(f"❌ Incorrect! {self.current_user.mention}, you have {lives} lives left.")
+            else:
+                await self.state.channel.send(f"💀 {self.current_user.mention} is out of lives!")
+        self.stop()
+
+
+class ColorButton(discord.ui.Button):
+    def __init__(self, emoji, parent_view):
+        super().__init__(label=emoji, style=discord.ButtonStyle.secondary)
+        self.emoji = emoji
+        self.parent_view = parent_view
 
     async def callback(self, interaction: discord.Interaction):
-        game = MEMORY_GAMES.get(interaction.channel.id)
-        if not game or not game.active:
-            return await interaction.response.send_message("Game is not active.", ephemeral=True)
+        if interaction.user != self.parent_view.current_user:
+            await interaction.response.send_message("Not your turn.", ephemeral=True)
+            return
 
-        if game.mode == "solo" and interaction.user != game.players[0]:
-            return await interaction.response.send_message("This is a solo game!", ephemeral=True)
+        self.parent_view.user_input.append(self.emoji)
+        await interaction.response.defer()
 
-        if game.mode == "multi" and interaction.user != game.players[game.current_player]:
-            return await interaction.response.send_message("Not your turn!", ephemeral=True)
+        if len(self.parent_view.user_input) == len(self.parent_view.state.sequence):
+            await self.parent_view.check_input()
 
-        game.last_interaction = time.time()
-
-        if not hasattr(self.view, 'user_choices'):
-            self.view.user_choices = []
-
-        self.view.user_choices.append(self.color)
-
-        if len(self.view.user_choices) == len(game.sequence):
-            if self.view.user_choices == game.sequence:
-                await interaction.response.send_message(f"✅ {interaction.user.mention} won! Correct sequence!", ephemeral=False)
-            else:
-                await interaction.response.send_message(f"❌ Wrong sequence! The correct was: {' '.join(game.sequence)}", ephemeral=False)
-            game.active = False
-            MEMORY_GAMES.pop(interaction.channel.id, None)
-            self.view.stop()
-        else:
-            await interaction.response.defer()
 
 @bot.command()
 async def memory(ctx):
-    """Start a memory game with solo or multiplayer."""
-    view = ModeSelect(ctx)
-    embed = discord.Embed(
-        title="🧠 Arcadia Memory Game",
-        description="Choose a game mode to begin:",
-        color=0x5e60ce
+    view = MemoryGameView(ctx)
+    await ctx.send(
+        embed=discord.Embed(
+            title="Memory Game",
+            description="Choose a game mode below!",
+            color=discord.Color.purple()
+        ),
+        view=view
     )
-    await ctx.send(embed=embed, view=view)
-
 
 
 
