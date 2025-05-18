@@ -2217,80 +2217,89 @@ async def roll(ctx, arg: str):
 
 # --------------------------------
 
-EMOJIS = ['🔴', '🟢', '🔵', '🟡']  # The colors for the pattern
-TIMEOUT = 30  # Seconds before game times out due to inactivity
+
+EMOJIS = ['🔴', '🟢', '🔵', '🟡']  # Color buttons
+MEMORIZATION_TIME = 5  # seconds to memorize the pattern
+INPUT_TIMEOUT = 20  # seconds to input the pattern
 
 class MemoryGameView(discord.ui.View):
     def __init__(self, players, singleplayer=True):
-        super().__init__(timeout=TIMEOUT)
-        self.players = players  # List of player IDs (1 for solo, 2 for multiplayer)
+        super().__init__(timeout=None)
+        self.players = players
         self.singleplayer = singleplayer
         self.pattern = []
-        self.current_index = 0  # Track progress of current input in sequence
-        self.current_turn = 0  # Index in players list, for multiplayer turn control
+        self.current_index = 0
+        self.current_turn = 0
         self.message = None
         self.active = True
 
-        # Add buttons for colors
         for emoji in EMOJIS:
             self.add_item(MemoryButton(emoji, self))
 
-    async def on_timeout(self):
-        if self.message:
-            try:
-                await self.message.edit(content="⌛ Game ended due to inactivity.", view=None)
-            except:
-                pass
-        self.active = False
-
     async def start_round(self):
-        # Add new color to the pattern
         self.pattern.append(random.choice(EMOJIS))
         self.current_index = 0
 
-        # Show the pattern with delays
-        pattern_str = ""
-        for emoji in self.pattern:
-            pattern_str += emoji
-            await self.message.edit(content=f"**Memorize the pattern:** {pattern_str}")
-            await asyncio.sleep(1)  # Delay between each emoji shown
+        # Show pattern for memorization with countdown
+        await self.message.edit(content=f"**Memorize the pattern:** {' '.join(self.pattern)}\nYou have {MEMORIZATION_TIME} seconds.")
+        for i in range(MEMORIZATION_TIME, 0, -1):
+            await asyncio.sleep(1)
+            try:
+                await self.message.edit(content=f"**Memorize the pattern:** {' '.join(self.pattern)}\nTime left: {i-1}s")
+            except discord.NotFound:
+                self.active = False
+                return
 
-        # Prompt player to start input
-        player = self.players[self.current_turn]
-        user = self.message.guild.get_member(player)
-        await self.message.edit(content=f"{user.mention}, it's your turn! Repeat the pattern by clicking the buttons.")
+        # Hide pattern
+        await self.message.edit(content=f"🧠 **Now repeat the pattern!**\nYou have {INPUT_TIMEOUT} seconds to complete it.\nTurn: {self.message.guild.get_member(self.players[self.current_turn]).mention}")
+
+        try:
+            # Wait for player input with timeout
+            await asyncio.wait_for(self.wait_until_complete(), timeout=INPUT_TIMEOUT)
+        except asyncio.TimeoutError:
+            await self.message.edit(content=f"⌛ Time's up! {self.message.guild.get_member(self.players[self.current_turn]).mention} ran out of time. Game over.")
+            self.active = False
+            self.stop()
+
+    async def wait_until_complete(self):
+        while self.active and self.current_index < len(self.pattern):
+            await asyncio.sleep(0.1)
+        # If pattern completed
+        if not self.active:
+            return
+        if self.current_index == len(self.pattern):
+            # Success
+            if self.singleplayer:
+                await self.message.edit(content=f"🎉 Well done! Get ready for the next round (Length: {len(self.pattern)+1})")
+                await asyncio.sleep(2)
+                await self.start_round()
+            else:
+                # Multiplayer: next turn
+                self.current_turn = (self.current_turn + 1) % len(self.players)
+                await self.message.edit(content=f"🎉 {self.message.guild.get_member(self.players[(self.current_turn - 1) % len(self.players)]).mention} completed the pattern! Next player's turn: {self.message.guild.get_member(self.players[self.current_turn]).mention}")
+                await asyncio.sleep(2)
+                await self.start_round()
 
     async def process_input(self, interaction: discord.Interaction, emoji_clicked: str):
         if not self.active:
-            await interaction.response.send_message("❌ This game is no longer active.", ephemeral=True)
+            await interaction.response.send_message("❌ This game has ended.", ephemeral=True)
             return
 
         if interaction.user.id != self.players[self.current_turn]:
             await interaction.response.send_message("⏳ It's not your turn.", ephemeral=True)
             return
 
-        # Check if correct emoji clicked in pattern order
         if emoji_clicked == self.pattern[self.current_index]:
             self.current_index += 1
             await interaction.response.defer()
-
-            # If sequence complete
             if self.current_index == len(self.pattern):
-                if self.singleplayer:
-                    # Player succeeded, next round
-                    await self.message.edit(content=f"🎉 Well done! Get ready for the next round (Length: {len(self.pattern)+1})")
-                    await asyncio.sleep(2)
-                    await self.start_round()
-                else:
-                    # Multiplayer: next player's turn
-                    self.current_turn = (self.current_turn + 1) % len(self.players)
-                    await self.message.edit(content=f"🎉 {interaction.user.mention} completed the pattern! Next player's turn.")
-                    await asyncio.sleep(2)
-                    await self.start_round()
+                # Pattern complete, signal to continue
+                # This triggers wait_until_complete to proceed
+                pass
         else:
             # Player failed
             if self.singleplayer:
-                await self.message.edit(content=f"❌ {interaction.user.mention}, you failed! Final sequence length: {len(self.pattern)}")
+                await self.message.edit(content=f"❌ {interaction.user.mention}, you failed! You reached a sequence length of {len(self.pattern)}.")
             else:
                 loser = interaction.user.mention
                 winner_idx = (self.current_turn + 1) % len(self.players)
@@ -2315,7 +2324,7 @@ class ModeSelectView(discord.ui.View):
     async def on_timeout(self):
         if self.message:
             try:
-                await self.message.edit(content="⌛ No mode selected, command timed out.", view=None)
+                await self.message.edit(content="⌛ No mode selected. Command timed out.", view=None)
             except:
                 pass
 
@@ -2323,14 +2332,14 @@ class ModeSelectView(discord.ui.View):
     async def solo_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer()
         view = MemoryGameView(players=[interaction.user.id], singleplayer=True)
-        msg = await interaction.followup.send(f"Starting Solo Memory Game for {interaction.user.mention}!", view=view)
+        msg = await interaction.followup.send(f"🧠 Starting Solo Memory Game for {interaction.user.mention}!", view=view)
         view.message = msg
         await view.start_round()
         self.stop()
 
     @discord.ui.button(label="Multiplayer", style=discord.ButtonStyle.secondary, custom_id="multi_button")
     async def multiplayer_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_message(f"{interaction.user.mention} started a Multiplayer Memory Game! Waiting for another player to join...", ephemeral=False)
+        await interaction.response.send_message(f"{interaction.user.mention} started a Multiplayer Memory Game! Type `join` to participate.", ephemeral=False)
 
         def check(m):
             return m.content.lower() == "join" and m.channel == interaction.channel and m.author != interaction.user
@@ -2344,7 +2353,7 @@ class ModeSelectView(discord.ui.View):
 
         players = [interaction.user.id, join_msg.author.id]
         view = MemoryGameView(players=players, singleplayer=False)
-        msg = await interaction.followup.send(f"Multiplayer game started between {interaction.user.mention} and {join_msg.author.mention}!", view=view)
+        msg = await interaction.followup.send(f"🧠 Multiplayer game started between {interaction.user.mention} and {join_msg.author.mention}!", view=view)
         view.message = msg
         await view.start_round()
         self.stop()
@@ -2352,9 +2361,8 @@ class ModeSelectView(discord.ui.View):
 @bot.command()
 async def memory(ctx):
     view = ModeSelectView()
-    msg = await ctx.send("Choose a mode to play Memory Game:", view=view)
+    msg = await ctx.send("Choose a mode to play the Memory Game:", view=view)
     view.message = msg
-
 
 keep_alive()
 bot.run(TOKEN)
