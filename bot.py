@@ -2218,168 +2218,149 @@ async def roll(ctx, arg: str):
 # --------------------------------
 
 
-COLOR_EMOJIS = ["🟥", "🟦", "🟩", "🟨", "🟪", "🟧"]
-MEMORIZE_BASE_TIME = 2  # Base time in seconds
-INACTIVITY_TIMEOUT = 30
+class JoinBombView(discord.ui.View):
+    def __init__(self, timeout=20):
+        super().__init__(timeout=timeout)
+        self.players = set()
 
-class MemoryGameView(discord.ui.View):
-    def __init__(self, ctx):
-        super().__init__(timeout=None)
-        self.ctx = ctx
-
-    @discord.ui.button(label="Solo", style=discord.ButtonStyle.success, custom_id="solo_mode")
-    async def solo(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user != self.ctx.author:
-            await interaction.response.send_message("Only the command invoker can choose the mode.", ephemeral=True)
+    @discord.ui.button(label="Join Game", style=discord.ButtonStyle.success, custom_id="join_bomb")
+    async def join_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.bot:
+            await interaction.response.send_message("Bots can't join the game.", ephemeral=True)
             return
-        await interaction.response.defer()
-        await start_memory_game(interaction, mode="solo")
-
-    @discord.ui.button(label="Multiplayer", style=discord.ButtonStyle.primary, custom_id="multiplayer_mode")
-    async def multi(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user != self.ctx.author:
-            await interaction.response.send_message("Only the command invoker can choose the mode.", ephemeral=True)
-            return
-        await interaction.response.defer()
-        await start_memory_game(interaction, mode="multi")
-
-
-class GameState:
-    def __init__(self, channel, players, mode="solo"):
-        self.sequence = []
-        self.channel = channel
-        self.players = players
-        self.lives = {p.id: 3 for p in players}
-        self.current_player = 0
-        self.active = True
-        self.last_interaction = time.time()
-        self.mode = mode
-        self.round = 1
-
-
-async def start_memory_game(interaction: discord.Interaction, mode):
-    players = [interaction.user]
-    state = GameState(interaction.channel, players, mode=mode)
-
-    await interaction.followup.send(
-        embed=discord.Embed(
-            title="Memory Challenge Begins!",
-            description="Memorize the pattern and repeat it correctly!\nYou have 3 lives.",
-            color=discord.Color.teal()
-        )
-    )
-
-    while state.active:
-        state.last_interaction = time.time()
-        await play_round(state)
-
-        if not state.active:
-            break
-
-        if all(lives <= 0 for lives in state.lives.values()):
-            break
-
-    await interaction.followup.send(
-        embed=discord.Embed(
-            title="Game Over!",
-            description="Thanks for playing the memory game!",
-            color=discord.Color.red()
-        )
-    )
-
-
-async def play_round(state: GameState):
-    state.sequence.append(random.choice(COLOR_EMOJIS))
-    display = " ".join(state.sequence)
-    time_to_memorize = MEMORIZE_BASE_TIME + state.round
-
-    # Show pattern to memorize
-    msg = await state.channel.send(
-        embed=discord.Embed(
-            title=f"Round {state.round}",
-            description=f"Memorize this pattern:\n\n{display}",
-            color=discord.Color.gold()
-        )
-    )
-    await asyncio.sleep(time_to_memorize)
-    await msg.delete()
-
-    # Show buttons to choose the pattern
-    view = MemoryButtons(state)
-    state.button_message = await state.channel.send(
-        embed=discord.Embed(
-            title=f"Repeat the Pattern!",
-            description=f"Choose the colors in the same order.",
-            color=discord.Color.blurple()
-        ),
-        view=view
-    )
-
-    await view.wait()
-    state.round += 1
-
-
-class MemoryButtons(discord.ui.View):
-    def __init__(self, state: GameState):
-        super().__init__(timeout=INACTIVITY_TIMEOUT)
-        self.state = state
-        self.user_input = []
-        self.current_user = self.state.players[self.state.current_player]
-        self.correct = False
-
-        for emoji in COLOR_EMOJIS:
-            self.add_item(ColorButton(emoji, self))
-
-    async def on_timeout(self):
-        self.state.active = False
-        try:
-            await self.state.channel.send("⏳ Game ended due to inactivity.")
-        except:
-            pass
-
-    async def check_input(self):
-        if self.user_input == self.state.sequence:
-            await self.state.channel.send(f"✅ Correct, {self.current_user.mention}!")
-            self.correct = True
+        if interaction.user in self.players:
+            await interaction.response.send_message("You already joined!", ephemeral=True)
         else:
-            self.state.lives[self.current_user.id] -= 1
-            lives = self.state.lives[self.current_user.id]
-            if lives > 0:
-                await self.state.channel.send(f"❌ Incorrect! {self.current_user.mention}, you have {lives} lives left.")
-            else:
-                await self.state.channel.send(f"💀 {self.current_user.mention} is out of lives!")
-        self.stop()
+            self.players.add(interaction.user)
+            await interaction.response.send_message(f"{interaction.user.mention} joined the Bomb game!", ephemeral=True)
 
+class BombGameView(discord.ui.View):
+    def __init__(self, players, channel):
+        super().__init__(timeout=None)
+        self.players = list(players)
+        self.channel = channel
+        self.bomb_holder = random.choice(self.players)
+        self.alive = self.players.copy()
+        self.pass_task = None
+        self.inactive_task = None
+        self.message = None
 
-class ColorButton(discord.ui.Button):
-    def __init__(self, emoji, parent_view):
-        super().__init__(label=emoji, style=discord.ButtonStyle.secondary)
-        self.emoji = emoji
-        self.parent_view = parent_view
+    async def start(self):
+        await self.show_status()
+        await self.schedule_inactive_timeout()
 
-    async def callback(self, interaction: discord.Interaction):
-        if interaction.user != self.parent_view.current_user:
-            await interaction.response.send_message("Not your turn.", ephemeral=True)
+    async def show_status(self):
+        desc = f"💣 **Bomb is with {self.bomb_holder.mention}!** Pass it by clicking a button.\n"
+        desc += f"Players still in game: {', '.join([p.mention for p in self.alive])}\n"
+        desc += "You have 5 seconds to pass the bomb or you explode!"
+        embed = discord.Embed(title="Bomb Game - Hot Potato", description=desc, color=discord.Color.red())
+
+        # Clear buttons and add new buttons for all alive players except current holder
+        self.clear_items()
+        for player in self.alive:
+            if player != self.bomb_holder:
+                button = discord.ui.Button(label=player.display_name, style=discord.ButtonStyle.primary, custom_id=str(player.id))
+                button.callback = self.pass_bomb
+                self.add_item(button)
+
+        if self.message:
+            await self.message.edit(embed=embed, view=self)
+        else:
+            self.message = await self.channel.send(embed=embed, view=self)
+
+        # Schedule bomb explode if not passed in 5 seconds
+        if self.pass_task:
+            self.pass_task.cancel()
+        self.pass_task = asyncio.create_task(self.bomb_explode_timer())
+
+    async def bomb_explode_timer(self):
+        await asyncio.sleep(5)
+        await self.explode_bomb()
+
+    async def schedule_inactive_timeout(self):
+        if self.inactive_task:
+            self.inactive_task.cancel()
+        self.inactive_task = asyncio.create_task(self.inactive_timeout())
+
+    async def inactive_timeout(self):
+        # Ends game if no action for 30 seconds
+        await asyncio.sleep(30)
+        await self.end_game(reason="Game ended due to inactivity.")
+
+    async def pass_bomb(self, interaction: discord.Interaction):
+        if interaction.user != self.bomb_holder:
+            await interaction.response.send_message("❌ You don't have the bomb!", ephemeral=True)
             return
 
-        self.parent_view.user_input.append(self.emoji)
+        target_id = int(interaction.data["custom_id"])
+        target = discord.utils.get(self.alive, id=target_id)
+        if not target:
+            await interaction.response.send_message("❌ Invalid target.", ephemeral=True)
+            return
+
+        self.bomb_holder = target
         await interaction.response.defer()
+        if self.pass_task:
+            self.pass_task.cancel()
+        await self.show_status()
+        if self.inactive_task:
+            self.inactive_task.cancel()
+        await self.schedule_inactive_timeout()
 
-        if len(self.parent_view.user_input) == len(self.parent_view.state.sequence):
-            await self.parent_view.check_input()
+    async def explode_bomb(self):
+        exploded = self.bomb_holder
+        self.alive.remove(exploded)
+        desc = f"💥 {exploded.mention} failed to pass the bomb in time and exploded! They're out."
+        embed = discord.Embed(title="💣 Boom!", description=desc, color=discord.Color.dark_red())
+        await self.channel.send(embed=embed)
 
+        # Check if game over
+        if len(self.alive) <= 1:
+            await self.end_game()
+        else:
+            # Choose next bomb holder randomly from alive players
+            self.bomb_holder = random.choice(self.alive)
+            await self.show_status()
+
+    async def end_game(self, reason=None):
+        if reason:
+            await self.channel.send(reason)
+        if len(self.alive) == 1:
+            await self.channel.send(f"🎉 {self.alive[0].mention} is the last player standing and wins the Bomb game!")
+        elif len(self.alive) == 0:
+            await self.channel.send("No players left. Game ended.")
+        else:
+            await self.channel.send("Game ended.")
+
+        # Disable all buttons
+        self.clear_items()
+        if self.message:
+            await self.message.edit(view=self)
+        # Cancel any running tasks
+        if self.pass_task:
+            self.pass_task.cancel()
+        if self.inactive_task:
+            self.inactive_task.cancel()
 
 @bot.command()
-async def memory(ctx):
-    view = MemoryGameView(ctx)
-    await ctx.send(
-        embed=discord.Embed(
-            title="Memory Game",
-            description="Choose a game mode below!",
-            color=discord.Color.purple()
-        ),
-        view=view
-    )
+async def bomb(ctx):
+    if ctx.author.bot:
+        return
+
+    join_view = JoinBombView()
+    join_message = await ctx.send("Click the button to join the Bomb game! You have 20 seconds to join.", view=join_view)
+
+    # Wait for 20 seconds for players to join
+    await asyncio.sleep(20)
+
+    if len(join_view.players) < 2:
+        await join_message.edit(content="Not enough players joined. Bomb game canceled.", view=None)
+        return
+
+    await join_message.edit(content=f"Game starting with {len(join_view.players)} players!", view=None)
+
+    game_view = BombGameView(join_view.players, ctx.channel)
+    await game_view.start()
 
 
 
