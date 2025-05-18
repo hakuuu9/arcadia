@@ -2219,7 +2219,7 @@ async def roll(ctx, arg: str):
 
 COLOR_EMOJIS = ["🟥", "🟦", "🟩", "🟨", "🟪"]
 
-class GameState: def init(self): self.sequence = [] self.players = [] self.active = False self.current_player = 0 self.mode = "solo" self.message = None self.channel = None self.last_interaction = None
+class GameState: def __init__(self): self.sequence = [] self.players = [] self.active = False self.current_player = 0 self.mode = "solo" self.message = None self.channel = None self.last_interaction = None
 
 MEMORY_GAME_STATE = GameState()
 
