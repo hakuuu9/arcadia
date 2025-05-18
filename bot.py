@@ -2299,7 +2299,7 @@ async def continue_bomb_game(ctx, current_holder, players):
 
 # -------------------------------------------------------------------------------------
 
-TRIVIA_CHANNEL_ID = 1363403776999948380  # Restrict to specific channel
+TRIVIA_CHANNEL_ID = 1363403776999948380  # Your allowed channel
 
 @bot.command()
 async def trivia(ctx):
@@ -2308,25 +2308,31 @@ async def trivia(ctx):
         return
 
     class ModeSelect(discord.ui.View):
-        def __init__(self):
+        def __init__(self, ctx):
             super().__init__(timeout=30)
+            self.ctx = ctx
+            self.message = None
 
         @discord.ui.button(label="🧍 Solo", style=discord.ButtonStyle.primary)
         async def solo(self, interaction: discord.Interaction, button: discord.ui.Button):
+            if interaction.user != self.ctx.author:
+                await interaction.response.send_message("⚠️ Only the command author can select a mode.", ephemeral=True)
+                return
             await interaction.response.defer()
-            await self.start_trivia(interaction, multiplayer=False)
+            await self.start_trivia(interaction)
 
         @discord.ui.button(label="👥 Multiplayer", style=discord.ButtonStyle.secondary)
         async def multi(self, interaction: discord.Interaction, button: discord.ui.Button):
             await interaction.response.send_message("👥 Multiplayer mode coming soon!", ephemeral=True)
 
         async def on_timeout(self):
-            try:
-                await self.message.edit(content="⏰ Trivia game canceled due to inactivity.", view=None)
-            except:
-                pass
+            if self.message:
+                try:
+                    await self.message.edit(content="⏰ Trivia game cancelled due to inactivity.", view=None)
+                except:
+                    pass
 
-        async def start_trivia(self, interaction, multiplayer=False):
+        async def start_trivia(self, interaction):
             async with aiohttp.ClientSession() as session:
                 async with session.get("https://opentdb.com/api.php?amount=1&type=multiple") as resp:
                     data = await resp.json()
@@ -2341,60 +2347,44 @@ async def trivia(ctx):
             class TriviaView(discord.ui.View):
                 def __init__(self):
                     super().__init__(timeout=30)
+                    self.correct = correct
+                    self.message = None
                     self.answered = False
-
-                async def disable_all(self, interaction, selected):
-                    for item in self.children:
-                        item.disabled = True
-                        if item.label == correct:
-                            item.style = discord.ButtonStyle.success
-                        elif item.label == selected:
-                            item.style = discord.ButtonStyle.danger
-                    await interaction.message.edit(view=self)
 
                 async def handle_answer(self, interaction, selected):
                     if self.answered:
-                        await interaction.response.send_message("❗ You've already answered.", ephemeral=True)
+                        await interaction.response.send_message("❗ Already answered.", ephemeral=True)
                         return
                     self.answered = True
-                    await self.disable_all(interaction, selected)
-                    if selected == correct:
-                        await interaction.followup.send(f"✅ Correct! **{correct}**", ephemeral=True)
+                    for item in self.children:
+                        item.disabled = True
+                        if item.label == self.correct:
+                            item.style = discord.ButtonStyle.success
+                        elif item.label == selected:
+                            item.style = discord.ButtonStyle.danger
+                    await interaction.response.edit_message(view=self)
+                    if selected == self.correct:
+                        await interaction.followup.send("✅ Correct!", ephemeral=True)
                     else:
-                        await interaction.followup.send(f"❌ Wrong! The correct answer was **{correct}**.", ephemeral=True)
-
-                @discord.ui.button(label=choices[0], style=discord.ButtonStyle.primary)
-                async def option1(self, interaction: discord.Interaction, button: discord.ui.Button):
-                    await self.handle_answer(interaction, button.label)
-
-                @discord.ui.button(label=choices[1], style=discord.ButtonStyle.primary)
-                async def option2(self, interaction: discord.Interaction, button: discord.ui.Button):
-                    await self.handle_answer(interaction, button.label)
-
-                @discord.ui.button(label=choices[2], style=discord.ButtonStyle.primary)
-                async def option3(self, interaction: discord.Interaction, button: discord.ui.Button):
-                    await self.handle_answer(interaction, button.label)
-
-                @discord.ui.button(label=choices[3], style=discord.ButtonStyle.primary)
-                async def option4(self, interaction: discord.Interaction, button: discord.ui.Button):
-                    await self.handle_answer(interaction, button.label)
+                        await interaction.followup.send(f"❌ Wrong! Correct answer: **{self.correct}**", ephemeral=True)
 
                 async def on_timeout(self):
                     for item in self.children:
                         item.disabled = True
                     try:
-                        await self.message.edit(content=f"⏰ Time's up! The correct answer was **{correct}**.", view=self)
+                        await self.message.edit(content=f"⏰ Time's up! The correct answer was **{self.correct}**.", view=self)
                     except:
                         pass
 
             view = TriviaView()
-            trivia_msg = await interaction.followup.send(f"🧠 **Trivia Time!**\n{question}", view=view, wait=True)
-            view.message = trivia_msg
+            for choice in choices:
+                view.add_item(discord.ui.Button(label=choice, style=discord.ButtonStyle.primary))
 
-    view = ModeSelect()
-    mode_msg = await ctx.send("🎮 Choose a game mode:", view=view)
-    view.message = mode_msg
+            sent = await interaction.followup.send(f"🧠 **Trivia Time!**\n{question}", view=view, wait=True)
+            view.message = sent
 
+    view = ModeSelect(ctx)
+    view.message = await ctx.send("🎮 Choose a game mode:", view=view)
 
 
 
