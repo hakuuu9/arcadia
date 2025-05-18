@@ -2300,7 +2300,6 @@ async def continue_bomb_game(ctx, current_holder, players):
 # -------------------------------------------------------------------------------------
 
 ALLOWED_CHANNEL_ID = 1363403776999948380  # Your allowed channel
-
 TRIVIA_API = "https://opentdb.com/api.php?amount=1&type=multiple"
 
 class TriviaGame:
@@ -2309,6 +2308,7 @@ class TriviaGame:
         self.correct_answer = None
         self.message = None
         self.active = True
+        self.answered = False  # Track if the user has answered
         self.timeout_task = None
 
     async def fetch_question(self):
@@ -2340,7 +2340,7 @@ class TriviaGame:
             self.active = False
             try:
                 await self.message.edit(content="⏰ Game ended due to inactivity.", view=None)
-            except:
+            except discord.NotFound:
                 pass
 
     async def stop(self):
@@ -2352,7 +2352,6 @@ class TriviaView(discord.ui.View):
     def __init__(self, game, choices):
         super().__init__(timeout=None)
         self.game = game
-        self.answered = False
         for choice in choices:
             self.add_item(TriviaButton(label=choice, game=game))
 
@@ -2365,7 +2364,7 @@ class TriviaView(discord.ui.View):
             self.game.active = False
             try:
                 await self.game.message.edit(content="⏰ Game ended due to inactivity.", view=None)
-            except:
+            except discord.NotFound:
                 pass
 
 class TriviaButton(discord.ui.Button):
@@ -2383,6 +2382,7 @@ class TriviaButton(discord.ui.Button):
             return
 
         self.game.answered = True
+        await interaction.response.defer()  # Acknowledge the interaction
 
         for child in self.view.children:
             child.disabled = True
@@ -2392,7 +2392,11 @@ class TriviaButton(discord.ui.Button):
                 child.style = discord.ButtonStyle.danger
 
         content = "✅ Correct!" if self.label == self.game.correct_answer else f"❌ Wrong! Correct answer: **{self.game.correct_answer}**"
-        await interaction.response.edit_message(content=content, view=self.view)
+        try:
+            await interaction.edit_original_response(content=content, view=self.view)
+        except discord.NotFound:
+            # Handle the case where the original message might have been deleted
+            pass
 
         self.game.active = False
         if self.game.timeout_task:
