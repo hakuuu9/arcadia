@@ -2297,6 +2297,124 @@ async def continue_bomb_game(ctx, current_holder, players):
     await asyncio.sleep(1)
     await start_bomb_game(ctx)
 
+# -------------------------------------------------------------------------------------
+
+ESCAPE_ROOM_CHANNEL_ID = 1363403776999948380
+
+class EscapeRoomState:
+    def __init__(self):
+        self.active = False
+        self.mode = None
+        self.players = []
+        self.current_room = 0
+        self.channel = None
+        self.last_interaction = None
+
+room_data = [
+    {"question": "I'm tall when I'm young, and I'm short when I'm old. What am I?", "answer": "candle", "time_limit": 30},
+    {"question": "What has hands but can’t clap?", "answer": "clock", "time_limit": 45},
+    {"question": "The more you take, the more you leave behind. What am I?", "answer": "footsteps", "time_limit": 60},
+    {"question": "I speak without a mouth and hear without ears. I have no body, but I come alive with wind. What am I?", "answer": "echo", "time_limit": 90}
+]
+
+escape_state = EscapeRoomState()
+
+class EscapeModeView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=30)
+
+    @discord.ui.button(label="Solo", style=discord.ButtonStyle.success)
+    async def solo(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if escape_state.active:
+            await interaction.response.send_message("A game is already active.", ephemeral=True)
+            return
+        escape_state.active = True
+        escape_state.mode = "solo"
+        escape_state.players = [interaction.user]
+        escape_state.channel = interaction.channel
+        escape_state.last_interaction = asyncio.get_event_loop().time()
+        await interaction.response.send_message(f"{interaction.user.mention} started a solo Escape Room!")
+        await start_escape_room()
+
+    @discord.ui.button(label="Multiplayer", style=discord.ButtonStyle.primary)
+    async def multi(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if escape_state.active:
+            await interaction.response.send_message("A game is already active.", ephemeral=True)
+            return
+        escape_state.active = True
+        escape_state.mode = "multi"
+        escape_state.players = [interaction.user]
+        escape_state.channel = interaction.channel
+        escape_state.last_interaction = asyncio.get_event_loop().time()
+        view = JoinEscapeView(interaction.user)
+        await interaction.response.send_message("Multiplayer Escape Room starting! Others can join for 20 seconds:", view=view)
+        await asyncio.sleep(20)
+        await start_escape_room()
+
+class JoinEscapeView(discord.ui.View):
+    def __init__(self, initiator):
+        super().__init__(timeout=20)
+        self.initiator = initiator
+
+    @discord.ui.button(label="Join Game", style=discord.ButtonStyle.secondary)
+    async def join(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user in escape_state.players:
+            await interaction.response.send_message("You already joined.", ephemeral=True)
+            return
+        escape_state.players.append(interaction.user)
+        escape_state.last_interaction = asyncio.get_event_loop().time()
+        await interaction.response.send_message(f"{interaction.user.mention} joined the Escape Room!")
+
+async def start_escape_room():
+    escape_state.current_room = 0
+    await send_room()
+    inactivity_check.start()
+
+async def send_room():
+    room = room_data[escape_state.current_room]
+    await escape_state.channel.send(f"**Room {escape_state.current_room + 1}:** {room['question']} (You have {room['time_limit']} seconds)")
+    escape_state.last_interaction = asyncio.get_event_loop().time()
+
+    def check(m):
+        return (
+            m.channel == escape_state.channel and
+            m.content.lower().strip() == room['answer'].lower().strip() and
+            m.author in escape_state.players
+        )
+
+    try:
+        msg = await bot.wait_for("message", timeout=room['time_limit'], check=check)
+        escape_state.last_interaction = asyncio.get_event_loop().time()
+        await escape_state.channel.send(f"✅ Correct, {msg.author.mention}! Moving to the next room...")
+        escape_state.current_room += 1
+        if escape_state.current_room < len(room_data):
+            await send_room()
+        else:
+            await escape_state.channel.send("🎉 Congratulations! You escaped all the rooms!")
+            inactivity_check.stop()
+            escape_state.active = False
+    except asyncio.TimeoutError:
+        await escape_state.channel.send("⏰ Time's up! Game over.")
+        inactivity_check.stop()
+        escape_state.active = False
+
+@tasks.loop(seconds=5)
+async def inactivity_check():
+    now = asyncio.get_event_loop().time()
+    if now - escape_state.last_interaction >= 30:
+        await escape_state.channel.send("⌛ Game ended due to inactivity.")
+        inactivity_check.stop()
+        escape_state.active = False
+
+@bot.command()
+async def escape(ctx):
+    if ctx.channel.id != ESCAPE_ROOM_CHANNEL_ID:
+        return await ctx.send(f"Please use this command in <#{ESCAPE_ROOM_CHANNEL_ID}>")
+    if escape_state.active:
+        return await ctx.send("An Escape Room game is already in progress!")
+    await ctx.send("**__ARCADIA ESCAPE ROOM__**\nChoose your mode:", view=EscapeModeView())
+
+
 
 
 
