@@ -2299,92 +2299,113 @@ async def continue_bomb_game(ctx, current_holder, players):
 
 # -------------------------------------------------------------------------------------
 
-TRIVIA_CHANNEL_ID = 1363403776999948380  # Your allowed channel
+ALLOWED_CHANNEL_ID = 1363403776999948380  # Your allowed channel
+
+TRIVIA_API = "https://opentdb.com/api.php?amount=1&type=multiple"
+
+class TriviaGame:
+    def __init__(self, ctx):
+        self.ctx = ctx
+        self.correct_answer = None
+        self.message = None
+        self.active = True
+        self.timeout_task = None
+
+    async def fetch_question(self):
+        async with aiohttp.ClientSession() as session:
+            async with session.get(TRIVIA_API) as resp:
+                data = await resp.json()
+                q = data["results"][0]
+                question = discord.utils.escape_markdown(q["question"])
+                correct = discord.utils.escape_markdown(q["correct_answer"])
+                incorrect = [discord.utils.escape_markdown(i) for i in q["incorrect_answers"]]
+                choices = incorrect + [correct]
+                random.shuffle(choices)
+                self.correct_answer = correct
+                return question, choices
+
+    async def start(self):
+        question, choices = await self.fetch_question()
+        view = TriviaView(self, choices)
+        description = (
+            f"**Select the correct answer!**\n\n"
+            f"Question:\n{question}"
+        )
+        self.message = await self.ctx.send(description, view=view)
+        self.timeout_task = asyncio.create_task(self.inactivity_timeout())
+
+    async def inactivity_timeout(self):
+        await asyncio.sleep(30)
+        if self.active:
+            self.active = False
+            try:
+                await self.message.edit(content="⏰ Game ended due to inactivity.", view=None)
+            except:
+                pass
+
+    async def stop(self):
+        self.active = False
+        if self.timeout_task:
+            self.timeout_task.cancel()
+
+class TriviaView(discord.ui.View):
+    def __init__(self, game, choices):
+        super().__init__(timeout=None)
+        self.game = game
+        self.answered = False
+        for choice in choices:
+            self.add_item(TriviaButton(label=choice, game=game))
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        # Only the command user can answer
+        return interaction.user == self.game.ctx.author
+
+    async def on_timeout(self):
+        if self.game.active:
+            self.game.active = False
+            try:
+                await self.game.message.edit(content="⏰ Game ended due to inactivity.", view=None)
+            except:
+                pass
+
+class TriviaButton(discord.ui.Button):
+    def __init__(self, label, game):
+        super().__init__(label=label, style=discord.ButtonStyle.secondary)
+        self.game = game
+
+    async def callback(self, interaction: discord.Interaction):
+        if not self.game.active:
+            await interaction.response.send_message("❌ This game has ended.", ephemeral=True)
+            return
+
+        if self.game.answered:
+            await interaction.response.send_message("❗ You have already answered.", ephemeral=True)
+            return
+
+        self.game.answered = True
+
+        for child in self.view.children:
+            child.disabled = True
+            if child.label == self.game.correct_answer:
+                child.style = discord.ButtonStyle.success
+            elif child.label == self.label:
+                child.style = discord.ButtonStyle.danger
+
+        content = "✅ Correct!" if self.label == self.game.correct_answer else f"❌ Wrong! Correct answer: **{self.game.correct_answer}**"
+        await interaction.response.edit_message(content=content, view=self.view)
+
+        self.game.active = False
+        if self.game.timeout_task:
+            self.game.timeout_task.cancel()
 
 @bot.command()
 async def trivia(ctx):
-    if ctx.channel.id != TRIVIA_CHANNEL_ID:
-        await ctx.send(f"❌ You can only use this command in <#{TRIVIA_CHANNEL_ID}>.")
+    if ctx.channel.id != ALLOWED_CHANNEL_ID:
+        await ctx.send(f"❌ Please use this command in <#{ALLOWED_CHANNEL_ID}>.")
         return
 
-    class ModeSelect(discord.ui.View):
-        def __init__(self, ctx):
-            super().__init__(timeout=30)
-            self.ctx = ctx
-            self.message = None
-
-        @discord.ui.button(label="🧍 Solo", style=discord.ButtonStyle.primary)
-        async def solo(self, interaction: discord.Interaction, button: discord.ui.Button):
-            if interaction.user != self.ctx.author:
-                await interaction.response.send_message("⚠️ Only the command author can select a mode.", ephemeral=True)
-                return
-            await interaction.response.defer()
-            await self.start_trivia(interaction)
-
-        @discord.ui.button(label="👥 Multiplayer", style=discord.ButtonStyle.secondary)
-        async def multi(self, interaction: discord.Interaction, button: discord.ui.Button):
-            await interaction.response.send_message("👥 Multiplayer mode coming soon!", ephemeral=True)
-
-        async def on_timeout(self):
-            if self.message:
-                try:
-                    await self.message.edit(content="⏰ Trivia game cancelled due to inactivity.", view=None)
-                except:
-                    pass
-
-        async def start_trivia(self, interaction):
-            async with aiohttp.ClientSession() as session:
-                async with session.get("https://opentdb.com/api.php?amount=1&type=multiple") as resp:
-                    data = await resp.json()
-
-            question_data = data["results"][0]
-            question = html.unescape(question_data["question"])
-            correct = html.unescape(question_data["correct_answer"])
-            incorrect = [html.unescape(i) for i in question_data["incorrect_answers"]]
-            choices = incorrect + [correct]
-            random.shuffle(choices)
-
-            class TriviaView(discord.ui.View):
-                def __init__(self):
-                    super().__init__(timeout=30)
-                    self.correct = correct
-                    self.message = None
-                    self.answered = False
-
-                async def handle_answer(self, interaction, selected):
-                    if self.answered:
-                        await interaction.response.send_message("❗ Already answered.", ephemeral=True)
-                        return
-                    self.answered = True
-                    for item in self.children:
-                        item.disabled = True
-                        if item.label == self.correct:
-                            item.style = discord.ButtonStyle.success
-                        elif item.label == selected:
-                            item.style = discord.ButtonStyle.danger
-                    await interaction.response.edit_message(view=self)
-                    if selected == self.correct:
-                        await interaction.followup.send("✅ Correct!", ephemeral=True)
-                    else:
-                        await interaction.followup.send(f"❌ Wrong! Correct answer: **{self.correct}**", ephemeral=True)
-
-                async def on_timeout(self):
-                    for item in self.children:
-                        item.disabled = True
-                    try:
-                        await self.message.edit(content=f"⏰ Time's up! The correct answer was **{self.correct}**.", view=self)
-                    except:
-                        pass
-
-            view = TriviaView()
-            for choice in choices:
-                view.add_item(discord.ui.Button(label=choice, style=discord.ButtonStyle.primary))
-
-            sent = await interaction.followup.send(f"🧠 **Trivia Time!**\n{question}", view=view, wait=True)
-            view.message = sent
-
-    view = ModeSelect(ctx)
-    view.message = await ctx.send("🎮 Choose a game mode:", view=view)
+    game = TriviaGame(ctx)
+    await game.start()
 
 
 
