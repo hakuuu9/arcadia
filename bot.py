@@ -418,6 +418,7 @@ async def info_command(ctx):
                 "**❌ `$tictactoe @user`** — Play Tic Tac Toe\n"
                 "**🎰 `$roll 1-100`** — Roll the number game\n"
                 "**💣 `$bomb`** — Join and pass the bomb game\n"
+                "**🧠 `$trivia`** — Answer a multiple choice trivia question\n"
 
             ),
             inline=False
