@@ -2217,136 +2217,82 @@ async def roll(ctx, arg: str):
 
 # --------------------------------
 
-BOMB_GAME = {
-    "active": False,
-    "players": [],
-    "channel": None,
-    "bomb_holder": None,
-    "message": None,
-    "start_time": None,
-    "last_pass": None,
-    "task": None,
-}
-
-JOIN_COOLDOWN = 20
-PASS_TIME_LIMIT = 60  # seconds
-
-class JoinBombGame(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
-
-    @discord.ui.button(label="💣 Join Bomb Game", style=discord.ButtonStyle.danger, custom_id="join_bomb")
-    async def join_bomb(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not BOMB_GAME["active"]:
-            await interaction.response.send_message("❌ No active bomb game to join.", ephemeral=True)
-            return
-
-        if interaction.user in BOMB_GAME["players"]:
-            await interaction.response.send_message("You already joined the game!", ephemeral=True)
-            return
-
-        if time.time() - BOMB_GAME["start_time"] > JOIN_COOLDOWN:
-            await interaction.response.send_message("⏳ Time to join has expired!", ephemeral=True)
-            return
-
-        BOMB_GAME["players"].append(interaction.user)
-        await interaction.response.send_message(f"{interaction.user.mention} joined the bomb game!")
-
-class PassBombView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
-
-    @discord.ui.button(label="🎯 Pass the Bomb", style=discord.ButtonStyle.primary, custom_id="pass_bomb")
-    async def pass_bomb(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user != BOMB_GAME["bomb_holder"]:
-            await interaction.response.send_message("You're not holding the bomb!", ephemeral=True)
-            return
-
-        others = [p for p in BOMB_GAME["players"] if p != interaction.user]
-        if not others:
-            await interaction.response.send_message("No one left to pass the bomb to!", ephemeral=True)
-            return
-
-        new_holder = random.choice(others)
-        BOMB_GAME["bomb_holder"] = new_holder
-        BOMB_GAME["last_pass"] = time.time()
-
-        await interaction.response.send_message(
-            f"{interaction.user.mention} passed the bomb to {new_holder.mention}!"
-        )
-
-        await BOMB_GAME["channel"].send(
-            f"💣 {new_holder.mention}, you now hold the bomb! Pass it within {PASS_TIME_LIMIT} seconds!",
-            view=PassBombView()
-        )
+BOMB_CHANNEL_ID = 1363403776999948380  # Allowed channel
 
 @bot.command()
 async def bomb(ctx):
-    if BOMB_GAME["active"]:
-        await ctx.send("⚠️ A bomb game is already in progress.")
+    if ctx.channel.id != BOMB_CHANNEL_ID:
+        correct_channel = bot.get_channel(BOMB_CHANNEL_ID)
+        await ctx.send(f"❌ Please use this command in {correct_channel.mention}.")
         return
 
-    BOMB_GAME.update({
-        "active": True,
-        "players": [],
-        "channel": ctx.channel,
-        "bomb_holder": None,
-        "message": None,
-        "start_time": time.time(),
-        "last_pass": None,
-        "task": None,
-    })
-
-    msg = await ctx.send(
-        "__**💣 ARCADIA BOMB**__\n\nClick the button to join the Bomb game! You have 20 seconds to join.",
-        view=JoinBombGame()
-    )
-    BOMB_GAME["message"] = msg
-
-    await asyncio.sleep(JOIN_COOLDOWN)
-
-    if len(BOMB_GAME["players"]) < 2:
-        await ctx.send("❌ Not enough players joined. Game cancelled.")
-        BOMB_GAME["active"] = False
+    if hasattr(bot, "bomb_active") and bot.bomb_active:
+        await ctx.send("⚠️ A Bomb game is already in progress.")
         return
 
-    # Start the game
-    holder = random.choice(BOMB_GAME["players"])
-    BOMB_GAME["bomb_holder"] = holder
-    BOMB_GAME["last_pass"] = time.time()
+    bot.bomb_active = True
+    bot.bomb_players = []
 
-    await ctx.send(
-        f"🎉 Game started with {len(BOMB_GAME['players'])} players!\n💣 {holder.mention} starts with the bomb. Pass it within {PASS_TIME_LIMIT} seconds!",
-        view=PassBombView()
-    )
+    class JoinView(discord.ui.View):
+        def __init__(self):
+            super().__init__(timeout=20)
 
-    # Start tracking timeout
-    BOMB_GAME["task"] = bot.loop.create_task(track_bomb_timer())
-
-async def track_bomb_timer():
-    while BOMB_GAME["active"]:
-        await asyncio.sleep(1)
-        if time.time() - BOMB_GAME["last_pass"] > PASS_TIME_LIMIT:
-            loser = BOMB_GAME["bomb_holder"]
-            BOMB_GAME["players"].remove(loser)
-
-            await BOMB_GAME["channel"].send(f"💥 The bomb exploded on {loser.mention}! They are eliminated.")
-
-            if len(BOMB_GAME["players"]) == 1:
-                winner = BOMB_GAME["players"][0]
-                await BOMB_GAME["channel"].send(f"🎊 {winner.mention} is the last one standing and wins the game!")
-                BOMB_GAME["active"] = False
-                return
+        @discord.ui.button(label="💣 Join", style=discord.ButtonStyle.danger)
+        async def join(self, interaction: discord.Interaction, button: discord.ui.Button):
+            if interaction.user in bot.bomb_players:
+                await interaction.response.send_message("You've already joined!", ephemeral=True)
             else:
-                # New bomb holder
-                new_holder = random.choice(BOMB_GAME["players"])
-                BOMB_GAME["bomb_holder"] = new_holder
-                BOMB_GAME["last_pass"] = time.time()
+                bot.bomb_players.append(interaction.user)
+                await interaction.response.send_message("You joined the bomb game!", ephemeral=True)
 
-                await BOMB_GAME["channel"].send(
-                    f"💣 {new_holder.mention}, you now hold the bomb! Pass it within {PASS_TIME_LIMIT} seconds!",
-                    view=PassBombView()
-                )
+        async def on_timeout(self):
+            if len(bot.bomb_players) < 2:
+                await ctx.send("Not enough players joined to start the bomb game.")
+                bot.bomb_active = False
+                return
+
+            await start_bomb_game(ctx)
+
+    await ctx.send("__**💣 ARCADIA BOMB**__\n\nClick the button to join the Bomb game! You have 20 seconds to join.", view=JoinView())
+
+async def start_bomb_game(ctx):
+    players = bot.bomb_players.copy()
+    current_holder = random.choice(players)
+    await ctx.send(f"🎮 The bomb starts with {current_holder.mention}! You have 10 seconds to pass it!")
+
+    class PassView(discord.ui.View):
+        def __init__(self):
+            super().__init__(timeout=10)
+
+        @discord.ui.button(label="🎯 Pass Bomb", style=discord.ButtonStyle.success)
+        async def pass_bomb(self, interaction: discord.Interaction, button: discord.ui.Button):
+            nonlocal current_holder
+            if interaction.user != current_holder:
+                await interaction.response.send_message("You don't have the bomb!", ephemeral=True)
+                return
+
+            available = [p for p in players if p != current_holder]
+            if not available:
+                await ctx.send("No one to pass the bomb to!")
+                return
+
+            new_holder = random.choice(available)
+            current_holder = new_holder
+            await ctx.send(f"{interaction.user.mention} passed the bomb to {new_holder.mention}!")
+
+            self.stop()
+            await continue_bomb_game(ctx, current_holder, players)
+
+        async def on_timeout(self):
+            await ctx.send(f"💥 Time's up! {current_holder.mention} held the bomb too long and exploded!")
+            bot.bomb_active = False
+
+    await ctx.send(f"{current_holder.mention}, click the button to pass the bomb!", view=PassView())
+
+async def continue_bomb_game(ctx, current_holder, players):
+    await ctx.send(f"🔥 New round! {current_holder.mention} has the bomb!")
+    await asyncio.sleep(1)
+    await start_bomb_game(ctx)
 
 
 
