@@ -2492,18 +2492,13 @@ from urllib.parse import quote_plus
 
 DUCKDUCKGO_API_URL = "https://api.duckduckgo.com/"
 
-@bot.command(name="ddg", aliases=["duck", "search"])
+@bot.command(name="duckduckgo", aliases=["duck", "search"])
 async def duckduckgo_search(ctx, *, query):
-    """Searches DuckDuckGo for the given query."""
     if not query:
         await ctx.send("Please provide a search query.")
         return
 
-    params = {
-        "q": query,
-        "format": "json",
-        "pretty": 0  # Disable pretty printing for easier parsing
-    }
+    params = {"q": query, "format": "json", "pretty": 0}
 
     async with aiohttp.ClientSession() as session:
         async with session.get(DUCKDUCKGO_API_URL, params=params) as response:
@@ -2517,17 +2512,18 @@ async def duckduckgo_search(ctx, *, query):
                         embed.add_field(name="Source", value=data["AbstractURL"], inline=False)
                 elif data.get("RelatedTopics"):
                     results = ""
-                    for topic in data["RelatedTopics"][:5]:  # Show up to 5 related topics
+                    for topic in data["RelatedTopics"][:5]:
                         if "Text" in topic and "FirstURL" in topic:
                             results += f"[{topic['Text']}]({topic['FirstURL']})\n"
                         elif "Topics" in topic:
-                            for sub_topic in topic["Topics"][:3]:  # Show up to 3 sub-topics
+                            for sub_topic in topic["Topics"][:3]:
                                 if "Text" in sub_topic and "FirstURL" in sub_topic:
                                     results += f"  • [{sub_topic['Text']}]({sub_topic['FirstURL']})\n"
-                        if results:
-                            embed.description = "Here are some related results:\n" + results
-                        else:
-                            embed.description = "No direct results found."
+
+                    if results:
+                        embed.description = "Here are some related results:\n" + results
+                    else:
+                        embed.description = "No direct results found."
                 else:
                     embed.description = "No direct results found."
 
