@@ -2564,6 +2564,35 @@ async def lyrics(ctx, *, song: str = None):
         except Exception as e:
             await ctx.send(f"⚠️ An error occurred while fetching lyrics.\n`{e}`")
 
+# ---------------------------------------------------------------
+
+@bot.command()
+async def rollstop(ctx):
+    if not ROLL_DATA["active"]:
+        await ctx.send("⚠️ No roll game is currently active.")
+        return
+
+    ROLL_DATA.update({
+        "target": None,
+        "range": None,
+        "rolls": 0,
+        "winner": None,
+        "cooldowns": {},
+        "active": False,
+    })
+
+    for role_id in MUTED_ROLE_IDS:
+        muted_role = ctx.guild.get_role(role_id)
+        if muted_role:
+            await ctx.channel.set_permissions(
+                muted_role,
+                send_messages=True,
+                attach_files=True,
+                read_message_history=True,
+                view_channel=True
+            )
+
+    await ctx.send("🛑 The roll game has been stopped and all roles are unmuted.")
 
 keep_alive()
 bot.run(TOKEN)
