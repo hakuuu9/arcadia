@@ -2492,59 +2492,55 @@ from urllib.parse import quote_plus
 
 DUCKDUCKGO_API_URL = "https://api.duckduckgo.com/"
 
-class DuckDuckGo(commands.Cog):
-    def __init__(self, bot):
-        self.bot = bot
+@bot.command(name="ddg", aliases=["duck", "search"])
+async def duckduckgo_search(ctx, *, query):
+    """Searches DuckDuckGo for the given query."""
+    if not query:
+        await ctx.send("Please provide a search query.")
+        return
 
-    @commands.command(name="ddg", aliases=["duck", "search"])
-    async def duckduckgo_search(self, ctx, *, query):
-        """Searches DuckDuckGo for the given query."""
-        if not query:
-            await ctx.send("Please provide a search query.")
-            return
+    params = {
+        "q": query,
+        "format": "json",
+        "pretty": 0  # Disable pretty printing for easier parsing
+    }
 
-        params = {
-            "q": query,
-            "format": "json",
-            "pretty": 0  # Disable pretty printing for easier parsing
-        }
+    async with aiohttp.ClientSession() as session:
+        async with session.get(DUCKDUCKGO_API_URL, params=params) as response:
+            if response.status == 200:
+                data = await response.json()
+                embed = discord.Embed(title=f"DuckDuckGo Search: {query}", color=discord.Color.blurple())
 
-        async with aiohttp.ClientSession() as session:
-            async with session.get(DUCKDUCKGO_API_URL, params=params) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    embed = discord.Embed(title=f"DuckDuckGo Search: {query}", color=discord.Color.blurple())
-
-                    if data.get("AbstractText"):
-                        embed.description = data["AbstractText"]
-                        if data.get("AbstractURL"):
-                            embed.add_field(name="Source", value=data["AbstractURL"], inline=False)
-                    elif data.get("RelatedTopics"):
-                        results = ""
-                        for topic in data["RelatedTopics"][:5]:  # Show up to 5 related topics
-                            if "Text" in topic and "FirstURL" in topic:
-                                results += f"[{topic['Text']}]({topic['FirstURL']})\n"
-                            elif "Topics" in topic:
-                                for sub_topic in topic["Topics"][:3]:  # Show up to 3 sub-topics
-                                    if "Text" in sub_topic and "FirstURL" in sub_topic:
-                                        results += f"  • [{sub_topic['Text']}]({sub_topic['FirstURL']})\n"
+                if data.get("AbstractText"):
+                    embed.description = data["AbstractText"]
+                    if data.get("AbstractURL"):
+                        embed.add_field(name="Source", value=data["AbstractURL"], inline=False)
+                elif data.get("RelatedTopics"):
+                    results = ""
+                    for topic in data["RelatedTopics"][:5]:  # Show up to 5 related topics
+                        if "Text" in topic and "FirstURL" in topic:
+                            results += f"[{topic['Text']}]({topic['FirstURL']})\n"
+                        elif "Topics" in topic:
+                            for sub_topic in topic["Topics"][:3]:  # Show up to 3 sub-topics
+                                if "Text" in sub_topic and "FirstURL" in sub_topic:
+                                    results += f"  • [{sub_topic['Text']}]({sub_topic['FirstURL']})\n"
                         if results:
                             embed.description = "Here are some related results:\n" + results
                         else:
                             embed.description = "No direct results found."
-                    else:
-                        embed.description = "No direct results found."
-
-                    if data.get("Image"):
-                        embed.set_thumbnail(url=f"https://duckduckgo.com{data['Image']}")
-
-                    await ctx.send(embed=embed)
                 else:
-                    await ctx.send(f"DuckDuckGo search failed with status code: {response.status}")
+                    embed.description = "No direct results found."
 
-async def setup(bot):
-    await bot.add_cog(DuckDuckGo(bot))
+                if data.get("Image"):
+                    embed.set_thumbnail(url=f"https://duckduckgo.com{data['Image']}")
 
+                await ctx.send(embed=embed)
+            else:
+                await ctx.send(f"DuckDuckGo search failed with status code: {response.status}")
+
+@bot.event
+async def on_ready():
+    print(f'Logged in as {bot.user}')
 
 
 
