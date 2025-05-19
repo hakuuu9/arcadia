@@ -2485,34 +2485,31 @@ async def emotelist(ctx):
 # -------------------------------------------------------------------
 
 @commands.cooldown(1, 60, commands.BucketType.user)
-@bot.command(name="tiktokvideo")
-async def tiktok_video(ctx):
-    """Sends a random TikTok video with preview embed."""
-    async with aiohttp.ClientSession() as session:
-        async with session.get("https://random-data-api.com/api/v2/users") as response:
-            if response.status == 200:
-                data = await response.json()
-                username = data.get("username") or "exampleuser"
-                video_id = random.randint(1000000000000000000, 9999999999999999999)
-                tiktok_url = f"https://www.tiktok.com/@{username}/video/{video_id}"
+@bot.command()
+async def tiktok(ctx, url: str):
+    await ctx.send("Downloading video...")
 
-                embed = discord.Embed(
-                    title="🎵 Random TikTok Video",
-                    url=tiktok_url,
-                    description=f"Click the link or watch below!",
-                    color=discord.Color.magenta()
-                )
-                # Discord automatically tries to embed the video if possible,
-                # so no need to set image manually. Just send the URL in embed url.
+    api_url = f"https://tikwm.com/api/?url={url}"
 
-                await ctx.send(embed=embed)
-            else:
-                await ctx.send("Failed to fetch a TikTok video. Try again later.")
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(api_url) as resp:
+                data = await resp.json()
 
-@tiktok_video.error
-async def tiktok_video_error(ctx, error):
-    if isinstance(error, commands.CommandOnCooldown):
-        await ctx.send(f"⏳ Please wait **{round(error.retry_after)} seconds** before using this again.")
+            video_url = data["data"]["play"]
+            title = data["data"].get("title", "TikTok Video")
+
+            # Download video bytes
+            async with session.get(video_url) as video_resp:
+                video_bytes = await video_resp.read()
+
+            video_file = io.BytesIO(video_bytes)
+            video_file.seek(0)
+
+            await ctx.send(content=f"**{title}**", file=discord.File(video_file, filename="tiktok.mp4"))
+
+    except Exception as e:
+        await ctx.send(f"An error occurred: {e}")
 
 
 
