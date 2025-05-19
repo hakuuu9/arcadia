@@ -2490,14 +2490,16 @@ async def lyrics(ctx, *, song: str = None):
         await ctx.send("❌ Please provide a song title to search lyrics for. Example:\n`$lyrics 505`")
         return
 
-    # For lyrics.ovh you need artist and title separately, but you can try guessing:
-    # Split input into artist and title if possible
+    # Split into artist and title if possible
     if " - " in song:
         artist, title = song.split(" - ", 1)
     else:
-        # fallback to song only, may not work perfectly
         artist = ""
         title = song
+
+    # Normalize capitalization (capitalize first letters of words)
+    artist = artist.strip().title()
+    title = title.strip().title()
 
     api_url = f"https://api.lyrics.ovh/v1/{artist}/{title}"
 
