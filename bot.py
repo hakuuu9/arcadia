@@ -2485,41 +2485,55 @@ async def emotelist(ctx):
 # -------------------------------------------------------------------
 
 @bot.command()
-async def lyrics(ctx, *, song: str):
-    """Fetches lyrics for the given song title."""
+async def lyrics(ctx, *, song: str = None):
+    if not song:
+        await ctx.send("❌ Please provide a song title to search lyrics for. Example:\n`$lyrics 505`")
+        return
+
+    api_url = f"https://some-random-api.ml/lyrics?title={song}"
+
     async with aiohttp.ClientSession() as session:
-        url = f"https://api.lyrics.ovh/v1//{song}"
-        # lyrics.ovh requires artist and title, but we only have title.
-        # So we try to guess artist or send an error if no result.
-        
-        # Instead, use another API: https://some-random-api.ml/lyrics?title=
-        # This one works better for title only.
+        try:
+            async with session.get(api_url) as response:
+                if response.status != 200:
+                    await ctx.send(f"⚠️ API returned an error: HTTP {response.status}")
+                    return
 
-        api_url = f"https://some-random-api.ml/lyrics?title={song}"
+                content_type = response.headers.get("Content-Type", "")
+                if "application/json" not in content_type:
+                    await ctx.send("⚠️ Unexpected response format from the API.")
+                    return
 
-        async with session.get(api_url) as response:
-            if response.status == 200:
                 data = await response.json()
+
+                if "error" in data:
+                    await ctx.send(f"⚠️ API Error: {data['error']}")
+                    return
+
                 lyrics_text = data.get("lyrics")
                 title = data.get("title", song)
                 author = data.get("author", "Unknown")
 
-                if lyrics_text:
-                    # Discord message limit is 2000 chars, so chunk if needed
-                    chunks = [lyrics_text[i:i+1900] for i in range(0, len(lyrics_text), 1900)]
-                    for i, chunk in enumerate(chunks):
-                        embed = discord.Embed(
-                            title=f"Lyrics for {title} - {author}",
-                            description=chunk,
-                            color=discord.Color.blue()
-                        )
-                        if i == 0:
-                            embed.set_footer(text=f"Requested by {ctx.author.display_name}")
-                        await ctx.send(embed=embed)
-                else:
-                    await ctx.send("Sorry, no lyrics found for that song.")
-            else:
-                await ctx.send("Sorry, I couldn't reach the lyrics server right now.")
+                if not lyrics_text:
+                    await ctx.send("❌ No lyrics found for that song.")
+                    return
+
+                # Discord message limit is 2000 chars, so split lyrics in chunks
+                chunks = [lyrics_text[i:i+1900] for i in range(0, len(lyrics_text), 1900)]
+
+                for i, chunk in enumerate(chunks):
+                    embed = discord.Embed(
+                        title=f"Lyrics for {title} - {author}",
+                        description=chunk,
+                        color=discord.Color.blue()
+                    )
+                    if i == 0:
+                        embed.set_footer(text=f"Requested by {ctx.author.display_name}")
+
+                    await ctx.send(embed=embed)
+
+        except Exception as e:
+            await ctx.send(f"⚠️ An error occurred while fetching lyrics: {e}")
 
 
 
