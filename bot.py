@@ -2109,11 +2109,15 @@ ROLL_DATA = {
     "winner": None,
     "cooldowns": {},
     "active": False,
+    "last_activity": None,
+    "channel_id": None,
+    "message_id": None
 }
 
 COOLDOWN_SECONDS = 3
-ALLOWED_CHANNEL_ID = 1363403776999948380  # Replace with your actual channel ID
-MUTED_ROLE_IDS = [1259666579214569552, 1259678918089379910, 1361732154584858724, 1276479975654166581]  # Replace with the roles to be muted during game
+INACTIVITY_TIMEOUT = 30
+ALLOWED_CHANNEL_ID = 1363403776999948380
+MUTED_ROLE_IDS = [1259666579214569552, 1259678918089379910, 1361732154584858724, 1276479975654166581]
 
 class RollButton(discord.ui.View):
     def __init__(self, target_number, number_range):
@@ -2139,6 +2143,7 @@ class RollButton(discord.ui.View):
             return
 
         ROLL_DATA["cooldowns"][user_id] = now
+        ROLL_DATA["last_activity"] = now
         rolled = random.randint(self.number_range[0], self.number_range[1])
         ROLL_DATA["rolls"] += 1
 
@@ -2146,12 +2151,10 @@ class RollButton(discord.ui.View):
             ROLL_DATA["winner"] = interaction.user
             ROLL_DATA["active"] = False
 
-            # Re-enable permissions for muted roles
-            channel = interaction.channel
             for role_id in MUTED_ROLE_IDS:
                 muted_role = interaction.guild.get_role(role_id)
                 if muted_role:
-                    await channel.set_permissions(
+                    await interaction.channel.set_permissions(
                         muted_role,
                         send_messages=True,
                         attach_files=True,
@@ -2165,6 +2168,7 @@ class RollButton(discord.ui.View):
             )
             self.disable_all_items()
             await interaction.message.edit(view=self)
+
         elif abs(rolled - self.target_number) <= 5:
             await interaction.response.send_message(
                 f"🎯 {interaction.user.mention} rolled **{rolled}** — very close!", ephemeral=False
@@ -2200,9 +2204,10 @@ async def roll(ctx, arg: str):
         "winner": None,
         "cooldowns": {},
         "active": True,
+        "last_activity": time.time(),
+        "channel_id": ctx.channel.id,
     })
 
-    # Disable permissions for muted roles
     for role_id in MUTED_ROLE_IDS:
         muted_role = ctx.guild.get_role(role_id)
         if muted_role:
@@ -2218,7 +2223,38 @@ async def roll(ctx, arg: str):
         f"Click the button below to roll a number. You can do this every {COOLDOWN_SECONDS} seconds."
     )
 
-    await ctx.send(description, view=RollButton(target, (low, high)))
+    view = RollButton(target, (low, high))
+    message = await ctx.send(description, view=view)
+    ROLL_DATA["message_id"] = message.id
+    check_inactivity.start()
+
+@tasks.loop(seconds=5)
+async def check_inactivity():
+    if ROLL_DATA["active"] and time.time() - ROLL_DATA["last_activity"] > INACTIVITY_TIMEOUT:
+        ROLL_DATA["active"] = False
+
+        channel = bot.get_channel(ROLL_DATA["channel_id"])
+        if channel:
+            try:
+                message = await channel.fetch_message(ROLL_DATA["message_id"])
+                view = RollButton(ROLL_DATA["target"], ROLL_DATA["range"])
+                view.disable_all_items()
+                await message.edit(content="⏰ Game ended due to 30 seconds of inactivity.", view=view)
+            except:
+                pass
+
+        for role_id in MUTED_ROLE_IDS:
+            muted_role = channel.guild.get_role(role_id)
+            if muted_role:
+                await channel.set_permissions(
+                    muted_role,
+                    send_messages=True,
+                    attach_files=True,
+                    read_message_history=True,
+                    view_channel=True
+                )
+
+        check_inactivity.stop()
 
 # --------------------------------
 
