@@ -2484,58 +2484,33 @@ async def emotelist(ctx):
     view.message = await ctx.send(embed=embed, view=view)
 # -------------------------------------------------------------------
 
-from urllib.parse import quote_plus
-
-DUCKDUCKGO_API_URL = "https://api.duckduckgo.com/"
-
-@bot.command(name="ddg", aliases=["duck", "search"])
-async def duckduckgo_search(ctx, *, query):
-    """Searches DuckDuckGo for the given query."""
-    if not query:
-        await ctx.send("Please provide a search query.")
+@bot.command(name="wouldyourather", aliases=["wyr"])
+async def would_you_rather(ctx, rating: str = "pg"):
+    """Fetches a random 'Would You Rather' question."""
+    # Validate rating
+    if rating.lower() not in ["pg", "pg13", "r"]:
+        await ctx.send("Invalid rating. Please choose from 'pg', 'pg13', or 'r'.")
         return
 
-    params = {
-        "q": query,
-        "format": "json",
-        "no_redirect": 1,  # Prevent auto-redirects
-        "no_html": 1,
-        "pretty": 0
-    }
+    api_url = f"https://api.truthordarebot.xyz/api/wyr?rating={rating.lower()}"
 
-    headers = {
-        "User-Agent": "Mozilla/5.0 (DiscordBot)"
-    }
-
-    async with aiohttp.ClientSession(headers=headers) as session:
-        async with session.get(DUCKDUCKGO_API_URL, params=params) as response:
+    async with aiohttp.ClientSession() as session:
+        async with session.get(api_url) as response:
             if response.status == 200:
                 data = await response.json()
-                embed = discord.Embed(title=f"DuckDuckGo Search: {query}", color=discord.Color.blurple())
-
-                if data.get("AbstractText"):
-                    embed.description = data["AbstractText"]
-                    if data.get("AbstractURL"):
-                        embed.add_field(name="Source", value=data["AbstractURL"], inline=False)
-                elif data.get("RelatedTopics"):
-                    results = ""
-                    for topic in data["RelatedTopics"][:5]:
-                        if "Text" in topic and "FirstURL" in topic:
-                            results += f"[{topic['Text']}]({topic['FirstURL']})\n"
-                        elif "Topics" in topic:
-                            for sub_topic in topic["Topics"][:3]:
-                                if "Text" in sub_topic and "FirstURL" in sub_topic:
-                                    results += f"  • [{sub_topic['Text']}]({sub_topic['FirstURL']})\n"
-                    embed.description = results or "No direct results found."
+                question = data.get("question")
+                if question:
+                    embed = discord.Embed(
+                        title="🤔 Would You Rather...",
+                        description=question,
+                        color=discord.Color.blurple()
+                    )
+                    embed.set_footer(text=f"Rating: {rating.upper()}")
+                    await ctx.send(embed=embed)
                 else:
-                    embed.description = "No direct results found."
-
-                if data.get("Image"):
-                    embed.set_thumbnail(url=f"https://duckduckgo.com{data['Image']}")
-
-                await ctx.send(embed=embed)
+                    await ctx.send("Couldn't fetch a question at the moment. Please try again later.")
             else:
-                await ctx.send(f"DuckDuckGo search failed with status code: {response.status}")
+                await ctx.send(f"API request failed with status code: {response.status}")
 
 
 
