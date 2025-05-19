@@ -2490,40 +2490,34 @@ async def lyrics(ctx, *, song: str = None):
         await ctx.send("❌ Please provide a song title to search lyrics for. Example:\n`$lyrics 505`")
         return
 
-    api_url = f"https://some-random-api.ml/lyrics?title={song}"
+    # For lyrics.ovh you need artist and title separately, but you can try guessing:
+    # Split input into artist and title if possible
+    if " - " in song:
+        artist, title = song.split(" - ", 1)
+    else:
+        # fallback to song only, may not work perfectly
+        artist = ""
+        title = song
+
+    api_url = f"https://api.lyrics.ovh/v1/{artist}/{title}"
 
     async with aiohttp.ClientSession() as session:
         try:
             async with session.get(api_url) as response:
                 if response.status != 200:
-                    await ctx.send(f"⚠️ API returned an error: HTTP {response.status}")
-                    return
-
-                content_type = response.headers.get("Content-Type", "")
-                if "application/json" not in content_type:
-                    await ctx.send("⚠️ Unexpected response format from the API.")
+                    await ctx.send(f"⚠️ Lyrics not found for '{song}'.")
                     return
 
                 data = await response.json()
-
-                if "error" in data:
-                    await ctx.send(f"⚠️ API Error: {data['error']}")
-                    return
-
                 lyrics_text = data.get("lyrics")
-                title = data.get("title", song)
-                author = data.get("author", "Unknown")
-
                 if not lyrics_text:
-                    await ctx.send("❌ No lyrics found for that song.")
+                    await ctx.send("❌ No lyrics found.")
                     return
 
-                # Discord message limit is 2000 chars, so split lyrics in chunks
                 chunks = [lyrics_text[i:i+1900] for i in range(0, len(lyrics_text), 1900)]
-
                 for i, chunk in enumerate(chunks):
                     embed = discord.Embed(
-                        title=f"Lyrics for {title} - {author}",
+                        title=f"Lyrics for {song}",
                         description=chunk,
                         color=discord.Color.blue()
                     )
@@ -2533,8 +2527,7 @@ async def lyrics(ctx, *, song: str = None):
                     await ctx.send(embed=embed)
 
         except Exception as e:
-            await ctx.send(f"⚠️ An error occurred while fetching lyrics: {e}")
-
+            await ctx.send(f"⚠️ An error occurred: {e}")
 
 
 keep_alive()
