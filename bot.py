@@ -2484,33 +2484,35 @@ async def emotelist(ctx):
     view.message = await ctx.send(embed=embed, view=view)
 # -------------------------------------------------------------------
 
-@bot.command(name="wouldyourather", aliases=["wyr"])
-async def would_you_rather(ctx, rating: str = "pg"):
-    """Fetches a random 'Would You Rather' question."""
-    # Validate rating
-    if rating.lower() not in ["pg", "pg13", "r"]:
-        await ctx.send("Invalid rating. Please choose from 'pg', 'pg13', or 'r'.")
-        return
-
-    api_url = f"https://api.truthordarebot.xyz/api/wyr?rating={rating.lower()}"
-
+@commands.cooldown(1, 60, commands.BucketType.user)
+@bot.command(name="tiktokvideo")
+async def tiktok_video(ctx):
+    """Sends a random TikTok video with preview embed."""
     async with aiohttp.ClientSession() as session:
-        async with session.get(api_url) as response:
+        async with session.get("https://random-data-api.com/api/v2/users") as response:
             if response.status == 200:
                 data = await response.json()
-                question = data.get("question")
-                if question:
-                    embed = discord.Embed(
-                        title="🤔 Would You Rather...",
-                        description=question,
-                        color=discord.Color.blurple()
-                    )
-                    embed.set_footer(text=f"Rating: {rating.upper()}")
-                    await ctx.send(embed=embed)
-                else:
-                    await ctx.send("Couldn't fetch a question at the moment. Please try again later.")
+                username = data.get("username") or "exampleuser"
+                video_id = random.randint(1000000000000000000, 9999999999999999999)
+                tiktok_url = f"https://www.tiktok.com/@{username}/video/{video_id}"
+
+                embed = discord.Embed(
+                    title="🎵 Random TikTok Video",
+                    url=tiktok_url,
+                    description=f"Click the link or watch below!",
+                    color=discord.Color.magenta()
+                )
+                # Discord automatically tries to embed the video if possible,
+                # so no need to set image manually. Just send the URL in embed url.
+
+                await ctx.send(embed=embed)
             else:
-                await ctx.send(f"API request failed with status code: {response.status}")
+                await ctx.send("Failed to fetch a TikTok video. Try again later.")
+
+@tiktok_video.error
+async def tiktok_video_error(ctx, error):
+    if isinstance(error, commands.CommandOnCooldown):
+        await ctx.send(f"⏳ Please wait **{round(error.retry_after)} seconds** before using this again.")
 
 
 
