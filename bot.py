@@ -2109,13 +2109,11 @@ ROLL_DATA = {
     "winner": None,
     "cooldowns": {},
     "active": False,
-    "last_activity": None,
-    "channel_id": None,
-    "message_id": None
+    "last_interaction": None,
+    "message": None,
 }
 
 COOLDOWN_SECONDS = 3
-INACTIVITY_TIMEOUT = 30
 ALLOWED_CHANNEL_ID = 1363403776999948380
 MUTED_ROLE_IDS = [1259666579214569552, 1259678918089379910, 1361732154584858724, 1276479975654166581]
 
@@ -2142,8 +2140,8 @@ class RollButton(discord.ui.View):
             )
             return
 
+        ROLL_DATA["last_interaction"] = datetime.utcnow()
         ROLL_DATA["cooldowns"][user_id] = now
-        ROLL_DATA["last_activity"] = now
         rolled = random.randint(self.number_range[0], self.number_range[1])
         ROLL_DATA["rolls"] += 1
 
@@ -2162,13 +2160,12 @@ class RollButton(discord.ui.View):
                         view_channel=True
                     )
 
+            self.disable_all_items()
+            await interaction.message.edit(view=self)
             await interaction.response.send_message(
                 f"🎉 The winner is {interaction.user.mention} — it took {ROLL_DATA['rolls']} rolls!",
                 allowed_mentions=discord.AllowedMentions(users=True)
             )
-            self.disable_all_items()
-            await interaction.message.edit(view=self)
-
         elif abs(rolled - self.target_number) <= 5:
             await interaction.response.send_message(
                 f"🎯 {interaction.user.mention} rolled **{rolled}** — very close!", ephemeral=False
@@ -2177,6 +2174,22 @@ class RollButton(discord.ui.View):
             await interaction.response.send_message(
                 f"🎲 You rolled **{rolled}** — try again!", ephemeral=True
             )
+
+async def check_roll_inactivity(channel):
+    while ROLL_DATA["active"]:
+        await asyncio.sleep(5)
+        if ROLL_DATA["last_interaction"] and datetime.utcnow() - ROLL_DATA["last_interaction"] > timedelta(seconds=30):
+            ROLL_DATA["active"] = False
+            view = ROLL_DATA["message"].components[0]
+            for item in view.children:
+                item.disabled = True
+            await ROLL_DATA["message"].edit(view=view)
+            for role_id in MUTED_ROLE_IDS:
+                muted_role = channel.guild.get_role(role_id)
+                if muted_role:
+                    await channel.set_permissions(muted_role, send_messages=True)
+            await channel.send("⏰ Game ended due to 30 seconds of inactivity.")
+            break
 
 @bot.command()
 async def roll(ctx, arg: str):
@@ -2204,8 +2217,7 @@ async def roll(ctx, arg: str):
         "winner": None,
         "cooldowns": {},
         "active": True,
-        "last_activity": time.time(),
-        "channel_id": ctx.channel.id,
+        "last_interaction": datetime.utcnow(),
     })
 
     for role_id in MUTED_ROLE_IDS:
@@ -2224,38 +2236,10 @@ async def roll(ctx, arg: str):
     )
 
     view = RollButton(target, (low, high))
-    message = await ctx.send(description, view=view)
-    ROLL_DATA["message_id"] = message.id
-    check_inactivity.start()
+    msg = await ctx.send(description, view=view)
+    ROLL_DATA["message"] = msg
 
-@tasks.loop(seconds=5)
-async def check_inactivity():
-    if ROLL_DATA["active"] and time.time() - ROLL_DATA["last_activity"] > INACTIVITY_TIMEOUT:
-        ROLL_DATA["active"] = False
-
-        channel = bot.get_channel(ROLL_DATA["channel_id"])
-        if channel:
-            try:
-                message = await channel.fetch_message(ROLL_DATA["message_id"])
-                view = RollButton(ROLL_DATA["target"], ROLL_DATA["range"])
-                view.disable_all_items()
-                await message.edit(content="⏰ Game ended due to 30 seconds of inactivity.", view=view)
-            except:
-                pass
-
-        for role_id in MUTED_ROLE_IDS:
-            muted_role = channel.guild.get_role(role_id)
-            if muted_role:
-                await channel.set_permissions(
-                    muted_role,
-                    send_messages=True,
-                    attach_files=True,
-                    read_message_history=True,
-                    view_channel=True
-                )
-
-        check_inactivity.stop()
-
+    bot.loop.create_task(check_roll_inactivity(ctx.channel))
 # --------------------------------
 
 BOMB_CHANNEL_ID = 1363403776999948380  # Allowed channel
