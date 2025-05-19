@@ -2109,13 +2109,20 @@ ROLL_DATA = {
     "winner": None,
     "cooldowns": {},
     "active": False,
-    "last_interaction": None,
-    "message": None,
+    "message": None,  # Store the message object for editing
+    "timeout_task": None,  # Store the timeout task
 }
 
 COOLDOWN_SECONDS = 3
-ALLOWED_CHANNEL_ID = 1363403776999948380
-MUTED_ROLE_IDS = [1259666579214569552, 1259678918089379910, 1361732154584858724, 1276479975654166581]
+INACTIVITY_TIMEOUT_SECONDS = 30
+ALLOWED_CHANNEL_ID = 1363403776999948380  # Replace with your actual channel ID
+MUTED_ROLE_IDS = [
+    1259666579214569552,
+    1259678918089379910,
+    1361732154584858724,
+    1276479975654166581,
+]  # Replace with the roles to be muted during game
+
 
 class RollButton(discord.ui.View):
     def __init__(self, target_number, number_range):
@@ -2123,10 +2130,20 @@ class RollButton(discord.ui.View):
         self.target_number = target_number
         self.number_range = number_range
 
-    @discord.ui.button(label="🎲 Roll the Dice!", style=discord.ButtonStyle.primary, custom_id="roll_button")
-    async def roll_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        # Only allow the user who started the command to interact
+        return interaction.user == interaction.message.author
+
+    @discord.ui.button(
+        label="🎲 Roll the Dice!", style=discord.ButtonStyle.primary, custom_id="roll_button"
+    )
+    async def roll_button(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ):
         if ROLL_DATA["winner"]:
-            await interaction.response.send_message("❌ This game has already ended.", ephemeral=True)
+            await interaction.response.send_message(
+                "❌ This game has already ended.", ephemeral=True
+            )
             return
 
         user_id = interaction.user.id
@@ -2136,11 +2153,11 @@ class RollButton(discord.ui.View):
         if now - last_time < COOLDOWN_SECONDS:
             remaining = COOLDOWN_SECONDS - int(now - last_time)
             await interaction.response.send_message(
-                f"⏳ Please wait {remaining} more second(s) before rolling again.", ephemeral=True
+                f"⏳ Please wait {remaining} more second(s) before rolling again.",
+                ephemeral=True,
             )
             return
 
-        ROLL_DATA["last_interaction"] = datetime.utcnow()
         ROLL_DATA["cooldowns"][user_id] = now
         rolled = random.randint(self.number_range[0], self.number_range[1])
         ROLL_DATA["rolls"] += 1
@@ -2149,47 +2166,62 @@ class RollButton(discord.ui.View):
             ROLL_DATA["winner"] = interaction.user
             ROLL_DATA["active"] = False
 
+            # Re-enable permissions for muted roles
+            channel = interaction.channel
             for role_id in MUTED_ROLE_IDS:
                 muted_role = interaction.guild.get_role(role_id)
                 if muted_role:
-                    await interaction.channel.set_permissions(
+                    await channel.set_permissions(
                         muted_role,
                         send_messages=True,
                         attach_files=True,
                         read_message_history=True,
-                        view_channel=True
+                        view_channel=True,
                     )
 
-            self.disable_all_items()
-            await interaction.message.edit(view=self)
             await interaction.response.send_message(
                 f"🎉 The winner is {interaction.user.mention} — it took {ROLL_DATA['rolls']} rolls!",
-                allowed_mentions=discord.AllowedMentions(users=True)
+                allowed_mentions=discord.AllowedMentions(users=True),
             )
+            self.disable_all_items()
+            await interaction.message.edit(view=self)
         elif abs(rolled - self.target_number) <= 5:
             await interaction.response.send_message(
-                f"🎯 {interaction.user.mention} rolled **{rolled}** — very close!", ephemeral=False
+                f"🎯 {interaction.user.mention} rolled **{rolled}** — very close!",
+                ephemeral=False,
             )
         else:
             await interaction.response.send_message(
                 f"🎲 You rolled **{rolled}** — try again!", ephemeral=True
             )
+        # Reset the inactivity timer every time someone rolls
+        if ROLL_DATA["timeout_task"]:
+            ROLL_DATA["timeout_task"].cancel()
+        ROLL_DATA["timeout_task"] = asyncio.create_task(
+            inactivity_timeout(interaction.message)
+        )
 
-async def check_roll_inactivity(channel):
-    while ROLL_DATA["active"]:
-        await asyncio.sleep(5)
-        if ROLL_DATA["last_interaction"] and datetime.utcnow() - ROLL_DATA["last_interaction"] > timedelta(seconds=30):
-            ROLL_DATA["active"] = False
-            view = ROLL_DATA["message"].components[0]
-            for item in view.children:
-                item.disabled = True
-            await ROLL_DATA["message"].edit(view=view)
-            for role_id in MUTED_ROLE_IDS:
-                muted_role = channel.guild.get_role(role_id)
-                if muted_role:
-                    await channel.set_permissions(muted_role, send_messages=True)
-            await channel.send("⏰ Game ended due to 30 seconds of inactivity.")
-            break
+
+async def inactivity_timeout(message):
+    await asyncio.sleep(INACTIVITY_TIMEOUT_SECONDS)
+    if ROLL_DATA["active"]:
+        ROLL_DATA["active"] = False
+        # Re-enable permissions for muted roles
+        for role_id in MUTED_ROLE_IDS:
+            muted_role = message.guild.get_role(role_id)
+            if muted_role:
+                await message.channel.set_permissions(
+                    muted_role,
+                    send_messages=True,
+                    attach_files=True,
+                    read_message_history=True,
+                    view_channel=True,
+                )
+        try:
+            await message.edit(content="⏰ Roll the number game ended due to inactivity.", view=None)
+        except discord.NotFound:
+            pass
+
 
 @bot.command()
 async def roll(ctx, arg: str):
@@ -2199,7 +2231,9 @@ async def roll(ctx, arg: str):
         return
 
     if ROLL_DATA["active"]:
-        await ctx.send("⚠️ A game is already in progress. Please finish it before starting a new one.")
+        await ctx.send(
+            "⚠️ A game is already in progress. Please finish it before starting a new one."
+        )
         return
 
     try:
@@ -2210,23 +2244,25 @@ async def roll(ctx, arg: str):
         return
 
     target = random.randint(low, high)
-    ROLL_DATA.update({
-        "target": target,
-        "range": (low, high),
-        "rolls": 0,
-        "winner": None,
-        "cooldowns": {},
-        "active": True,
-        "last_interaction": datetime.utcnow(),
-    })
+    ROLL_DATA.update(
+        {
+            "target": target,
+            "range": (low, high),
+            "rolls": 0,
+            "winner": None,
+            "cooldowns": {},
+            "active": True,
+            "message": None,  # Store the message object
+            "timeout_task": None,  # Store the timeout task
+        }
+    )
 
+    # Disable permissions for muted roles
     for role_id in MUTED_ROLE_IDS:
         muted_role = ctx.guild.get_role(role_id)
         if muted_role:
             await ctx.channel.set_permissions(
-                muted_role,
-                send_messages=False,
-                view_channel=True
+                muted_role, send_messages=False, view_channel=True
             )
 
     description = (
@@ -2236,10 +2272,11 @@ async def roll(ctx, arg: str):
     )
 
     view = RollButton(target, (low, high))
-    msg = await ctx.send(description, view=view)
-    ROLL_DATA["message"] = msg
-
-    bot.loop.create_task(check_roll_inactivity(ctx.channel))
+    message = await ctx.send(description, view=view)
+    ROLL_DATA["message"] = message  # Store the message object
+    ROLL_DATA["timeout_task"] = asyncio.create_task(
+        inactivity_timeout(message)
+    )  # Start the timeout task
 # --------------------------------
 
 BOMB_CHANNEL_ID = 1363403776999948380  # Allowed channel
