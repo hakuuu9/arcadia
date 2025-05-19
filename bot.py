@@ -2423,13 +2423,6 @@ class EmojiPaginator(View):
         self.page = 0
         self.message = None
 
-        self.update_buttons()
-
-    def update_buttons(self):
-        self.clear_items()
-        self.add_item(Button(label="⏪ Prev", style=discord.ButtonStyle.blurple, custom_id="prev"))
-        self.add_item(Button(label="⏩ Next", style=discord.ButtonStyle.blurple, custom_id="next"))
-
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         return interaction.user == self.ctx.author
 
@@ -2437,18 +2430,22 @@ class EmojiPaginator(View):
         if self.message:
             await self.message.edit(view=None)
 
-    @discord.ui.button(label="⏪ Prev", style=discord.ButtonStyle.blurple, row=0)
+    @discord.ui.button(label="⏪ Prev", style=discord.ButtonStyle.blurple)
     async def prev(self, interaction: discord.Interaction, button: discord.ui.Button):
         if self.page > 0:
             self.page -= 1
             await self.update_embed(interaction)
+        else:
+            await interaction.response.defer()
 
-    @discord.ui.button(label="⏩ Next", style=discord.ButtonStyle.blurple, row=0)
+    @discord.ui.button(label="⏩ Next", style=discord.ButtonStyle.blurple)
     async def next(self, interaction: discord.Interaction, button: discord.ui.Button):
         max_page = (len(self.emojis) - 1) // self.per_page
         if self.page < max_page:
             self.page += 1
             await self.update_embed(interaction)
+        else:
+            await interaction.response.defer()
 
     async def update_embed(self, interaction):
         embed = get_emoji_embed(self.ctx.guild.name, self.emojis, self.page, self.per_page)
@@ -2485,22 +2482,32 @@ async def emotelist(ctx):
     view = EmojiPaginator(ctx, emojis)
     embed = get_emoji_embed(ctx.guild.name, emojis, 0, view.per_page)
     view.message = await ctx.send(embed=embed, view=view)
-
 # -------------------------------------------------------------------
 
 from urllib.parse import quote_plus
 
 DUCKDUCKGO_API_URL = "https://api.duckduckgo.com/"
 
-@bot.command(name="duckduckgo", aliases=["duck", "search"])
+@bot.command(name="ddg", aliases=["duck", "search"])
 async def duckduckgo_search(ctx, *, query):
+    """Searches DuckDuckGo for the given query."""
     if not query:
         await ctx.send("Please provide a search query.")
         return
 
-    params = {"q": query, "format": "json", "pretty": 0}
+    params = {
+        "q": query,
+        "format": "json",
+        "no_redirect": 1,  # Prevent auto-redirects
+        "no_html": 1,
+        "pretty": 0
+    }
 
-    async with aiohttp.ClientSession() as session:
+    headers = {
+        "User-Agent": "Mozilla/5.0 (DiscordBot)"
+    }
+
+    async with aiohttp.ClientSession(headers=headers) as session:
         async with session.get(DUCKDUCKGO_API_URL, params=params) as response:
             if response.status == 200:
                 data = await response.json()
@@ -2519,11 +2526,7 @@ async def duckduckgo_search(ctx, *, query):
                             for sub_topic in topic["Topics"][:3]:
                                 if "Text" in sub_topic and "FirstURL" in sub_topic:
                                     results += f"  • [{sub_topic['Text']}]({sub_topic['FirstURL']})\n"
-
-                    if results:
-                        embed.description = "Here are some related results:\n" + results
-                    else:
-                        embed.description = "No direct results found."
+                    embed.description = results or "No direct results found."
                 else:
                     embed.description = "No direct results found."
 
@@ -2533,10 +2536,6 @@ async def duckduckgo_search(ctx, *, query):
                 await ctx.send(embed=embed)
             else:
                 await ctx.send(f"DuckDuckGo search failed with status code: {response.status}")
-
-@bot.event
-async def on_ready():
-    print(f'Logged in as {bot.user}')
 
 
 
