@@ -2486,7 +2486,7 @@ async def emotelist(ctx):
 
 @commands.cooldown(1, 60, commands.BucketType.user)
 @bot.command()
-async def tiktok(ctx, url: str):
+async def tiktokvideo(ctx, url: str):
     await ctx.send("Downloading video...")
 
     api_url = f"https://tikwm.com/api/?url={url}"
