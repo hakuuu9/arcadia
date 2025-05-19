@@ -402,6 +402,7 @@ async def info_command(ctx):
                 "**📱 `$tiktok <link>`** — Download TikTok video (no watermark)\n"
                 "**🖼️ `$serveravatar`** — Show the server's icon\n"
                 "**🖼️ `$serverbanner`** — Show the server's banner\n"
+                "**🎶 `$lyrics [song title]`** — Get lyrics for a song\n"
             ),
             inline=False
         ).set_thumbnail(url="https://i.imgur.com/JxsCfCe.gif"),
