@@ -2487,17 +2487,17 @@ async def emotelist(ctx):
 @bot.command()
 async def lyrics(ctx, *, song: str = None):
     if not song:
-        await ctx.send("❌ Please provide a song title to search lyrics for. Example:\n`$lyrics 505`")
+        await ctx.send("❌ Please provide a song title to search lyrics for.\nExample: `$lyrics 505` or `$lyrics Arctic Monkeys - 505`")
         return
 
-    # Split into artist and title if possible
+    # Try to extract artist and title if separated by " - "
     if " - " in song:
         artist, title = song.split(" - ", 1)
     else:
         artist = ""
         title = song
 
-    # Normalize capitalization (capitalize first letters of words)
+    # Normalize case
     artist = artist.strip().title()
     title = title.strip().title()
 
@@ -2507,29 +2507,29 @@ async def lyrics(ctx, *, song: str = None):
         try:
             async with session.get(api_url) as response:
                 if response.status != 200:
-                    await ctx.send(f"⚠️ Lyrics not found for '{song}'.")
+                    await ctx.send(f"⚠️ Couldn't find lyrics for **{song}**.")
                     return
 
                 data = await response.json()
                 lyrics_text = data.get("lyrics")
                 if not lyrics_text:
-                    await ctx.send("❌ No lyrics found.")
+                    await ctx.send(f"❌ No lyrics found for **{song}**.")
                     return
 
-                chunks = [lyrics_text[i:i+1900] for i in range(0, len(lyrics_text), 1900)]
+                # Split lyrics into chunks
+                chunks = [lyrics_text[i:i + 1900] for i in range(0, len(lyrics_text), 1900)]
                 for i, chunk in enumerate(chunks):
                     embed = discord.Embed(
-                        title=f"Lyrics for {song}",
+                        title=f"Lyrics: {title[:50]}{'...' if len(title) > 50 else ''}",
                         description=chunk,
-                        color=discord.Color.blue()
+                        color=discord.Color.purple()
                     )
                     if i == 0:
                         embed.set_footer(text=f"Requested by {ctx.author.display_name}")
-
                     await ctx.send(embed=embed)
 
         except Exception as e:
-            await ctx.send(f"⚠️ An error occurred: {e}")
+            await ctx.send(f"⚠️ An error occurred while fetching lyrics.\n`{e}`")
 
 
 keep_alive()
