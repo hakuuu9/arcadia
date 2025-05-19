@@ -2254,7 +2254,7 @@ async def roll(ctx, arg: str):
     await ctx.send(description, view=RollButton(target, (low, high)))
 # --------------------------------
 
-BOMB_CHANNEL_ID = 1363403776999948380  # Allowed channel
+BOMB_CHANNEL_ID = 1363403776999948380  # Replace with your allowed channel ID
 
 @bot.command()
 async def bomb(ctx):
@@ -2269,6 +2269,7 @@ async def bomb(ctx):
 
     bot.bomb_active = True
     bot.bomb_players = []
+    bot.bomb_eliminated = []
 
     class JoinView(discord.ui.View):
         def __init__(self):
@@ -2287,13 +2288,11 @@ async def bomb(ctx):
                 await ctx.send("Not enough players joined to start the bomb game.")
                 bot.bomb_active = False
                 return
-
-            await start_bomb_game(ctx)
+            await start_bomb_game(ctx, bot.bomb_players.copy())
 
     await ctx.send("__**💣 ARCADIA BOMB**__\n\nClick the button to join the Bomb game! You have 20 seconds to join.", view=JoinView())
 
-async def start_bomb_game(ctx):
-    players = bot.bomb_players.copy()
+async def start_bomb_game(ctx, players):
     current_holder = random.choice(players)
     await ctx.send(f"🎮 The bomb starts with {current_holder.mention}! You have 10 seconds to pass it!")
 
@@ -2318,18 +2317,44 @@ async def start_bomb_game(ctx):
             await ctx.send(f"{interaction.user.mention} passed the bomb to {new_holder.mention}!")
 
             self.stop()
-            await continue_bomb_game(ctx, current_holder, players)
+            await asyncio.sleep(1)
+            await start_bomb_game(ctx, players)
 
         async def on_timeout(self):
-            await ctx.send(f"💥 Time's up! {current_holder.mention} held the bomb too long and exploded!")
-            bot.bomb_active = False
+            await ctx.send(f"💥 Time's up! {current_holder.mention} exploded!")
+            players.remove(current_holder)
+            bot.bomb_eliminated.append(current_holder)
+
+            if len(players) == 1:
+                winner = players[0]
+                eliminated_mentions = ", ".join(p.mention for p in bot.bomb_eliminated)
+                await ctx.send(
+                    f"🏆 **The winner is {winner.mention}!**\n\n🪦 Eliminated players: {eliminated_mentions}"
+                )
+                bot.bomb_active = False
+            else:
+                await asyncio.sleep(1)
+                await start_bomb_game(ctx, players)
 
     await ctx.send(f"{current_holder.mention}, click the button to pass the bomb!", view=PassView())
 
-async def continue_bomb_game(ctx, current_holder, players):
-    await ctx.send(f"🔥 New round! {current_holder.mention} has the bomb!")
-    await asyncio.sleep(1)
-    await start_bomb_game(ctx)
+@bot.command()
+async def bombstop(ctx):
+    if not hasattr(bot, "bomb_active") or not bot.bomb_active:
+        await ctx.send("❌ There's no active Bomb game to stop.")
+        return
+
+    # Only allow the game starter or someone with administrator permission
+    if ctx.author != getattr(bot, "bomb_starter", None) and not ctx.author.guild_permissions.administrator:
+        await ctx.send("🚫 Only the game starter or an admin can stop the game.")
+        return
+
+    bot.bomb_active = False
+    bot.bomb_players = []
+    bot.bomb_eliminated = []
+    bot.bomb_starter = None
+
+    await ctx.send("🛑 The Bomb game has been stopped manually.")
 
 # -------------------------------------------------------------------------------------
 
