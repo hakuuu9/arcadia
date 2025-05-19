@@ -2412,6 +2412,138 @@ async def trivia(ctx):
     game = TriviaGame(ctx)
     await game.start()
 
+# ---------------------------------------------------------------------------
+
+class EmojiPaginator(View):
+    def __init__(self, ctx, emojis, per_page=8):
+        super().__init__(timeout=60)
+        self.ctx = ctx
+        self.emojis = emojis
+        self.per_page = per_page
+        self.page = 0
+        self.message = None
+
+        self.update_buttons()
+
+    def update_buttons(self):
+        self.clear_items()
+        self.add_item(Button(label="⏪ Prev", style=discord.ButtonStyle.blurple, custom_id="prev"))
+        self.add_item(Button(label="⏩ Next", style=discord.ButtonStyle.blurple, custom_id="next"))
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        return interaction.user == self.ctx.author
+
+    async def on_timeout(self):
+        if self.message:
+            await self.message.edit(view=None)
+
+    @discord.ui.button(label="⏪ Prev", style=discord.ButtonStyle.blurple, row=0)
+    async def prev(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.page > 0:
+            self.page -= 1
+            await self.update_embed(interaction)
+
+    @discord.ui.button(label="⏩ Next", style=discord.ButtonStyle.blurple, row=0)
+    async def next(self, interaction: discord.Interaction, button: discord.ui.Button):
+        max_page = (len(self.emojis) - 1) // self.per_page
+        if self.page < max_page:
+            self.page += 1
+            await self.update_embed(interaction)
+
+    async def update_embed(self, interaction):
+        embed = get_emoji_embed(self.ctx.guild.name, self.emojis, self.page, self.per_page)
+        await interaction.response.edit_message(embed=embed, view=self)
+
+
+def get_emoji_embed(guild_name, emojis, page, per_page):
+    embed = discord.Embed(
+        title=f"{guild_name} Emoji List — Page {page + 1}",
+        description="Click the emoji names to download.",
+        color=discord.Color.purple()
+    )
+
+    start = page * per_page
+    end = start + per_page
+    emoji_lines = []
+    for emoji in emojis[start:end]:
+        emoji_url = emoji.url
+        emoji_line = f"{emoji} — [`:{emoji.name}:`]({emoji_url})"
+        emoji_lines.append(emoji_line)
+
+    embed.add_field(name="Emojis", value="\n".join(emoji_lines), inline=False)
+    embed.set_footer(text=f"Page {page + 1} of {(len(emojis) - 1) // per_page + 1}")
+    return embed
+
+
+@bot.command()
+async def emotelist(ctx):
+    emojis = ctx.guild.emojis
+    if not emojis:
+        await ctx.send("😢 This server has no custom emojis.")
+        return
+
+    view = EmojiPaginator(ctx, emojis)
+    embed = get_emoji_embed(ctx.guild.name, emojis, 0, view.per_page)
+    view.message = await ctx.send(embed=embed, view=view)
+
+# -------------------------------------------------------------------
+
+from urllib.parse import quote_plus
+
+DUCKDUCKGO_API_URL = "https://api.duckduckgo.com/"
+
+class DuckDuckGo(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+
+    @commands.command(name="ddg", aliases=["duck", "search"])
+    async def duckduckgo_search(self, ctx, *, query):
+        """Searches DuckDuckGo for the given query."""
+        if not query:
+            await ctx.send("Please provide a search query.")
+            return
+
+        params = {
+            "q": query,
+            "format": "json",
+            "pretty": 0  # Disable pretty printing for easier parsing
+        }
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(DUCKDUCKGO_API_URL, params=params) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    embed = discord.Embed(title=f"DuckDuckGo Search: {query}", color=discord.Color.blurple())
+
+                    if data.get("AbstractText"):
+                        embed.description = data["AbstractText"]
+                        if data.get("AbstractURL"):
+                            embed.add_field(name="Source", value=data["AbstractURL"], inline=False)
+                    elif data.get("RelatedTopics"):
+                        results = ""
+                        for topic in data["RelatedTopics"][:5]:  # Show up to 5 related topics
+                            if "Text" in topic and "FirstURL" in topic:
+                                results += f"[{topic['Text']}]({topic['FirstURL']})\n"
+                            elif "Topics" in topic:
+                                for sub_topic in topic["Topics"][:3]:  # Show up to 3 sub-topics
+                                    if "Text" in sub_topic and "FirstURL" in sub_topic:
+                                        results += f"  • [{sub_topic['Text']}]({sub_topic['FirstURL']})\n"
+                        if results:
+                            embed.description = "Here are some related results:\n" + results
+                        else:
+                            embed.description = "No direct results found."
+                    else:
+                        embed.description = "No direct results found."
+
+                    if data.get("Image"):
+                        embed.set_thumbnail(url=f"https://duckduckgo.com{data['Image']}")
+
+                    await ctx.send(embed=embed)
+                else:
+                    await ctx.send(f"DuckDuckGo search failed with status code: {response.status}")
+
+async def setup(bot):
+    await bot.add_cog(DuckDuckGo(bot))
 
 
 
