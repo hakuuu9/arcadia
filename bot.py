@@ -2254,7 +2254,7 @@ async def roll(ctx, arg: str):
     await ctx.send(description, view=RollButton(target, (low, high)))
 # --------------------------------
 
-BOMB_CHANNEL_ID = 1363403776999948380  # Replace with your allowed channel ID
+BOMB_CHANNEL_ID = 1363403776999948380  # Replace with your channel ID
 
 @bot.command()
 async def bomb(ctx):
@@ -2263,7 +2263,7 @@ async def bomb(ctx):
         await ctx.send(f"❌ Please use this command in {correct_channel.mention}.")
         return
 
-    if hasattr(bot, "bomb_active") and bot.bomb_active:
+    if getattr(bot, "bomb_active", False):
         await ctx.send("⚠️ A Bomb game is already in progress.")
         return
 
@@ -2288,13 +2288,21 @@ async def bomb(ctx):
                 await ctx.send("Not enough players joined to start the bomb game.")
                 bot.bomb_active = False
                 return
+
             await start_bomb_game(ctx, bot.bomb_players.copy())
 
     await ctx.send("__**💣 ARCADIA BOMB**__\n\nClick the button to join the Bomb game! You have 20 seconds to join.", view=JoinView())
 
-async def start_bomb_game(ctx, players):
-    current_holder = random.choice(players)
-    await ctx.send(f"🎮 The bomb starts with {current_holder.mention}! You have 10 seconds to pass it!")
+async def start_bomb_game(ctx, players, current_holder=None):
+    if not players:
+        await ctx.send("Game ended unexpectedly — no players left.")
+        bot.bomb_active = False
+        return
+
+    if current_holder is None:
+        current_holder = random.choice(players)
+
+    await ctx.send(f"🎮 The bomb is with {current_holder.mention}! You have 10 seconds to pass it!")
 
     class PassView(discord.ui.View):
         def __init__(self):
@@ -2309,7 +2317,7 @@ async def start_bomb_game(ctx, players):
 
             available = [p for p in players if p != current_holder]
             if not available:
-                await ctx.send("No one to pass the bomb to!")
+                await ctx.send("No one left to pass the bomb to!")
                 return
 
             new_holder = random.choice(available)
@@ -2318,7 +2326,7 @@ async def start_bomb_game(ctx, players):
 
             self.stop()
             await asyncio.sleep(1)
-            await start_bomb_game(ctx, players)
+            await start_bomb_game(ctx, players, current_holder)
 
         async def on_timeout(self):
             await ctx.send(f"💥 Time's up! {current_holder.mention} exploded!")
@@ -2327,10 +2335,8 @@ async def start_bomb_game(ctx, players):
 
             if len(players) == 1:
                 winner = players[0]
-                eliminated_mentions = ", ".join(p.mention for p in bot.bomb_eliminated)
-                await ctx.send(
-                    f"🏆 **The winner is {winner.mention}!**\n\n🪦 Eliminated players: {eliminated_mentions}"
-                )
+                eliminated = ", ".join(p.mention for p in bot.bomb_eliminated)
+                await ctx.send(f"🏆 **The winner is {winner.mention}!**\n\n🪦 Eliminated: {eliminated}")
                 bot.bomb_active = False
             else:
                 await asyncio.sleep(1)
