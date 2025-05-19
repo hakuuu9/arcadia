@@ -2484,32 +2484,42 @@ async def emotelist(ctx):
     view.message = await ctx.send(embed=embed, view=view)
 # -------------------------------------------------------------------
 
-@commands.cooldown(1, 60, commands.BucketType.user)
 @bot.command()
-async def tiktokvideo(ctx, url: str):
-    await ctx.send("Downloading video...")
+async def lyrics(ctx, *, song: str):
+    """Fetches lyrics for the given song title."""
+    async with aiohttp.ClientSession() as session:
+        url = f"https://api.lyrics.ovh/v1//{song}"
+        # lyrics.ovh requires artist and title, but we only have title.
+        # So we try to guess artist or send an error if no result.
+        
+        # Instead, use another API: https://some-random-api.ml/lyrics?title=
+        # This one works better for title only.
 
-    api_url = f"https://tikwm.com/api/?url={url}"
+        api_url = f"https://some-random-api.ml/lyrics?title={song}"
 
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(api_url) as resp:
-                data = await resp.json()
+        async with session.get(api_url) as response:
+            if response.status == 200:
+                data = await response.json()
+                lyrics_text = data.get("lyrics")
+                title = data.get("title", song)
+                author = data.get("author", "Unknown")
 
-            video_url = data["data"]["play"]
-            title = data["data"].get("title", "TikTok Video")
-
-            # Download video bytes
-            async with session.get(video_url) as video_resp:
-                video_bytes = await video_resp.read()
-
-            video_file = io.BytesIO(video_bytes)
-            video_file.seek(0)
-
-            await ctx.send(content=f"**{title}**", file=discord.File(video_file, filename="tiktok.mp4"))
-
-    except Exception as e:
-        await ctx.send(f"An error occurred: {e}")
+                if lyrics_text:
+                    # Discord message limit is 2000 chars, so chunk if needed
+                    chunks = [lyrics_text[i:i+1900] for i in range(0, len(lyrics_text), 1900)]
+                    for i, chunk in enumerate(chunks):
+                        embed = discord.Embed(
+                            title=f"Lyrics for {title} - {author}",
+                            description=chunk,
+                            color=discord.Color.blue()
+                        )
+                        if i == 0:
+                            embed.set_footer(text=f"Requested by {ctx.author.display_name}")
+                        await ctx.send(embed=embed)
+                else:
+                    await ctx.send("Sorry, no lyrics found for that song.")
+            else:
+                await ctx.send("Sorry, I couldn't reach the lyrics server right now.")
 
 
 
