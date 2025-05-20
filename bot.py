@@ -2699,11 +2699,19 @@ class RedLightGreenLight(discord.ui.View):
                     self.stop()
                     return
 
-            # Check if everyone is eliminated
-            if not self.alive:
-                await self.ctx.send("💀 Everyone has been eliminated. Game over.")
-                self.stop()
-                return
+          # Check win condition: only one player left
+if len(self.alive) == 1:
+    sole_survivor_id = list(self.alive)[0]
+    winner = await self.ctx.bot.fetch_user(sole_survivor_id)
+    await self.ctx.send(f"🏁 {winner.mention} is the last one standing and has WON the Squid Game!")
+    self.stop()
+    return
+
+# If all are eliminated
+if not self.alive:
+    await self.ctx.send("💀 Everyone has been eliminated. Game over.")
+    self.stop()
+    return
 
     def light_text(self):
         return "Green Light — GO!" if self.light == "🟢" else "Red Light — STOP!"
