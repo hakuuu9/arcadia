@@ -2625,5 +2625,84 @@ async def rollstop(ctx):
 
     await ctx.send("🛑 The roll game has been stopped and all roles are unmuted.")
 
+# -----------------------------------------------------------------------
+
+# Replace with your allowed channel ID
+ALLOWED_CHANNEL_ID = 1363403776999948380
+
+class RedLightGreenLight(discord.ui.View):
+    def __init__(self, ctx):
+        super().__init__(timeout=30)  # 30s inactivity timeout
+        self.ctx = ctx
+        self.players = {}
+        self.light = "🟢"
+        self.round = 0
+        self.green_duration = 4
+        self.red_duration = 3
+        self.last_interaction = time.time()
+
+    async def start_game(self, interaction):
+        await interaction.response.send_message("🔫 Squid Game: **Red Light, Green Light** is starting...", ephemeral=False)
+        await asyncio.sleep(2)
+
+        while True:
+            self.light = random.choice(["🟢", "🔴"])
+            self.round += 1
+            embed = discord.Embed(
+                title=f"🦑 Squid Game — Round {self.round}",
+                description=f"{self.light} **{self.light_text()}**\nClick the **Move** button to proceed!",
+                color=0x00ff00 if self.light == "🟢" else 0xff0000
+            )
+            await interaction.followup.send(embed=embed, view=self)
+
+            duration = self.green_duration if self.light == "🟢" else self.red_duration
+            await asyncio.sleep(duration)
+
+            # Timeout check
+            if time.time() - self.last_interaction > 30:
+                await self.ctx.send("⏱️ The game has ended due to 30 seconds of inactivity.")
+                self.stop()
+                return
+
+            # Check for winner
+            for user_id, moves in self.players.items():
+                if moves >= 5:
+                    winner = await self.ctx.bot.fetch_user(user_id)
+                    await self.ctx.send(f"🏁 {winner.mention} has WON the Squid Game!")
+                    self.stop()
+                    return
+
+    def light_text(self):
+        return "Green Light — GO!" if self.light == "🟢" else "Red Light — STOP!"
+
+    @discord.ui.button(label="Move", style=discord.ButtonStyle.success)
+    async def move_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        user = interaction.user
+        self.last_interaction = time.time()  # Reset timeout on click
+
+        if self.light == "🔴":
+            await interaction.response.send_message(f"{user.mention} ❌ ELIMINATED! You moved during Red Light.", ephemeral=True)
+            self.players[user.id] = -1
+        else:
+            if self.players.get(user.id, 0) == -1:
+                await interaction.response.send_message("You're already eliminated!", ephemeral=True)
+            else:
+                self.players[user.id] = self.players.get(user.id, 0) + 1
+                await interaction.response.send_message(f"✅ Safe move! Total moves: {self.players[user.id]}", ephemeral=True)
+
+@commands.command()
+async def squidgame(ctx):
+    """Start a Squid Game: Red Light, Green Light!"""
+    if ctx.channel.id != ALLOWED_CHANNEL_ID:
+        await ctx.send(f"🚫 You can only play Squid Game in <#{ALLOWED_CHANNEL_ID}>.")
+        return
+
+    view = RedLightGreenLight(ctx)
+    await view.start_game(ctx)
+
+# Register the command
+bot.add_command(squidgame)
+
+
 keep_alive()
 bot.run(TOKEN)
