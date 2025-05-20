@@ -2666,10 +2666,10 @@ class RedLightGreenLight(discord.ui.View):
             self.light = random.choice(["🟢", "🔴"])
             self.round += 1
             embed = discord.Embed(
-                title=f"🦑 Squid Game — Round {self.round}",
-                description=f"{self.light} **{self.light_text()}**\nClick **Move** before time runs out!",
-                color=0x00ff00 if self.light == "🟢" else 0xff0000
-            )
+    title=f"🦑 ARCADIA SQUID GAME — Round {self.round}",
+    description=f"{self.light} **{self.light_text()}**\nClick **Move** before time runs out!",
+    color=0x00ff00 if self.light == "🟢" else 0xff0000
+)
             await self.ctx.send(embed=embed, view=self)
 
             duration = self.green_duration if self.light == "🟢" else self.red_duration
