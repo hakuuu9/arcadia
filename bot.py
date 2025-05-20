@@ -2660,126 +2660,131 @@ LOG_CHANNEL_ID = 1364839238960549908
 
 open_tickets = {}
 
-Ticket type dropdown
+# Dropdown to select ticket type
+class TicketTypeDropdown(Select):
+    def __init__(self):
+        options = [
+            discord.SelectOption(label="Claim", description="Open a ticket to claim something."),
+            discord.SelectOption(label="Concern", description="Open a ticket for concerns or problems."),
+            discord.SelectOption(label="Suggestion", description="Open a ticket to suggest improvements."),
+        ]
+        super().__init__(placeholder="Select ticket type...", min_values=1, max_values=1, options=options)
 
-class TicketTypeDropdown(Select): def init(self, user): self.user = user options = [ discord.SelectOption(label="Claim Ticket", description="For rewards or claim-related issues."), discord.SelectOption(label="Concern Ticket", description="For general or urgent concerns."), discord.SelectOption(label="Suggestion Ticket", description="To submit suggestions or feedback.") ] super().init(placeholder="Choose your ticket type...", min_values=1, max_values=1, options=options)
+    async def callback(self, interaction: discord.Interaction):
+        user = interaction.user
+        guild = interaction.guild
 
-async def callback(self, interaction: discord.Interaction):
-    guild = interaction.guild
-    user = self.user
+        if user.id in open_tickets:
+            await interaction.response.send_message("You already have an open ticket.", ephemeral=True)
+            return
 
-    if user.id in open_tickets:
-        await interaction.response.send_message("You already have an open ticket.", ephemeral=True)
+        ticket_type = self.values[0].lower()
+        channel_name = f"{ticket_type}-{user.name}".replace(" ", "-").lower()
+
+        # Permissions
+        overwrites = {
+            guild.default_role: discord.PermissionOverwrite(read_messages=False),
+            user: discord.PermissionOverwrite(read_messages=True, send_messages=True, attach_files=True, embed_links=True, read_message_history=True)
+        }
+
+        staff_role = discord.utils.get(guild.roles, name=STAFF_ROLE_NAME)
+        if staff_role:
+            overwrites[staff_role] = discord.PermissionOverwrite(read_messages=True, send_messages=True, manage_messages=True)
+
+        category = guild.get_channel(SUPPORT_CATEGORY_ID)
+        if not category or not isinstance(category, discord.CategoryChannel):
+            category = await guild.create_category("Tickets")
+
+        ticket_channel = await guild.create_text_channel(
+            name=channel_name,
+            overwrites=overwrites,
+            category=category,
+            reason="Ticket created"
+        )
+
+        open_tickets[user.id] = ticket_channel.id
+        close_view = CloseView(user.id, ticket_channel)
+
+        await ticket_channel.send(
+            f"{user.mention}, your **{ticket_type}** ticket has been created. Please wait for a response.",
+            view=close_view
+        )
+        await interaction.response.send_message(f"Your ticket has been created: {ticket_channel.mention}", ephemeral=True)
+
+# Button to trigger ticket creation (shows dropdown)
+class OpenTicketButton(Button):
+    def __init__(self):
+        super().__init__(label="🎫 Open Ticket", style=discord.ButtonStyle.green, custom_id="open_ticket_button")
+
+    async def callback(self, interaction: discord.Interaction):
+        view = View(timeout=60)
+        view.add_item(TicketTypeDropdown())
+        await interaction.response.send_message("Please select a ticket type:", view=view, ephemeral=True)
+
+# Close button inside the ticket
+class CloseView(View):
+    def __init__(self, user_id, ticket_channel):
+        super().__init__(timeout=None)
+        self.user_id = user_id
+        self.ticket_channel = ticket_channel
+
+    @discord.ui.button(label="🔒 Close Ticket", style=discord.ButtonStyle.red, custom_id="close_ticket")
+    async def close_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
+        is_staff = any(role.name == STAFF_ROLE_NAME for role in interaction.user.roles)
+        if interaction.user.id != self.user_id and not is_staff:
+            await interaction.response.send_message("Only the ticket owner or staff can close this ticket.", ephemeral=True)
+            return
+
+        await interaction.response.send_message("Closing ticket and generating transcript...", ephemeral=True)
+
+        transcript = await self.generate_transcript(self.ticket_channel)
+        log_channel = self.ticket_channel.guild.get_channel(LOG_CHANNEL_ID)
+        if log_channel and transcript:
+            await log_channel.send(
+                f"Transcript for ticket channel `{self.ticket_channel.name}` (closed by {interaction.user.mention}):",
+                file=discord.File(transcript, filename=f"{self.ticket_channel.name}-transcript.txt")
+            )
+
+        await self.ticket_channel.delete()
+        open_tickets.pop(self.user_id, None)
+
+    async def generate_transcript(self, channel):
+        messages = []
+        async for msg in channel.history(limit=None, oldest_first=True):
+            time = msg.created_at.strftime("%Y-%m-%d %H:%M")
+            content = f"[{time}] {msg.author}: {msg.clean_content}"
+            messages.append(content)
+
+        if messages:
+            transcript_text = "\n".join(messages)
+            file = io.BytesIO(transcript_text.encode("utf-8"))
+            return discord.File(file, filename=f"{channel.name}-transcript.txt")
+        return None
+
+# Command to send ticket embed
+@bot.command()
+async def ticket(ctx):
+    if ctx.channel.id != TICKET_COMMAND_CHANNEL_ID:
+        await ctx.send("You can only use this command in the designated ticket channel.", delete_after=5)
         return
 
-    ticket_type = self.values[0].split()[0].lower()  # claim, concern, suggestion
-    channel_name = f"{ticket_type}-ticket-{user.name}".replace(" ", "-").lower()
-
-    overwrites = {
-        guild.default_role: discord.PermissionOverwrite(read_messages=False),
-        user: discord.PermissionOverwrite(
-            read_messages=True,
-            send_messages=True,
-            attach_files=True,
-            embed_links=True,
-            read_message_history=True
-        )
-    }
-
-    staff_role = discord.utils.get(guild.roles, name=STAFF_ROLE_NAME)
-    if staff_role:
-        overwrites[staff_role] = discord.PermissionOverwrite(
-            read_messages=True,
-            send_messages=True,
-            manage_messages=True
-        )
-
-    category = guild.get_channel(SUPPORT_CATEGORY_ID)
-    if category is None or not isinstance(category, discord.CategoryChannel):
-        category = await guild.create_category("Tickets")
-
-    ticket_channel = await guild.create_text_channel(
-        name=channel_name,
-        overwrites=overwrites,
-        category=category,
-        reason="Ticket created"
+    embed = discord.Embed(
+        title="Need Support?",
+        description="Click the button below to open a **private ticket** with our team.\nSelect the appropriate ticket type after.",
+        color=discord.Color.blurple()
     )
+    embed.set_thumbnail(url=ctx.guild.icon.url if ctx.guild.icon else discord.Embed.Empty)
+    embed.set_footer(text="Ticket System by ARCADIA")
 
-    open_tickets[user.id] = ticket_channel.id
+    view = View()
+    view.add_item(OpenTicketButton())
+    await ctx.send(embed=embed, view=view)
 
-    # Send close button and message
-    close_view = CloseView(user.id, ticket_channel)
-    await ticket_channel.send(
-        f"{user.mention}, your **{ticket_type}** ticket has been created. A staff member will assist you shortly.",
-        view=close_view
-    )
-
-    await interaction.response.send_message(f"Ticket created: {ticket_channel.mention}", ephemeral=True)
-
-Dropdown view
-
-class TicketView(View): def init(self, user): super().init(timeout=None) self.add_item(TicketTypeDropdown(user))
-
-Close button view
-
-class CloseView(View): def init(self, user_id, ticket_channel): super().init(timeout=None) self.user_id = user_id self.ticket_channel = ticket_channel
-
-@discord.ui.button(label="🔒 Close Ticket", style=discord.ButtonStyle.red, custom_id="close_ticket")
-async def close_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
-    is_staff = any(role.name == STAFF_ROLE_NAME for role in interaction.user.roles)
-    if interaction.user.id != self.user_id and not is_staff:
-        await interaction.response.send_message("Only the ticket owner or staff can close this ticket.", ephemeral=True)
-        return
-
-    messages = [
-        f"Transcript for {self.ticket_channel.name} (closed by {interaction.user}):\n"
-    ]
-
-    async for msg in self.ticket_channel.history(limit=None, oldest_first=True):
-        content = msg.content if msg.content else "[Embed/Attachment/Other]"
-        messages.append(f"[{msg.created_at}] {msg.author}: {content}")
-
-    transcript_text = "\n".join(messages)
-    transcript_file = File(io.BytesIO(transcript_text.encode()), filename="transcript.txt")
-
-    log_channel = interaction.guild.get_channel(LOG_CHANNEL_ID)
-    if log_channel:
-        await log_channel.send(f"Ticket `{self.ticket_channel.name}` has been closed.", file=transcript_file)
-
-    await self.ticket_channel.delete()
-    open_tickets.pop(self.user_id, None)
-
-Button to open ticket
-
-class OpenTicketButton(discord.ui.Button): def init(self): super().init(label="🎫 Open Ticket", style=discord.ButtonStyle.green, custom_id="open_ticket_button")
-
-async def callback(self, interaction: discord.Interaction):
-    await interaction.response.send_message(
-        "Select the type of ticket you'd like to open:",
-        view=TicketView(interaction.user),
-        ephemeral=True
-    )
-
-Ticket embed command
-
-@bot.command() async def ticket(ctx): if ctx.channel.id != TICKET_COMMAND_CHANNEL_ID: await ctx.send("You can only use this command in the ticket channel.", delete_after=5) return
-
-embed = discord.Embed(
-    title="Need Support?",
-    description="Click the button below to open a **private ticket** with our staff.\nWe're here to help you!",
-    color=discord.Color.blue()
-)
-embed.set_thumbnail(url=ctx.guild.icon.url if ctx.guild.icon else discord.Embed.Empty)
-embed.set_footer(text="Ticket System by ARCADIA")
-
-view = View()
-view.add_item(OpenTicketButton())
-await ctx.send(embed=embed, view=view)
-
-Add persistent view
-
-@bot.event async def on_ready(): print(f"✅ Bot is ready as {bot.user}") bot.add_view(View().add_item(OpenTicketButton()))
-
+# Register persistent views
+@bot.event
+async def on_ready():
+    bot.add_view(View().add_item(OpenTicketButton()))
+    print(f"✅ Bot is ready as {bot.user}")
 
 
 
