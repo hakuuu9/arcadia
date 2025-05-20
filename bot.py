@@ -2632,7 +2632,7 @@ ALLOWED_CHANNEL_ID = 1363403776999948380
 
 class RedLightGreenLight(discord.ui.View):
     def __init__(self, ctx):
-        super().__init__(timeout=30)  # 30s inactivity timeout
+        super().__init__(timeout=30)
         self.ctx = ctx
         self.players = {}
         self.light = "🟢"
@@ -2641,8 +2641,8 @@ class RedLightGreenLight(discord.ui.View):
         self.red_duration = 3
         self.last_interaction = time.time()
 
-    async def start_game(self, interaction):
-        await interaction.response.send_message("🔫 Squid Game: **Red Light, Green Light** is starting...", ephemeral=False)
+    async def start_game(self):
+        await self.ctx.send("🔫 Squid Game: **Red Light, Green Light** is starting...")
         await asyncio.sleep(2)
 
         while True:
@@ -2653,12 +2653,12 @@ class RedLightGreenLight(discord.ui.View):
                 description=f"{self.light} **{self.light_text()}**\nClick the **Move** button to proceed!",
                 color=0x00ff00 if self.light == "🟢" else 0xff0000
             )
-            await interaction.followup.send(embed=embed, view=self)
+            await self.ctx.send(embed=embed, view=self)
 
             duration = self.green_duration if self.light == "🟢" else self.red_duration
             await asyncio.sleep(duration)
 
-            # Timeout check
+            # Check for inactivity timeout
             if time.time() - self.last_interaction > 30:
                 await self.ctx.send("⏱️ The game has ended due to 30 seconds of inactivity.")
                 self.stop()
@@ -2678,7 +2678,7 @@ class RedLightGreenLight(discord.ui.View):
     @discord.ui.button(label="Move", style=discord.ButtonStyle.success)
     async def move_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         user = interaction.user
-        self.last_interaction = time.time()  # Reset timeout on click
+        self.last_interaction = time.time()
 
         if self.light == "🔴":
             await interaction.response.send_message(f"{user.mention} ❌ ELIMINATED! You moved during Red Light.", ephemeral=True)
@@ -2698,9 +2698,9 @@ async def squidgame(ctx):
         return
 
     view = RedLightGreenLight(ctx)
-    await view.start_game(ctx)
+    await view.start_game()
 
-# Register the command
+# Add the command to your bot
 bot.add_command(squidgame)
 
 
