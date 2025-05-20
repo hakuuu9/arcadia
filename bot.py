@@ -2630,11 +2630,27 @@ async def rollstop(ctx):
 # Replace with your allowed channel ID
 ALLOWED_CHANNEL_ID = 1363403776999948380
 
-class RedLightGreenLight(discord.ui.View):
+class JoinView(discord.ui.View):
     def __init__(self, ctx):
         super().__init__(timeout=30)
         self.ctx = ctx
-        self.players = {}
+        self.players = set()
+
+    @discord.ui.button(label="Join Game", style=discord.ButtonStyle.primary)
+    async def join(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id not in self.players:
+            self.players.add(interaction.user.id)
+            await interaction.response.send_message(f"{interaction.user.mention} joined the Squid Game!", ephemeral=True)
+        else:
+            await interaction.response.send_message("You already joined!", ephemeral=True)
+
+class RedLightGreenLight(discord.ui.View):
+    def __init__(self, ctx, players):
+        super().__init__(timeout=30)
+        self.ctx = ctx
+        self.players = {uid: 0 for uid in players}  # uid: move count
+        self.alive = set(players)
+        self.moved_this_round = set()
         self.light = "🟢"
         self.round = 0
         self.green_duration = 4
@@ -2642,15 +2658,16 @@ class RedLightGreenLight(discord.ui.View):
         self.last_interaction = time.time()
 
     async def start_game(self):
-        await self.ctx.send("🔫 Squid Game: **Red Light, Green Light** is starting...")
+        await self.ctx.send("🟢 Game is starting! Get ready...")
         await asyncio.sleep(2)
 
         while True:
+            self.moved_this_round.clear()
             self.light = random.choice(["🟢", "🔴"])
             self.round += 1
             embed = discord.Embed(
                 title=f"🦑 Squid Game — Round {self.round}",
-                description=f"{self.light} **{self.light_text()}**\nClick the **Move** button to proceed!",
+                description=f"{self.light} **{self.light_text()}**\nClick **Move** before time runs out!",
                 color=0x00ff00 if self.light == "🟢" else 0xff0000
             )
             await self.ctx.send(embed=embed, view=self)
@@ -2660,17 +2677,33 @@ class RedLightGreenLight(discord.ui.View):
 
             # Check for inactivity timeout
             if time.time() - self.last_interaction > 30:
-                await self.ctx.send("⏱️ The game has ended due to 30 seconds of inactivity.")
+                await self.ctx.send("⏱️ The game ended due to 30 seconds of inactivity.")
                 self.stop()
                 return
 
+            # Eliminate players who didn’t move during green light
+            if self.light == "🟢":
+                inactive_players = self.alive - self.moved_this_round
+                for uid in inactive_players:
+                    self.players[uid] = -1  # Mark as eliminated
+                self.alive -= inactive_players
+                if inactive_players:
+                    names = [f"<@{uid}>" for uid in inactive_players]
+                    await self.ctx.send(f"❌ Eliminated for not moving during 🟢 Green Light: {', '.join(names)}")
+
             # Check for winner
-            for user_id, moves in self.players.items():
+            for uid, moves in self.players.items():
                 if moves >= 5:
-                    winner = await self.ctx.bot.fetch_user(user_id)
+                    winner = await self.ctx.bot.fetch_user(uid)
                     await self.ctx.send(f"🏁 {winner.mention} has WON the Squid Game!")
                     self.stop()
                     return
+
+            # Check if everyone is eliminated
+            if not self.alive:
+                await self.ctx.send("💀 Everyone has been eliminated. Game over.")
+                self.stop()
+                return
 
     def light_text(self):
         return "Green Light — GO!" if self.light == "🟢" else "Red Light — STOP!"
@@ -2680,29 +2713,40 @@ class RedLightGreenLight(discord.ui.View):
         user = interaction.user
         self.last_interaction = time.time()
 
+        if user.id not in self.players or self.players[user.id] == -1:
+            await interaction.response.send_message("You're not in the game or already eliminated!", ephemeral=True)
+            return
+
         if self.light == "🔴":
             await interaction.response.send_message(f"{user.mention} ❌ ELIMINATED! You moved during Red Light.", ephemeral=True)
             self.players[user.id] = -1
+            self.alive.discard(user.id)
         else:
-            if self.players.get(user.id, 0) == -1:
-                await interaction.response.send_message("You're already eliminated!", ephemeral=True)
+            if user.id in self.moved_this_round:
+                await interaction.response.send_message("You already moved this round!", ephemeral=True)
             else:
-                self.players[user.id] = self.players.get(user.id, 0) + 1
-                await interaction.response.send_message(f"✅ Safe move! Total moves: {self.players[user.id]}", ephemeral=True)
+                self.players[user.id] += 1
+                self.moved_this_round.add(user.id)
+                await interaction.response.send_message(f"✅ Safe move! Total: {self.players[user.id]} moves", ephemeral=True)
 
 @commands.command()
 async def squidgame(ctx):
-    """Start a Squid Game: Red Light, Green Light!"""
     if ctx.channel.id != ALLOWED_CHANNEL_ID:
-        await ctx.send(f"🚫 You can only play Squid Game in <#{ALLOWED_CHANNEL_ID}>.")
+        await ctx.send(f"🚫 You can only use this command in <#{ALLOWED_CHANNEL_ID}>.")
         return
 
-    view = RedLightGreenLight(ctx)
+    join_view = JoinView(ctx)
+    await ctx.send("🦑 **Squid Game: Red Light, Green Light**\nClick below to join. Game starts in 30 seconds!", view=join_view)
+    await asyncio.sleep(30)
+
+    if not join_view.players:
+        await ctx.send("❌ No players joined. Game canceled.")
+        return
+
+    view = RedLightGreenLight(ctx, join_view.players)
     await view.start_game()
 
-# Add the command to your bot
 bot.add_command(squidgame)
-
 
 keep_alive()
 bot.run(TOKEN)
