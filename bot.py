@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands, tasks
-from discord.ui import Button, View, select
+from discord.ui import Button, View, Select
 import random
 import math
 import asyncio
