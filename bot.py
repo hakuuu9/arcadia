@@ -118,6 +118,63 @@ async def on_presence_update(before, after):
         print(f"[Error - Vanity Role Handler]: {e}")
 
 # ----------------------------------------------------------------------
+@bot.event
+async def on_member_update(before, after):
+    try:
+        # Only proceed if About Me (bio) changed
+        if before.bio == after.bio:
+            return
+
+        member = after
+        bio = after.bio or ""
+        has_role = any(role.id == ROLE_ID for role in member.roles)
+
+        # Grant role if vanity link is in About Me and user doesn't have the role
+        if VANITY_LINK in bio and not has_role:
+            await member.add_roles(discord.Object(id=ROLE_ID))
+
+            embed = discord.Embed(
+                title="Vanity Role Granted",
+                description=(
+                    f"The role **<@&{ROLE_ID}>** has been assigned to **{member.mention}** "
+                    f"for including the official vanity link in their About Me.\n\n"
+                    "**Privileges:**\n"
+                    "• Nickname perms\n"
+                    "• Image and embed link perms\n"
+                    "• 1.0 XP boost\n"
+                ),
+                color=discord.Color.green()
+            )
+            embed.set_image(url=VANITY_IMAGE_URL)
+            embed.set_footer(text=f"About Me verified for {member.name}.")
+
+            vanity_log_channel = bot.get_channel(VANITY_LOG_CHANNEL_ID)
+            if vanity_log_channel:
+                await vanity_log_channel.send(embed=embed)
+
+        # Remove role if vanity link removed from About Me and user has the role
+        elif VANITY_LINK not in bio and has_role:
+            await member.remove_roles(discord.Object(id=ROLE_ID))
+
+            embed = discord.Embed(
+                title="Vanity Role Removed",
+                description=(
+                    f"The role **<@&{ROLE_ID}>** has been removed from **{member.mention}** "
+                    f"as the vanity link is no longer present in their About Me."
+                ),
+                color=discord.Color.red()
+            )
+            embed.set_footer(text=f"About Me updated for {member.name}.")
+
+            vanity_log_channel = bot.get_channel(VANITY_LOG_CHANNEL_ID)
+            if vanity_log_channel:
+                await vanity_log_channel.send(embed=embed)
+
+    except Exception as e:
+        print(f"[Error - Vanity Role Handler (bio)]: {e}")
+
+# --------------------------------------------------------------------
+
 
 @bot.command()
 async def choose(ctx, *, options: str = None):
