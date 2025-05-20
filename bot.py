@@ -2781,11 +2781,15 @@ async def ticket(ctx):
     await ctx.send(embed=embed, view=view)
 
 # Register persistent views
+class OpenTicketView(View):
+    def __init__(self):
+        super().__init__(timeout=None)
+        self.add_item(OpenTicketButton())
+
 @bot.event
 async def on_ready():
-    bot.add_view(View().add_item(OpenTicketButton()))
+    bot.add_view(OpenTicketView())  # ✅ Persistent view with custom_id and no timeout
     print(f"✅ Bot is ready as {bot.user}")
-
 
 
 keep_alive()
