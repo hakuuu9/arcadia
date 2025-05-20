@@ -2630,9 +2630,23 @@ async def rollstop(ctx):
 # Replace with your allowed channel ID
 ALLOWED_CHANNEL_ID = 1363403776999948380
 
+class JoinView(discord.ui.View):
+    def __init__(self, ctx):
+        super().__init__(timeout=30)
+        self.ctx = ctx
+        self.players = set()
+
+    @discord.ui.button(label="Join Game", style=discord.ButtonStyle.primary)
+    async def join(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id not in self.players:
+            self.players.add(interaction.user.id)
+            await interaction.response.send_message(f"{interaction.user.mention} joined the Squid Game!", ephemeral=True)
+        else:
+            await interaction.response.send_message("You already joined!", ephemeral=True)
+
 class RedLightGreenLight(discord.ui.View):
     def __init__(self, ctx, players):
-        super().__init__(timeout=30)
+        super().__init__(timeout=None)
         self.ctx = ctx
         self.players = {uid: 0 for uid in players}  # uid: move count
         self.alive = set(players)
@@ -2651,6 +2665,7 @@ class RedLightGreenLight(discord.ui.View):
             self.moved_this_round.clear()
             self.light = random.choice(["🟢", "🔴"])
             self.round += 1
+
             embed = discord.Embed(
                 title=f"🦑 ARCADIA SQUID GAME — Round {self.round}",
                 description=f"{self.light} **{self.light_text()}**\nClick **Move** before time runs out!",
@@ -2661,7 +2676,7 @@ class RedLightGreenLight(discord.ui.View):
             duration = self.green_duration if self.light == "🟢" else self.red_duration
             await asyncio.sleep(duration)
 
-            # Check for inactivity timeout
+            # Inactivity timeout
             if time.time() - self.last_interaction > 30:
                 await self.ctx.send("⏱️ The game ended due to 30 seconds of inactivity.")
                 self.stop()
@@ -2671,17 +2686,19 @@ class RedLightGreenLight(discord.ui.View):
             if self.light == "🟢":
                 inactive_players = self.alive - self.moved_this_round
                 for uid in inactive_players:
-                    self.players[uid] = -1  # Mark as eliminated
+                    self.players[uid] = -1
                 self.alive -= inactive_players
                 if inactive_players:
                     names = [f"<@{uid}>" for uid in inactive_players]
                     await self.ctx.send(f"❌ Eliminated for not moving during 🟢 Green Light: {', '.join(names)}")
 
-            # Check for individual winner (5+ moves)
+            # Eliminate players who moved during red light already handled in move_button
+
+            # Check for someone who reached 5 safe moves
             for uid, moves in self.players.items():
                 if moves >= 5:
                     winner = await self.ctx.bot.fetch_user(uid)
-                    await self.ctx.send(f"🏁 {winner.mention} has WON the ARCADIA SQUID GAME!")
+                    await self.ctx.send(f"🏁 {winner.mention} has WON the Squid Game!")
                     self.stop()
                     return
 
@@ -2689,11 +2706,11 @@ class RedLightGreenLight(discord.ui.View):
             if len(self.alive) == 1:
                 sole_survivor_id = list(self.alive)[0]
                 winner = await self.ctx.bot.fetch_user(sole_survivor_id)
-                await self.ctx.send(f"🏁 {winner.mention} is the last one standing and has WON the ARCADIA SQUID GAME!")
+                await self.ctx.send(f"🏁 {winner.mention} is the last one standing and has WON the Squid Game!")
                 self.stop()
                 return
 
-            # Check if all players are eliminated
+            # If all are eliminated
             if not self.alive:
                 await self.ctx.send("💀 Everyone has been eliminated. Game over.")
                 self.stop()
@@ -2722,6 +2739,26 @@ class RedLightGreenLight(discord.ui.View):
                 self.players[user.id] += 1
                 self.moved_this_round.add(user.id)
                 await interaction.response.send_message(f"✅ Safe move! Total: {self.players[user.id]} moves", ephemeral=True)
+
+@commands.command()
+async def squidgame(ctx):
+    if ctx.channel.id != ALLOWED_CHANNEL_ID:
+        await ctx.send(f"🚫 You can only use this command in <#{ALLOWED_CHANNEL_ID}>.")
+        return
+
+    join_view = JoinView(ctx)
+    await ctx.send("🦑 **ARCADIA SQUID GAME: Red Light, Green Light**\nClick below to join. Game starts in 30 seconds!", view=join_view)
+    await asyncio.sleep(30)
+
+    if not join_view.players:
+        await ctx.send("❌ No players joined. Game canceled.")
+        return
+
+    view = RedLightGreenLight(ctx, join_view.players)
+    await view.start_game()
+
+# Add the command to the bot
+bot.add_command(squidgame)
 
 keep_alive()
 bot.run(TOKEN)
