@@ -118,55 +118,75 @@ async def on_presence_update(before, after):
         print(f"[Error - Vanity Role Handler]: {e}")
 
 # ----------------------------------------------------------------------
-@bot.event
-async def on_member_update(before: discord.Member, after: discord.Member):
-    try:
-        before_bio = before.bio or ""
-        after_bio = after.bio or ""
-        has_role = any(role.id == ROLE_ID for role in after.roles)
-        log_channel = bot.get_channel(VANITY_LOG_CHANNEL_ID)
-        
-        if before_bio != after_bio:
-            # Check if vanity link is in bio
-            if VANITY_LINK in after_bio:
-                if not has_role:
-                    await after.add_roles(discord.Object(id=ROLE_ID))
-                    
-                    embed = discord.Embed(
-                        title="Vanity Role Granted",
-                        description=(
-                            f"The role <@&{ROLE_ID}> has been assigned to {after.mention} "
-                            f"for including the official vanity link in their About Me.\n\n"
-                            "**Privileges:**\n"
-                            "• Nickname perms\n"
-                            "• Image and embed link perms\n"
-                            "• 1.0 XP boost\n"
-                        ),
-                        color=discord.Color.green()
-                    )
-                    embed.set_image(url=VANITY_IMAGE_URL)
-                    embed.set_footer(text=f"Bio verified for {after.name}.")
-                    if log_channel:
-                        await log_channel.send(embed=embed)
+@bot.command(name="checkvanity")
+async def check_vanity(ctx):
+    member = ctx.author
+    bio = member.bio or ""
+    role = ctx.guild.get_role(ROLE_ID)
+    log_channel = bot.get_channel(VANITY_LOG_CHANNEL_ID)
 
-            else:
-                # Vanity link not in bio, remove role if present
-                if has_role:
-                    await after.remove_roles(discord.Object(id=ROLE_ID))
-                    
-                    embed = discord.Embed(
-                        title="Vanity Role Removed",
-                        description=(
-                            f"The role <@&{ROLE_ID}> has been removed from {after.mention} "
-                            f"as the vanity link is no longer present in their About Me."
-                        ),
-                        color=discord.Color.red()
-                    )
-                    embed.set_footer(text=f"Bio updated for {after.name}.")
-                    if log_channel:
-                        await log_channel.send(embed=embed)
-    except Exception as e:
-        print(f"[Error in on_member_update]: {e}")
+    if VANITY_LINK in bio:
+        if role not in member.roles:
+            await member.add_roles(role)
+            await ctx.send(f"✅ You have the vanity link in your About Me! Role <@&{ROLE_ID}> granted.")
+            if log_channel:
+                embed = discord.Embed(
+                    title="Vanity Role Granted",
+                    description=(
+                        f"The role <@&{ROLE_ID}> has been assigned to {member.mention} "
+                        f"for including the official vanity link in their About Me.\n\n"
+                        "**Privileges:**\n"
+                        "• Nickname perms\n"
+                        "• Image and embed link perms\n"
+                        "• 1.0 XP boost\n"
+                    ),
+                    color=discord.Color.green()
+                )
+                embed.set_image(url=VANITY_IMAGE_URL)
+                embed.set_footer(text=f"Bio verified for {member.name}.")
+                await log_channel.send(embed=embed)
+        else:
+            await ctx.send("✅ You already have the vanity role.")
+    else:
+        if role in member.roles:
+            await member.remove_roles(role)
+            await ctx.send(f"❌ Vanity link not found in your About Me. Role <@&{ROLE_ID}> removed.")
+            if log_channel:
+                embed = discord.Embed(
+                    title="Vanity Role Removed",
+                    description=(
+                        f"The role <@&{ROLE_ID}> has been removed from {member.mention} "
+                        f"because the vanity link is not present in their About Me."
+                    ),
+                    color=discord.Color.red()
+                )
+                embed.set_footer(text=f"Bio updated for {member.name}.")
+                await log_channel.send(embed=embed)
+        else:
+            await ctx.send("❌ You do not have the vanity link in your About Me and no role to remove.")
+
+@bot.event
+async def on_member_update(before, after):
+    # This catches if the user removes the vanity link later
+    before_bio = before.bio or ""
+    after_bio = after.bio or ""
+    role = after.guild.get_role(ROLE_ID)
+    log_channel = bot.get_channel(VANITY_LOG_CHANNEL_ID)
+
+    if before_bio != after_bio:
+        if VANITY_LINK not in after_bio and role in after.roles:
+            await after.remove_roles(role)
+            if log_channel:
+                embed = discord.Embed(
+                    title="Vanity Role Removed",
+                    description=(
+                        f"The role <@&{ROLE_ID}> has been removed from {after.mention} "
+                        f"because the vanity link was removed from their About Me."
+                    ),
+                    color=discord.Color.red()
+                )
+                embed.set_footer(text=f"Bio updated for {after.name}.")
+                await log_channel.send(embed=embed)
 
 @bot.event
 async def on_ready():
