@@ -1849,14 +1849,12 @@ async def leave(ctx):
 
 # --------------------------------------------------------------------------
 
-chat_id_role = 1347181345922748456  # Replace with your actual role ID
-
 @bot.command()
 @commands.has_permissions(manage_messages=True)
 async def chat(ctx, channel: discord.TextChannel, *, message: str):
-    # Check if the user has the specific role
-    if discord.utils.get(ctx.author.roles, id=chat_id_role) is None:
-        return await ctx.send("You need a specific role to use this command.")
+    # Check if the user has the "Moderator" role
+    if not any(role.name == "Moderator" for role in ctx.author.roles):
+        return await ctx.send("You need the **Moderator** role to use this command.")
 
     try:
         await channel.send(message)
